@@ -4,13 +4,14 @@ title: Adversarial polish of the assembled plan
 phase: PLAN
 order: 4
 dependsOn: [PLAN-02, PLAN-03]
-station: build
-status: running
+station: ship
+status: done
 owner: orchestrator
-updated: 2026-11-02T22:30:23Z
+updated: 2026-11-02T23:23:05Z
 history:
   - 2026-11-02T22:25:54Z spec running orchestrator "Spec: adversarial polish of the assembled plan (4 refuter lenses + synthesis fixes)"
   - 2026-11-02T22:30:23Z build running orchestrator "Polish workflow launching: 4 refuter lenses over the plan and docs, then a reviser"
+  - 2026-11-02T23:23:05Z ship done orchestrator "Shipped in 89bed6d: plan revised (86 fixes), 12 doc follow-ups applied, ADR 0002 written"
 ---
 
 # PLAN-04 Adversarial polish of the assembled plan
@@ -37,4 +38,6 @@ VERDICT: PASS. The polish pass is itself the review of PLAN-01 to PLAN-03; the u
 
 
 ## Ship
+
+Commit 89bed6d (PLAN-04: Adversarial polish follow-ups); the revised plan lives in the plan file presented for approval.
 
