@@ -1,0 +1,10 @@
+{
+  "title": "Bridle Build Monitor",
+  "slug": "0c683356-bb60-44ae-8ef4-52ce6912715d",
+  "url": "https://claude.ai/artifact/2XrtuDHaVJqc9ug8YewJW8",
+  "publishedVersion": "1793650227-e8ac",
+  "contract": "0.2.96",
+  "capabilities": { "db": {}, "user": {} },
+  "collections": { "tasks": "tasks/<taskId>", "events": "events/<tsMs>-<agentId>-<seq>" },
+  "note": "base_version for a republish must be re-read with get_artifact; this file records the version at seed time only."
+}

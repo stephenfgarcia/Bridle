@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridle Build Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  /* Layout: header strip / three scrolling panels (tasks, agents, logs) / timeline strip. */
+  --bg: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --line: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --accent: #2a78d6;
+  --accent-soft: #cde2fb;
+  --accent-ink: #1c5cab;
+  --good: #0ca30c;
+  --warn: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232322;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --line: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --accent: #3987e5;
+    --accent-soft: #0d366b;
+    --accent-ink: #86b6ef;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #232322;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --line: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --accent: #3987e5;
+  --accent-soft: #0d366b;
+  --accent-ink: #86b6ef;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 var(--font-ui);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; }
+p { margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+button { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 10px; cursor: pointer; }
+button:hover { background: var(--line); }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible, .row:focus-visible, .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+select, input[type="search"] { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 8px; min-width: 0; }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+.muted { color: var(--muted); }
+.tnum { font-variant-numeric: tabular-nums; }
+a { color: var(--accent-ink); }
+
+/* Header strip */
+.top {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(240px, 1.4fr) auto auto;
+  grid-template-areas: "brand overall tiles conn" "views views views views";
+  gap: 10px 20px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+.brand { grid-area: brand; }
+.brand .sub { color: var(--ink-2); font-size: 12px; }
+.overall { grid-area: overall; display: grid; gap: 6px; }
+.overall-text { display: flex; gap: 10px; align-items: baseline; font-size: 12px; color: var(--ink-2); }
+.overall-text strong { font-size: 22px; font-weight: 600; color: var(--ink); }
+.tiles { grid-area: tiles; display: flex; gap: 8px; flex-wrap: wrap; }
+.tile { display: grid; gap: 0; min-width: 72px; padding: 4px 10px; border-radius: var(--radius); background: var(--surface-2); border-left: 3px solid var(--c, var(--axis)); }
+.tile .v { font-size: 20px; font-weight: 600; line-height: 1.1; }
+.tile .l { font-size: 11px; color: var(--ink-2); }
+.conn { grid-area: conn; display: flex; gap: 8px; align-items: center; justify-self: end; flex-wrap: wrap; }
+.views { grid-area: views; display: flex; gap: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+.views a { text-decoration: none; color: var(--ink-2); padding: 3px 10px; border-radius: 999px; }
+.views a[aria-current="page"] { background: var(--accent-soft); color: var(--ink); }
+.views a:hover { color: var(--ink); }
+
+/* Meter */
+.meter { height: 6px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; }
+.meter .fill { display: block; height: 100%; width: 0; background: var(--c, var(--accent)); border-radius: 999px; transition: width 300ms ease; }
+.meter.thin { height: 4px; }
+
+/* Status pills */
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px 1px 6px; border-radius: 999px; font-size: 11.5px; font-weight: 500; white-space: nowrap; background: color-mix(in oklab, var(--c, var(--muted)) 14%, var(--surface)); color: var(--ink); }
+.pill .ico { color: var(--c, var(--muted)); }
+.ico { width: 12px; height: 12px; flex: none; }
+.ico path, .ico circle { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.ico.solid circle { fill: currentColor; stroke: none; }
+.s-running { --c: var(--accent); }
+.s-done { --c: var(--good); }
+.s-failed { --c: var(--critical); }
+.s-blocked { --c: var(--serious); }
+.s-stale { --c: var(--warn); }
+.s-review { --c: var(--accent-ink); }
+.s-queued, .s-planned { --c: var(--muted); }
+.s-live { --c: var(--good); }
+.s-cached, .s-waiting { --c: var(--warn); }
+.s-offline { --c: var(--critical); }
+.s-connecting { --c: var(--muted); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.s-running .ico.solid, .s-connecting .ico.solid { animation: pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .s-running .ico.solid, .s-connecting .ico.solid { animation: none; }
+  .meter .fill { transition: none; }
+}
+
+/* Panels */
+.grid { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) minmax(320px, 460px); gap: 12px; min-height: 0; }
+.panel { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.panel > header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.panel > header .spacer { flex: 1; }
+.panel .scroll { overflow: auto; min-height: 0; padding: 8px 10px 12px; }
+body[data-view="tasks"] .grid, body[data-view="agents"] .grid, body[data-view="logs"] .grid { grid-template-columns: minmax(0, 1fr); }
+body[data-view="tasks"] .panel:not(.tasks), body[data-view="agents"] .panel:not(.agents), body[data-view="logs"] .panel:not(.logs) { display: none; }
+.empty { color: var(--ink-2); padding: 18px 8px; max-width: 48ch; }
+.empty code { font-family: var(--font-mono); font-size: 12px; }
+
+/* Tasks */
+.phase { margin: 4px 0 10px; }
+.phase-head { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 6px 6px 4px; }
+.phase-head .pid { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.phase-head .ptitle { font-weight: 600; }
+.phase-head .pcount { font-size: 12px; color: var(--ink-2); }
+.phase-head .meter { grid-column: 1 / -1; }
+.row { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; width: 100%; text-align: left; background: none; border: 0; border-left: 3px solid transparent; border-radius: 0 var(--radius) var(--radius) 0; padding: 6px 8px 6px 6px; cursor: pointer; color: inherit; }
+.row:hover { background: var(--surface-2); }
+.row[aria-pressed="true"] { background: var(--accent-soft); }
+.row.s-failed { border-left-color: var(--critical); }
+.row.s-stale { border-left-color: var(--warn); }
+.row.s-blocked { border-left-color: var(--serious); }
+.row .tid { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); align-self: center; }
+.row .ttitle { font-weight: 500; align-self: center; }
+.row .tmeta { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.row .tmeta .meter { flex: 1; }
+.legend { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 6px 2px; border-top: 1px solid var(--line); margin-top: 8px; }
+
+/* Agents */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.card { display: grid; gap: 6px; text-align: left; background: var(--surface-2); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); padding: 10px 12px; cursor: pointer; color: inherit; }
+.card:hover { border-color: var(--axis); }
+.card[aria-pressed="true"] { outline: 2px solid var(--accent); }
+.card.s-stale { border-left-color: var(--warn); }
+.card.s-failed { border-left-color: var(--critical); }
+.card.s-done { border-left-color: var(--good); }
+.card.s-running { border-left-color: var(--accent); }
+.card .ctop { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.card .clabel { font-weight: 600; overflow-wrap: anywhere; }
+.card .cid { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.card .cmsg { font-size: 12.5px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.card .cfoot { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--muted); }
+.card .cprog { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.card .cprog .meter { flex: 1; }
+
+/* Logs */
+.logs .controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; width: 100%; }
+.logs .controls input[type="search"] { flex: 1; min-width: 120px; }
+.logs .controls label { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.log { list-style: none; margin: 0; padding: 0; font-family: var(--font-mono); font-size: 12px; }
+.log li { display: grid; grid-template-columns: 64px minmax(80px, 160px) 1fr; gap: 10px; padding: 3px 6px; border-left: 3px solid transparent; border-radius: 0 4px 4px 0; }
+.log li:nth-child(even) { background: color-mix(in oklab, var(--surface-2) 60%, var(--surface)); }
+.log li.lvl-warn { border-left-color: var(--warn); }
+.log li.lvl-error { border-left-color: var(--critical); background: color-mix(in oklab, var(--critical) 8%, var(--surface)); }
+.log li.t-done { border-left-color: var(--good); }
+.log li.t-start { border-left-color: var(--accent); }
+.log .lt { color: var(--muted); }
+.log .la { color: var(--ink-2); overflow-wrap: anywhere; }
+.log .lm { overflow-wrap: anywhere; white-space: pre-wrap; }
+.log .tag { display: inline-block; font-size: 10.5px; padding: 0 5px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); margin-right: 6px; vertical-align: 1px; }
+.logs .scroll.dragging { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.logs .foot { font-size: 11.5px; color: var(--muted); padding: 6px 14px; border-top: 1px solid var(--line); display: flex; gap: 10px; justify-content: space-between; }
+.panel.logs { grid-template-rows: auto minmax(0, 1fr) auto; }
+.flash { font-size: 12px; color: var(--ink-2); }
+
+/* Timeline */
+.timeline { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.timeline > header { display: flex; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+.timeline > header .range { font-size: 12px; color: var(--ink-2); }
+#tl-body { overflow: auto; max-height: 240px; padding: 6px 10px 10px; }
+#tl-body svg { display: block; font-family: var(--font-mono); font-size: 11px; }
+#tl-body .lbl { fill: var(--ink-2); }
+#tl-body .tick { fill: var(--muted); }
+#tl-body .gridline { stroke: var(--line); stroke-width: 1; }
+#tl-body .axis { stroke: var(--axis); stroke-width: 1; }
+#tl-body .bar { rx: 3; }
+#tl-body .bar.s-running { fill: var(--accent); }
+#tl-body .bar.s-done { fill: var(--good); }
+#tl-body .bar.s-failed { fill: var(--critical); }
+#tl-body .bar.s-stale { fill: var(--warn); }
+#tl-body .now { stroke: var(--ink-2); stroke-dasharray: 2 3; }
+.tooltip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--bg); padding: 6px 9px; border-radius: 6px; font-size: 12px; max-width: 320px; }
+.tooltip[hidden] { display: none; }
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .top { grid-template-columns: 1fr auto; grid-template-areas: "brand conn" "overall overall" "tiles tiles" "views views"; }
+  body[data-view="overview"] .grid { grid-template-columns: 1fr 1fr; }
+  body[data-view="overview"] .panel.logs { grid-column: 1 / -1; }
+}
+@media (max-width: 760px) {
+  body { height: auto; grid-template-rows: auto auto auto; }
+  body[data-view="overview"] .grid { grid-template-columns: 1fr; }
+  .panel .scroll { max-height: 60vh; }
+  .top { grid-template-columns: 1fr; grid-template-areas: "brand" "overall" "tiles" "conn" "views"; }
+  .conn { justify-self: start; }
+  .log li { grid-template-columns: 56px 1fr; }
+  .log li .lm { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body data-view="overview">
+<header class="top">
+  <div class="brand">
+    <h1>Bridle Build Monitor</h1>
+    <p class="sub">Structural-engineering simulation LMS build: every agent, task, and log line, live.</p>
+  </div>
+  <div class="overall">
+    <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Tasks complete" id="overall-meter"><span class="fill" id="overall-fill"></span></div>
+    <div class="overall-text"><strong id="overall-pct">0%</strong><span id="overall-count">0 of 0 tasks done</span><span id="overall-phase" class="muted"></span></div>
+  </div>
+  <div class="tiles" id="tiles" aria-label="Agent counters"></div>
+  <div class="conn">
+    <select id="run-select" aria-label="Run"><option value="all">All runs</option></select>
+    <span class="pill s-connecting" id="conn-pill"></span>
+    <span class="age muted tnum" id="last-age"></span>
+  </div>
+  <nav class="views" aria-label="Views">
+    <a href="#overview">Overview</a>
+    <a href="#tasks">Tasks</a>
+    <a href="#agents">Agents</a>
+    <a href="#logs">Logs</a>
+  </nav>
+</header>
+
+<main class="grid">
+  <section class="panel tasks" aria-labelledby="h-tasks">
+    <header><h2 id="h-tasks">Tasks</h2><span class="muted" id="tasks-sub"></span><span class="spacer"></span><button type="button" id="clear-sel" hidden>Show all</button></header>
+    <div class="scroll" id="tasks-body"></div>
+  </section>
+  <section class="panel agents" aria-labelledby="h-agents">
+    <header><h2 id="h-agents">Agents</h2><span class="muted" id="agents-sub"></span></header>
+    <div class="scroll" id="agents-body"></div>
+  </section>
+  <section class="panel logs" aria-labelledby="h-logs">
+    <header>
+      <h2 id="h-logs">Logs</h2><span class="muted" id="logs-sub"></span>
+      <div class="controls">
+        <select id="level-select" aria-label="Minimum level"><option value="debug">All levels</option><option value="info">Info and up</option><option value="warn">Warnings and up</option><option value="error">Errors only</option></select>
+        <input type="search" id="search" placeholder="Search message, agent, task" aria-label="Search logs">
+        <label><input type="checkbox" id="autoscroll" checked> Follow</label>
+        <button type="button" id="copy-btn">Copy visible</button>
+        <button type="button" id="load-btn">Load JSONL</button>
+        <input type="file" id="file-input" accept=".jsonl,.json,.txt,.log" multiple hidden>
+        <span class="flash" id="flash" aria-live="polite"></span>
+      </div>
+    </header>
+    <div class="scroll" id="logs-body"><ol class="log" id="log-list"></ol></div>
+    <div class="foot"><span id="logs-count"></span><span>Drop a .jsonl file from .bridle/progress here to view offline history.</span></div>
+  </section>
+</main>
+
+<footer class="timeline" aria-labelledby="h-tl">
+  <header><h2 id="h-tl">Timeline</h2><span class="range" id="tl-range"></span></header>
+  <div id="tl-body"></div>
+</footer>
+<div class="tooltip" id="tooltip" hidden></div>
+
+<script>
+(function () {
+'use strict';
+
+/* ---------- Plan data (fallback when the store has no tasks yet) ---------- */
+var PHASES = [
+  { id: 'PLAN', title: 'Planning' },
+  { id: 'P0', title: 'Monitor and bootstrap' },
+  { id: 'P1', title: 'Foundation' },
+  { id: 'P2', title: 'Solver core' },
+  { id: 'P3', title: '3D workspace' },
+  { id: 'P4', title: 'LMS core' },
+  { id: 'P5', title: 'AI grading' },
+  { id: 'P6', title: 'Authoring' },
+  { id: 'P7', title: 'Hardening and launch' }
+];
+var SEED_TASKS = [
+  { id: 'PLAN-01', title: 'Requirements discovery: 8 domains, completeness critic, gap fill', phase: 'PLAN', order: 1 },
+  { id: 'PLAN-02', title: 'Architecture judge panel: 3 proposals, judges, synthesis', phase: 'PLAN', order: 2 },
+  { id: 'PLAN-03', title: 'UI/UX fan-out: information architecture, workspace, grading, authoring, design system', phase: 'PLAN', order: 3 },
+  { id: 'PLAN-04', title: 'Adversarial polish of the assembled plan', phase: 'PLAN', order: 4 },
+  { id: 'PLAN-05', title: 'Final plan assembled and presented for approval', phase: 'PLAN', order: 5 },
+  { id: 'P0-01', title: 'Build and publish this monitor; seed tasks; first commit', phase: 'P0', order: 1 },
+  { id: 'P0-02', title: 'Repository bootstrap: monorepo, CI, environments', phase: 'P0', order: 2 },
+  { id: 'P1-00', title: 'Foundation work items (detailed in the approved plan, Part E)', phase: 'P1', order: 0, placeholder: true },
+  { id: 'P2-00', title: 'Solver core work items (detailed in Part E)', phase: 'P2', order: 0, placeholder: true },
+  { id: 'P3-00', title: '3D workspace work items (detailed in Part E)', phase: 'P3', order: 0, placeholder: true },
+  { id: 'P4-00', title: 'LMS core work items (detailed in Part E)', phase: 'P4', order: 0, placeholder: true },
+  { id: 'P5-00', title: 'AI grading work items (detailed in Part E)', phase: 'P5', order: 0, placeholder: true },
+  { id: 'P6-00', title: 'Authoring work items (detailed in Part E)', phase: 'P6', order: 0, placeholder: true },
+  { id: 'P7-00', title: 'Hardening and launch work items (detailed in Part E)', phase: 'P7', order: 0, placeholder: true }
+];
+
+var STALE_MS = 10 * 60 * 1000;
+var EVENT_WINDOW = 1000;
+var LOG_TAIL = 600;
+var LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
+var STATUS_ORDER = { running: 0, stale: 1, blocked: 2, failed: 3, review: 4, queued: 5, planned: 6, done: 7 };
+var STATUS_META = {
+  running: { label: 'Running', icon: 'dot' },
+  stale: { label: 'Stale', icon: 'clock' },
+  done: { label: 'Done', icon: 'check' },
+  failed: { label: 'Failed', icon: 'cross' },
+  blocked: { label: 'Blocked', icon: 'pause' },
+  review: { label: 'In review', icon: 'eye' },
+  queued: { label: 'Queued', icon: 'dash' },
+  planned: { label: 'Planned', icon: 'dash' }
+};
+var CONN_META = {
+  connecting: { label: 'Connecting', icon: 'dot' },
+  live: { label: 'Live', icon: 'dot' },
+  cached: { label: 'Cached copy', icon: 'clock' },
+  waiting: { label: 'No answer yet', icon: 'clock' },
+  offline: { label: 'Offline', icon: 'cross' }
+};
+var ICONS = {
+  dot: { circle: '8,8,4', solid: true },
+  check: { path: 'M3.5 8.5l3 3 6.5-7' },
+  cross: { path: 'M4 4l8 8M12 4l-8 8' },
+  pause: { path: 'M5.5 3.5v9M10.5 3.5v9' },
+  clock: { circle: '8,8,5.5', path: 'M8 5v3.3l2.2 1.4' },
+  eye: { path: 'M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z', circle: '8,8,2' },
+  dash: { path: 'M4 8h8' }
+};
+
+/* ---------- State ---------- */
+var state = {
+  tasks: new Map(),
+  tasksFromDb: false,
+  events: new Map(),
+  fileEvents: 0,
+  conn: 'connecting',
+  connDetail: '',
+  selectedRun: 'all',
+  selectedTask: null,
+  selectedAgent: null,
+  levelMin: 'debug',
+  search: '',
+  autoscroll: true
+};
+SEED_TASKS.forEach(function (t) { state.tasks.set(t.id, t); });
+
+/* ---------- Pure helpers ---------- */
+function normEvent(raw, id, source) {
+  if (!raw || typeof raw !== 'object') return null;
+  var e = {};
+  Object.keys(raw).forEach(function (k) { e[k] = raw[k]; });
+  e.id = String(e.id || id || '');
+  if (!e.id) return null;
+  var ms = Number(e.tsMs);
+  if (!isFinite(ms) || ms <= 0) ms = Date.parse(e.ts || '');
+  if (!isFinite(ms)) { var m = /^(\d{10,16})-/.exec(e.id); ms = m ? Number(m[1]) : Date.now(); }
+  e.tsMs = ms;
+  e.ts = e.ts || new Date(ms).toISOString();
+  e.type = String(e.type || 'agent.log');
+  e.level = String(e.level || 'info').toLowerCase();
+  if (!(e.level in LEVELS)) e.level = 'info';
+  e.message = e.message == null ? '' : String(e.message);
+  ['runId', 'phase', 'taskId', 'agentId', 'agentLabel', 'step', 'status'].forEach(function (k) {
+    if (e[k] != null && e[k] !== '') e[k] = String(e[k]); else delete e[k];
+  });
+  if (e.progress != null) { var p = Number(e.progress); e.progress = isFinite(p) ? Math.max(0, Math.min(100, p)) : undefined; }
+  e.seq = Number(e.seq) || 0;
+  e.source = source || 'db';
+  return e;
+}
+
+function phaseIndex(ph) {
+  for (var i = 0; i < PHASES.length; i++) if (PHASES[i].id === ph) return i;
+  return PHASES.length;
+}
+
+function deriveTaskFromAgents(list) {
+  if (!list.length) return { status: 'planned', progress: 0 };
+  var sum = 0;
+  list.forEach(function (a) { sum += a.progress || 0; });
+  var mean = Math.round(sum / list.length);
+  if (list.some(function (a) { return a.status === 'running'; })) return { status: 'running', progress: mean };
+  if (list.some(function (a) { return a.status === 'failed'; })) return { status: 'failed', progress: mean };
+  if (list.every(function (a) { return a.status === 'done'; })) return { status: 'done', progress: 100 };
+  return { status: 'running', progress: mean };
+}
+
+function derive(now) {
+  now = now || Date.now();
+  var all = Array.from(state.events.values()).sort(function (a, b) {
+    return (a.tsMs - b.tsMs) || (a.seq - b.seq) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  });
+  var runs = new Map();
+  all.forEach(function (e) {
+    if (!e.runId) return;
+    var r = runs.get(e.runId);
+    if (!r) { r = { id: e.runId, firstTs: e.tsMs, lastTs: e.tsMs, name: '', ended: false, phases: [] }; runs.set(e.runId, r); }
+    if (e.tsMs < r.firstTs) r.firstTs = e.tsMs;
+    if (e.tsMs > r.lastTs) r.lastTs = e.tsMs;
+    if (e.phase && r.phases.indexOf(e.phase) < 0) r.phases.push(e.phase);
+    if (e.type === 'run.start' && e.message) r.name = e.message;
+    if (e.type === 'run.end') r.ended = true;
+  });
+  var runFilter = state.selectedRun;
+  if (runFilter !== 'all' && !runs.has(runFilter)) runFilter = 'all';
+  var evs = runFilter === 'all' ? all : all.filter(function (e) { return e.runId === runFilter; });
+
+  var agents = new Map();
+  evs.forEach(function (e) {
+    if (!e.agentId) return;
+    if (e.type === 'run.start' || e.type === 'run.end' || e.type === 'note' || e.type === 'task.status') return;
+    var key = e.agentId + '@' + (e.runId || '');
+    var a = agents.get(key);
+    if (!a) {
+      a = { key: key, id: e.agentId, label: e.agentLabel || e.agentId, taskId: e.taskId || '', runId: e.runId || '', phase: e.phase || '',
+        firstTs: e.tsMs, lastTs: e.tsMs, endTs: null, status: 'running', progress: 0, step: '', lastMessage: '', errors: 0, count: 0 };
+      agents.set(key, a);
+    }
+    if (e.tsMs < a.firstTs) a.firstTs = e.tsMs;
+    if (e.tsMs > a.lastTs) a.lastTs = e.tsMs;
+    if (e.agentLabel) a.label = e.agentLabel;
+    if (e.taskId) a.taskId = e.taskId;
+    if (e.phase) a.phase = e.phase;
+    a.count++;
+    if (e.progress != null) a.progress = e.progress;
+    if (e.step) a.step = e.step;
+    if (e.type === 'agent.start') { a.status = 'running'; a.endTs = null; if (e.progress == null) a.progress = 0; a.lastMessage = e.message; }
+    else if (e.type === 'agent.progress') { if (a.status !== 'done' && a.status !== 'failed') a.status = 'running'; if (e.message) a.lastMessage = e.message; }
+    else if (e.type === 'agent.log') { if (e.level === 'error') a.errors++; if (e.message) a.lastMessage = e.message; }
+    else if (e.type === 'agent.done') { a.status = 'done'; a.progress = 100; a.endTs = e.tsMs; if (e.message) a.lastMessage = e.message; }
+    else if (e.type === 'agent.fail') { a.status = 'failed'; a.endTs = e.tsMs; if (e.message) a.lastMessage = e.message; }
+  });
+  agents.forEach(function (a) {
+    a.stale = a.status === 'running' && (now - a.lastTs) > STALE_MS;
+    a.display = a.stale ? 'stale' : a.status;
+  });
+
+  var statusEvents = new Map();
+  evs.forEach(function (e) {
+    if (e.type === 'task.status' && e.taskId) {
+      var prev = statusEvents.get(e.taskId);
+      if (!prev || e.tsMs >= prev.tsMs) statusEvents.set(e.taskId, e);
+    }
+  });
+  var taskIds = new Set(state.tasks.keys());
+  evs.forEach(function (e) { if (e.taskId) taskIds.add(e.taskId); });
+  var agentList = Array.from(agents.values());
+  var tasks = [];
+  taskIds.forEach(function (id) {
+    var base = state.tasks.get(id) || { id: id, title: id, phase: (id.split('-')[0] || '?'), order: 9999, adhoc: true };
+    var t = {};
+    Object.keys(base).forEach(function (k) { t[k] = base[k]; });
+    var tAgents = agentList.filter(function (a) { return a.taskId === id; });
+    var se = statusEvents.get(id);
+    var lastAgentTs = 0;
+    tAgents.forEach(function (a) { if (a.lastTs > lastAgentTs) lastAgentTs = a.lastTs; });
+    var d = deriveTaskFromAgents(tAgents);
+    var status, progress;
+    if (se && (se.tsMs >= lastAgentTs || !tAgents.length)) {
+      status = se.status && STATUS_META[se.status] ? se.status : d.status;
+      progress = se.progress != null ? se.progress : d.progress;
+    } else { status = d.status; progress = d.progress; }
+    if (status === 'done') progress = 100;
+    t.status = status;
+    t.progress = Math.round(progress || 0);
+    t.agents = tAgents.slice().sort(function (a, b) { return b.lastTs - a.lastTs; });
+    t.owner = t.agents.length ? t.agents[0] : null;
+    t.updatedTs = Math.max(se ? se.tsMs : 0, lastAgentTs);
+    t.statusNote = se ? se.message : '';
+    tasks.push(t);
+  });
+  tasks.sort(function (a, b) {
+    return (phaseIndex(a.phase) - phaseIndex(b.phase)) || ((a.order || 0) - (b.order || 0)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  });
+  var phases = PHASES.map(function (p) { return { id: p.id, title: p.title, tasks: tasks.filter(function (t) { return t.phase === p.id; }) }; });
+  tasks.forEach(function (t) {
+    if (!phases.some(function (p) { return p.id === t.phase; })) phases.push({ id: t.phase, title: t.phase, tasks: tasks.filter(function (x) { return x.phase === t.phase; }) });
+  });
+  phases.forEach(function (p) {
+    p.done = p.tasks.filter(function (t) { return t.status === 'done'; }).length;
+    var sum = 0; p.tasks.forEach(function (t) { sum += t.progress || 0; });
+    p.pct = p.tasks.length ? Math.round(sum / p.tasks.length) : 0;
+    p.active = p.tasks.some(function (t) { return t.status === 'running' || t.status === 'stale'; });
+  });
+  var totals = {
+    tasks: tasks.length,
+    done: tasks.filter(function (t) { return t.status === 'done'; }).length,
+    running: agentList.filter(function (a) { return a.display === 'running'; }).length,
+    stale: agentList.filter(function (a) { return a.display === 'stale'; }).length,
+    failed: agentList.filter(function (a) { return a.display === 'failed'; }).length,
+    doneAgents: agentList.filter(function (a) { return a.display === 'done'; }).length,
+    blocked: tasks.filter(function (t) { return t.status === 'blocked'; }).length,
+    agents: agentList.length
+  };
+  var current = null;
+  phases.forEach(function (p) { if (!current && p.active) current = p; });
+  return { all: all, evs: evs, runs: runs, runFilter: runFilter, agents: agentList, tasks: tasks, phases: phases, totals: totals, current: current,
+    lastTs: evs.length ? evs[evs.length - 1].tsMs : 0, now: now };
+}
+
+function fmtAgo(ms) {
+  if (!isFinite(ms) || ms < 0) ms = 0;
+  var s = Math.round(ms / 1000);
+  if (s < 60) return s + ' s';
+  var m = Math.floor(s / 60);
+  if (m < 60) return m + ' min';
+  var h = Math.floor(m / 60);
+  if (h < 48) return h + ' h ' + (m % 60) + ' min';
+  return Math.floor(h / 24) + ' d';
+}
+function fmtDur(ms) { return fmtAgo(ms); }
+function fmtTime(ms) {
+  var d = new Date(ms);
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+  return two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds());
+}
+function fmtDateTime(ms) {
+  var d = new Date(ms);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + fmtTime(ms);
+}
+function shortRun(id) { return id.length > 14 ? id.slice(0, 14) + '…' : id; }
+
+/* Expose pure logic for headless tests (harmless in the browser). */
+if (typeof globalThis !== 'undefined') {
+  globalThis.BridleMonitor = { normEvent: normEvent, derive: derive, state: state, SEED_TASKS: SEED_TASKS, PHASES: PHASES };
+}
+if (typeof document === 'undefined') return;
+
+/* ---------- DOM helpers ---------- */
+function h(tag, attrs) {
+  var el = document.createElement(tag);
+  if (attrs) Object.keys(attrs).forEach(function (k) {
+    var v = attrs[k];
+    if (v == null || v === false) return;
+    if (k === 'class') el.className = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k.indexOf('on') === 0) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  });
+  for (var i = 2; i < arguments.length; i++) append(el, arguments[i]);
+  return el;
+}
+function append(el, c) {
+  if (c == null || c === false) return;
+  if (Array.isArray(c)) { c.forEach(function (x) { append(el, x); }); return; }
+  el.appendChild(c.nodeType ? c : document.createTextNode(String(c)));
+}
+var SVG = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs) {
+  var el = document.createElementNS(SVG, tag);
+  if (attrs) Object.keys(attrs).forEach(function (k) { if (attrs[k] != null) el.setAttribute(k, attrs[k]); });
+  return el;
+}
+function icon(name) {
+  var spec = ICONS[name] || ICONS.dash;
+  var svg = svgEl('svg', { viewBox: '0 0 16 16', 'aria-hidden': 'true', 'class': 'ico' + (spec.solid ? ' solid' : '') });
+  if (spec.circle) { var c = spec.circle.split(','); svg.appendChild(svgEl('circle', { cx: c[0], cy: c[1], r: c[2] })); }
+  if (spec.path) svg.appendChild(svgEl('path', { d: spec.path }));
+  return svg;
+}
+function pill(status, metaTable) {
+  var meta = (metaTable || STATUS_META)[status] || { label: status, icon: 'dash' };
+  return h('span', { 'class': 'pill s-' + status }, icon(meta.icon), meta.label);
+}
+function meter(pct, status, thin) {
+  var m = h('div', { 'class': 'meter' + (thin ? ' thin' : ''), role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct) });
+  var f = h('span', { 'class': 'fill' + (status ? ' s-' + status : '') });
+  f.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  m.appendChild(f);
+  return m;
+}
+function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+var $ = function (id) { return document.getElementById(id); };
+var els = {};
+['overall-meter', 'overall-fill', 'overall-pct', 'overall-count', 'overall-phase', 'tiles', 'run-select', 'conn-pill', 'last-age', 'tasks-body', 'tasks-sub', 'clear-sel',
+  'agents-body', 'agents-sub', 'logs-body', 'logs-sub', 'log-list', 'logs-count', 'level-select', 'search', 'autoscroll', 'copy-btn', 'load-btn', 'file-input', 'flash',
+  'tl-body', 'tl-range', 'tooltip'].forEach(function (id) { els[id] = $(id); });
+
+/* ---------- Rendering ---------- */
+var renderQueued = false;
+var lastVisibleLogText = '';
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(function () { renderQueued = false; render(); });
+}
+
+function setConn(c, detail) { state.conn = c; state.connDetail = detail || ''; scheduleRender(); }
+
+function render() {
+  var d = derive(Date.now());
+  renderHeader(d);
+  renderTasks(d);
+  renderAgents(d);
+  renderLogs(d);
+  renderTimeline(d);
+}
+
+function renderHeader(d) {
+  var pct = d.totals.tasks ? Math.round(100 * d.totals.done / d.totals.tasks) : 0;
+  els['overall-fill'].style.width = pct + '%';
+  els['overall-meter'].setAttribute('aria-valuenow', String(pct));
+  els['overall-pct'].textContent = pct + '%';
+  els['overall-count'].textContent = d.totals.done + ' of ' + d.totals.tasks + ' tasks done';
+  els['overall-phase'].textContent = d.current ? 'Now in ' + d.current.id + ' ' + d.current.title : (d.totals.done === d.totals.tasks && d.totals.tasks ? 'All phases complete' : 'Nothing running');
+
+  clear(els.tiles);
+  [['running', d.totals.running, 'running', 'var(--accent)'], ['stale', d.totals.stale, 'stale', 'var(--warn)'], ['blocked', d.totals.blocked, 'blocked', 'var(--serious)'],
+    ['failed', d.totals.failed, 'failed', 'var(--critical)'], ['doneAgents', d.totals.doneAgents, 'agents done', 'var(--good)']].forEach(function (t) {
+    var tile = h('div', { 'class': 'tile' }, h('span', { 'class': 'v', text: String(t[1]) }), h('span', { 'class': 'l', text: t[2] }));
+    tile.style.setProperty('--c', t[3]);
+    els.tiles.appendChild(tile);
+  });
+
+  var sel = els['run-select'];
+  var want = ['all'].concat(Array.from(d.runs.values()).sort(function (a, b) { return b.firstTs - a.firstTs; }).map(function (r) { return r.id; }));
+  var have = Array.from(sel.options).map(function (o) { return o.value; });
+  if (want.join('\n') !== have.join('\n')) {
+    clear(sel);
+    sel.appendChild(h('option', { value: 'all', text: 'All runs (' + d.runs.size + ')' }));
+    want.slice(1).forEach(function (id) {
+      var r = d.runs.get(id);
+      sel.appendChild(h('option', { value: id, text: (r.name ? r.name + ' · ' : '') + shortRun(id) + (r.ended ? ' · ended' : ' · active') }));
+    });
+  }
+  sel.value = d.runFilter;
+
+  var cp = els['conn-pill'];
+  clear(cp);
+  cp.className = 'pill s-' + state.conn;
+  cp.appendChild(icon(CONN_META[state.conn].icon));
+  cp.appendChild(document.createTextNode(CONN_META[state.conn].label + (state.fileEvents ? ' · ' + state.fileEvents + ' from file' : '')));
+  cp.title = state.connDetail || '';
+  els['last-age'].textContent = d.lastTs ? 'last event ' + fmtAgo(d.now - d.lastTs) + ' ago' : 'no events yet';
+}
+
+function renderTasks(d) {
+  var body = els['tasks-body'];
+  clear(body);
+  els['tasks-sub'].textContent = d.totals.tasks + ' tasks · ' + d.phases.filter(function (p) { return p.tasks.length; }).length + ' phases';
+  els['clear-sel'].hidden = !(state.selectedTask || state.selectedAgent);
+  d.phases.forEach(function (p) {
+    if (!p.tasks.length) return;
+    var ph = h('section', { 'class': 'phase', 'aria-label': p.id + ' ' + p.title });
+    var head = h('div', { 'class': 'phase-head' },
+      h('span', { 'class': 'pid', text: p.id }),
+      h('span', { 'class': 'ptitle', text: p.title }),
+      h('span', { 'class': 'pcount tnum', text: p.done + '/' + p.tasks.length + ' done · ' + p.pct + '%' }),
+      meter(p.pct, p.active ? 'running' : (p.done === p.tasks.length ? 'done' : null), true));
+    ph.appendChild(head);
+    p.tasks.forEach(function (t) {
+      var row = h('button', { type: 'button', 'class': 'row s-' + t.status, 'aria-pressed': state.selectedTask === t.id ? 'true' : 'false',
+        onclick: function () { state.selectedTask = state.selectedTask === t.id ? null : t.id; state.selectedAgent = null; scheduleRender(); } },
+        h('span', { 'class': 'tid', text: t.id }),
+        h('span', { 'class': 'ttitle', text: t.title + (t.placeholder ? ' (placeholder)' : '') }),
+        h('span', { 'class': 'tmeta' }, pill(t.status), meter(t.progress, t.status === 'done' ? 'done' : t.status === 'failed' ? 'failed' : t.status === 'stale' ? 'stale' : null, true),
+          h('span', { 'class': 'tnum', text: t.progress + '%' }),
+          t.owner ? h('span', { 'class': 'mono', text: t.owner.label, title: t.owner.id }) : null,
+          h('span', { 'class': 'muted tnum', text: t.updatedTs ? fmtAgo(d.now - t.updatedTs) + ' ago' : '' })));
+      if (t.statusNote) row.title = t.statusNote;
+      ph.appendChild(row);
+    });
+    body.appendChild(ph);
+  });
+  var legend = h('div', { 'class': 'legend', 'aria-label': 'Status legend' });
+  Object.keys(STATUS_META).forEach(function (s) { legend.appendChild(pill(s)); });
+  body.appendChild(legend);
+}
+
+function renderAgents(d) {
+  var body = els['agents-body'];
+  clear(body);
+  var list = d.agents.slice();
+  if (state.selectedTask) list = list.filter(function (a) { return a.taskId === state.selectedTask; });
+  list.sort(function (a, b) { return (STATUS_ORDER[a.display] - STATUS_ORDER[b.display]) || (b.lastTs - a.lastTs); });
+  els['agents-sub'].textContent = (state.selectedTask ? 'on ' + state.selectedTask + ': ' : '') + list.length + ' of ' + d.agents.length;
+  if (!list.length) {
+    body.appendChild(h('p', { 'class': 'empty' }, d.agents.length ? 'No agents on the selected task yet.' :
+      'No agents have reported yet. Each planning or implementation agent sends agent.start, agent.progress, agent.log, and agent.done events; they appear here as cards within seconds of being written.'));
+    return;
+  }
+  var grid = h('div', { 'class': 'cards' });
+  list.forEach(function (a) {
+    var card = h('button', { type: 'button', 'class': 'card s-' + a.display, 'aria-pressed': state.selectedAgent === a.key ? 'true' : 'false',
+      onclick: function () { state.selectedAgent = state.selectedAgent === a.key ? null : a.key; scheduleRender(); } },
+      h('div', { 'class': 'ctop' }, h('span', { 'class': 'clabel', text: a.label }), pill(a.display)),
+      h('div', { 'class': 'cid', text: a.id + (a.taskId ? ' · ' + a.taskId : '') + (a.phase ? ' · ' + a.phase : '') }),
+      h('div', { 'class': 'cmsg', text: (a.step ? a.step + ': ' : '') + (a.lastMessage || 'No message yet') }),
+      h('div', { 'class': 'cprog' }, meter(a.progress, a.display === 'done' ? 'done' : a.display === 'failed' ? 'failed' : a.display === 'stale' ? 'stale' : null), h('span', { 'class': 'tnum', text: Math.round(a.progress) + '%' })),
+      h('div', { 'class': 'cfoot' },
+        h('span', { text: (a.endTs ? 'finished ' + fmtAgo(d.now - a.endTs) + ' ago' : 'last seen ' + fmtAgo(d.now - a.lastTs) + ' ago') + ' · ran ' + fmtDur((a.endTs || d.now) - a.firstTs) }),
+        h('span', { text: (a.errors ? a.errors + ' err · ' : '') + a.count + ' ev' })));
+    card.title = a.runId ? 'run ' + a.runId : '';
+    grid.appendChild(card);
+  });
+  body.appendChild(grid);
+}
+
+function renderLogs(d) {
+  var list = d.evs;
+  var scope = 'all events';
+  if (state.selectedAgent) {
+    list = list.filter(function (e) { return (e.agentId + '@' + (e.runId || '')) === state.selectedAgent; });
+    scope = 'agent ' + state.selectedAgent.split('@')[0];
+  } else if (state.selectedTask) {
+    list = list.filter(function (e) { return e.taskId === state.selectedTask; });
+    scope = 'task ' + state.selectedTask;
+  }
+  var min = LEVELS[state.levelMin] || 0;
+  if (min > 0) list = list.filter(function (e) { return (LEVELS[e.level] || 0) >= min || e.type === 'agent.fail' || e.type === 'agent.done'; });
+  var q = state.search.trim().toLowerCase();
+  if (q) list = list.filter(function (e) {
+    return (e.message + ' ' + (e.agentId || '') + ' ' + (e.taskId || '') + ' ' + e.type + ' ' + (e.step || '')).toLowerCase().indexOf(q) >= 0;
+  });
+  var total = list.length;
+  if (list.length > LOG_TAIL) list = list.slice(list.length - LOG_TAIL);
+  els['logs-sub'].textContent = scope;
+  els['logs-count'].textContent = total ? 'showing ' + list.length + ' of ' + total + ' lines' + (d.all.length >= EVENT_WINDOW ? ' · live window holds the latest ' + EVENT_WINDOW + ' events' : '') : '';
+
+  var ol = els['log-list'];
+  var scroller = els['logs-body'];
+  var atBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 40;
+  clear(ol);
+  if (!list.length) {
+    var msg = d.all.length ? 'No lines match the current filters.' :
+      (state.conn === 'offline' ? 'No live connection. Load or drop a .jsonl file from .bridle/progress to review a run.' :
+        'No events yet. Implementation has not started; agents will report here as soon as the first workflow runs.');
+    ol.appendChild(h('li', {}, h('p', { 'class': 'empty', text: msg })));
+    lastVisibleLogText = '';
+    return;
+  }
+  var lines = [];
+  list.forEach(function (e) {
+    var cls = 'lvl-' + e.level + (e.type === 'agent.done' ? ' t-done' : e.type === 'agent.start' ? ' t-start' : '');
+    var tag = e.type.replace('agent.', '');
+    var li = h('li', { 'class': cls },
+      h('span', { 'class': 'lt', text: fmtTime(e.tsMs), title: e.ts }),
+      h('span', { 'class': 'la', text: e.agentId || (e.type.indexOf('run.') === 0 ? 'run' : 'orchestrator') }),
+      h('span', { 'class': 'lm' }, h('span', { 'class': 'tag', text: tag + (e.progress != null && e.type !== 'agent.log' ? ' ' + Math.round(e.progress) + '%' : '') + (e.status ? ' ' + e.status : '') }),
+        (e.taskId && !state.selectedTask ? '[' + e.taskId + '] ' : '') + e.message));
+    ol.appendChild(li);
+    lines.push(e.ts + ' ' + (e.agentId || '-') + ' ' + e.type + (e.taskId ? ' [' + e.taskId + ']' : '') + ' ' + e.message);
+  });
+  lastVisibleLogText = lines.join('\n');
+  if (state.autoscroll && (atBottom || true)) scroller.scrollTop = scroller.scrollHeight;
+}
+
+function renderTimeline(d) {
+  var body = els['tl-body'];
+  clear(body);
+  var rows = d.agents.slice().sort(function (a, b) { return (phaseIndex(a.phase) - phaseIndex(b.phase)) || (a.firstTs - b.firstTs); });
+  if (!rows.length) {
+    els['tl-range'].textContent = '';
+    body.appendChild(h('p', { 'class': 'empty', text: 'Agent start and finish times draw here as a Gantt strip once the first agent reports.' }));
+    return;
+  }
+  var t0 = Infinity, t1 = 0, anyRunning = false;
+  rows.forEach(function (a) { if (a.firstTs < t0) t0 = a.firstTs; var end = a.endTs || a.lastTs; if (end > t1) t1 = end; if (!a.endTs) anyRunning = true; });
+  if (anyRunning && d.now > t1) t1 = d.now;
+  if (t1 - t0 < 60000) t1 = t0 + 60000;
+  var width = Math.max(480, body.clientWidth - 4);
+  var gutter = 170, right = 16, rowH = 18, top = 20, barH = 10;
+  var height = top + rows.length * rowH + 8;
+  var svg = svgEl('svg', { width: width, height: height, viewBox: '0 0 ' + width + ' ' + height, role: 'img', 'aria-label': 'Timeline of ' + rows.length + ' agents' });
+  var span = t1 - t0;
+  var x = function (t) { return gutter + (t - t0) / span * (width - gutter - right); };
+  var stepMs = niceStep(span, Math.floor((width - gutter - right) / 90));
+  for (var t = Math.ceil(t0 / stepMs) * stepMs; t <= t1; t += stepMs) {
+    svg.appendChild(svgEl('line', { x1: x(t), x2: x(t), y1: top - 4, y2: height - 6, 'class': 'gridline' }));
+    var tx = svgEl('text', { x: x(t), y: 12, 'text-anchor': 'middle', 'class': 'tick' });
+    tx.textContent = fmtTime(t).slice(0, span > 6 * 3600000 ? 5 : 8);
+    svg.appendChild(tx);
+  }
+  svg.appendChild(svgEl('line', { x1: gutter, x2: width - right, y1: top - 4, y2: top - 4, 'class': 'axis' }));
+  if (anyRunning) svg.appendChild(svgEl('line', { x1: x(d.now), x2: x(d.now), y1: top - 4, y2: height - 6, 'class': 'now' }));
+  rows.forEach(function (a, i) {
+    var y = top + i * rowH;
+    var lbl = svgEl('text', { x: gutter - 8, y: y + barH, 'text-anchor': 'end', 'class': 'lbl' });
+    var name = (a.phase ? a.phase + ' ' : '') + a.label;
+    lbl.textContent = name.length > 24 ? name.slice(0, 23) + '…' : name;
+    svg.appendChild(lbl);
+    var end = a.endTs || (a.status === 'running' ? d.now : a.lastTs);
+    var x1 = x(a.firstTs), x2 = Math.max(x(end), x1 + 3);
+    var bar = svgEl('rect', { x: x1, y: y + 2, width: x2 - x1, height: barH, 'class': 'bar s-' + a.display });
+    bar.addEventListener('mousemove', function (ev) { showTip(ev, a, d); });
+    bar.addEventListener('mouseleave', hideTip);
+    svg.appendChild(bar);
+    if (!a.endTs && a.status === 'running') svg.appendChild(svgEl('circle', { cx: x2, cy: y + 2 + barH / 2, r: 4, 'class': 'bar s-' + a.display }));
+  });
+  body.appendChild(svg);
+  els['tl-range'].textContent = fmtDateTime(t0) + ' to ' + (anyRunning ? 'now' : fmtDateTime(t1)) + ' · ' + rows.length + ' agents';
+}
+function niceStep(span, maxTicks) {
+  var steps = [30000, 60000, 120000, 300000, 600000, 900000, 1800000, 3600000, 7200000, 14400000, 21600000, 43200000, 86400000];
+  for (var i = 0; i < steps.length; i++) if (span / steps[i] <= Math.max(2, maxTicks)) return steps[i];
+  return steps[steps.length - 1];
+}
+function showTip(ev, a, d) {
+  var tip = els.tooltip;
+  clear(tip);
+  tip.appendChild(h('div', {}, h('strong', { text: a.label }), ' · ' + (STATUS_META[a.display] || {}).label));
+  tip.appendChild(h('div', { text: a.id + (a.taskId ? ' · ' + a.taskId : '') }));
+  tip.appendChild(h('div', { text: 'started ' + fmtDateTime(a.firstTs) + ', ' + (a.endTs ? 'finished ' + fmtDateTime(a.endTs) : 'still running') + ', ' + fmtDur((a.endTs || d.now) - a.firstTs) + ', ' + Math.round(a.progress) + '%' }));
+  tip.hidden = false;
+  var px = ev.clientX + 14, py = ev.clientY + 14;
+  if (px + 330 > window.innerWidth) px = ev.clientX - 330;
+  if (py + 80 > window.innerHeight) py = ev.clientY - 80;
+  tip.style.left = px + 'px';
+  tip.style.top = py + 'px';
+}
+function hideTip() { els.tooltip.hidden = true; }
+
+/* ---------- Data sources ---------- */
+function ingestEvent(raw, id, source) {
+  var e = normEvent(raw, id, source);
+  if (!e) return false;
+  var prev = state.events.get(e.id);
+  if (prev && prev.fromFile) e.fromFile = true;
+  if (source === 'file') e.fromFile = true;
+  state.events.set(e.id, e);
+  return true;
+}
+
+function connectDb() {
+  if (!(window.claude && typeof window.claude.use === 'function')) { setConn('offline', 'Not running inside claude.ai; load a JSONL file instead.'); return; }
+  var timer = setTimeout(function () { if (state.conn === 'connecting') setConn('waiting', 'The store has not answered yet; data may be out of date.'); }, 10000);
+  window.claude.use('db').then(function (db) {
+    if (!db) { clearTimeout(timer); setConn('offline', 'Live data is not available in this view.'); return; }
+    try {
+      db.collection('tasks').onSnapshot(function (snap) {
+        if (snap.empty) return;
+        var m = new Map();
+        snap.docs.forEach(function (doc) { var data = doc.data(); if (data && data.title) { var t = { id: doc.id }; Object.keys(data).forEach(function (k) { t[k] = data[k]; }); m.set(doc.id, t); } });
+        if (m.size) { state.tasks = m; state.tasksFromDb = true; scheduleRender(); }
+      }, function (err) { console.warn('tasks subscription ended', err && err.code); });
+    } catch (e) { console.warn('tasks subscribe failed', e); }
+    try {
+      db.collection('events').orderBy('tsMs', 'desc').limit(EVENT_WINDOW).onSnapshot(function (snap) {
+        clearTimeout(timer);
+        snap.docChanges().forEach(function (ch) {
+          if (ch.type === 'removed') {
+            var cur = state.events.get(ch.doc.id);
+            if (cur && cur.fromFile) { cur.source = 'file'; } else { state.events.delete(ch.doc.id); }
+            return;
+          }
+          ingestEvent(ch.doc.data(), ch.doc.id, 'db');
+        });
+        setConn(snap.metadata && snap.metadata.fromCache ? 'cached' : 'live', snap.metadata && snap.metadata.fromCache ? 'Showing a cached copy; waiting for the store to confirm.' : 'Receiving events as they are written.');
+      }, function (err) {
+        clearTimeout(timer);
+        setConn('offline', 'Store error: ' + ((err && err.code) || 'unknown') + '. Reload the page to reconnect.');
+      });
+    } catch (e) { clearTimeout(timer); setConn('offline', 'Could not subscribe to events.'); }
+  }).catch(function () { clearTimeout(timer); setConn('offline', 'Live data is not available in this view.'); });
+}
+
+function loadFiles(files) {
+  var added = 0, bad = 0, pending = files.length;
+  if (!pending) return;
+  Array.prototype.forEach.call(files, function (f) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      String(reader.result || '').split(/\r?\n/).forEach(function (line) {
+        line = line.trim();
+        if (!line) return;
+        try {
+          var obj = JSON.parse(line);
+          if (obj && obj.op && obj.data) obj = obj.data;
+          if (ingestEvent(obj, obj && obj.id, 'file')) added++; else bad++;
+        } catch (e) { bad++; }
+      });
+      if (--pending === 0) { state.fileEvents += added; flash(added + ' events loaded' + (bad ? ', ' + bad + ' lines skipped' : '')); scheduleRender(); }
+    };
+    reader.onerror = function () { bad++; if (--pending === 0) { flash('Could not read the file'); scheduleRender(); } };
+    reader.readAsText(f);
+  });
+}
+
+var flashTimer = null;
+function flash(msg) {
+  els.flash.textContent = msg;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(function () { els.flash.textContent = ''; }, 4000);
+}
+
+/* ---------- Routing and controls ---------- */
+var VIEWS = ['overview', 'tasks', 'agents', 'logs'];
+function applyHash() {
+  var v = (location.hash || '#overview').slice(1);
+  if (VIEWS.indexOf(v) < 0) v = 'overview';
+  document.body.setAttribute('data-view', v);
+  Array.prototype.forEach.call(document.querySelectorAll('.views a'), function (a) {
+    if (a.getAttribute('href') === '#' + v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  scheduleRender();
+}
+
+function init() {
+  applyHash();
+  window.addEventListener('hashchange', applyHash);
+  els['run-select'].addEventListener('change', function () { state.selectedRun = els['run-select'].value; state.selectedTask = null; state.selectedAgent = null; scheduleRender(); });
+  els['clear-sel'].addEventListener('click', function () { state.selectedTask = null; state.selectedAgent = null; scheduleRender(); });
+  els['level-select'].addEventListener('change', function () { state.levelMin = els['level-select'].value; scheduleRender(); });
+  els.search.addEventListener('input', function () { state.search = els.search.value; scheduleRender(); });
+  els.autoscroll.addEventListener('change', function () { state.autoscroll = els.autoscroll.checked; });
+  els['copy-btn'].addEventListener('click', function () {
+    if (!lastVisibleLogText) { flash('Nothing to copy'); return; }
+    if (!(navigator.clipboard && navigator.clipboard.writeText)) { flash('Clipboard not available here'); return; }
+    navigator.clipboard.writeText(lastVisibleLogText).then(function () { flash('Copied'); }, function () { flash('Copy was refused'); });
+  });
+  els['load-btn'].addEventListener('click', function () { els['file-input'].click(); });
+  els['file-input'].addEventListener('change', function () { loadFiles(els['file-input'].files); els['file-input'].value = ''; });
+  var drop = els['logs-body'];
+  ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('dragging'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('dragging'); }); });
+  drop.addEventListener('drop', function (e) { if (e.dataTransfer && e.dataTransfer.files) loadFiles(e.dataTransfer.files); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && (state.selectedTask || state.selectedAgent)) { state.selectedTask = null; state.selectedAgent = null; scheduleRender(); } });
+  window.addEventListener('resize', scheduleRender);
+  setInterval(scheduleRender, 30000);
+  render();
+  connectDb();
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+</body>
+</html>

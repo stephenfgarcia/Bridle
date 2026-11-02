@@ -1,0 +1,61 @@
+# Bridle Build Monitor
+
+A claude.ai artifact page that shows, live, every agent working on the Bridle build: which phase and task
+each one is on, its progress, its log lines, and a timeline of all agents. The page is read-only; agents and
+the orchestrator write events through the artifact database.
+
+- Page source: `tools/monitor/index.html` (single file, no build step).
+- Artifact id and URL: `.bridle/monitor.json` (written at publish time).
+- Durable local log: `.bridle/progress/<runId>/<agentId>.jsonl` (gitignored; the source of truth).
+
+## Reporting protocol (every agent, verbatim in its prompt)
+
+```
+REPORTING (mandatory)
+You are agent <agentId> working on task <taskId> in run <runId>, phase <phase>.
+1. On start: append an agent.start event, then at every step boundary an agent.progress event, and at least
+   one heartbeat or log every 10 minutes. On finish: agent.done (or agent.fail) with a 3-6 sentence summary
+   and the list of files you changed.
+2. Write each event with tools/monitor/log.sh (it appends the JSON line to .bridle/progress/<runId>/<agentId>.jsonl
+   and prints the matching db_write op):
+     tools/monitor/log.sh -r <runId> -p <phase> -a <agentId> -t <taskId> -T agent.progress -P 40 -s "step name" -m "what you did; what is next"
+3. Mirror events to the monitor: load the tool with ToolSearch "select:mcp__claude-artifacts__db_write" and
+   call it with slug <slug> and ops = the printed op objects (batch up to 50 per call; one call at a time;
+   wait 2 s after a multi-op call). If the call fails, keep working; the orchestrator syncs the JSONL later.
+4. Never block on reporting; never log secrets; keep messages specific (what you did, what you are doing
+   next, what is blocking).
+```
+
+Agents in isolated worktrees must call the script by absolute path from the main checkout:
+`/Users/johnstephenf.garcia/Dev/Dev/Bridle-1/tools/monitor/log.sh`.
+
+## Event types
+
+| type | emitter | fields |
+|---|---|---|
+| `run.start` / `run.end` | orchestrator | `-r runId -p phase -m "workflow name"` (use `-a orchestrator -t <phase task>`) |
+| `task.status` | orchestrator or agent | `-t taskId -S planned|queued|running|blocked|review|done|failed [-P progress] -m "why"` |
+| `agent.start` | agent | `-m "plan of attack"` |
+| `agent.progress` | agent | `-P 0-100 -s step -m "..."` |
+| `agent.log` | agent | `-l debug|info|warn|error -m "..."` |
+| `agent.heartbeat` | agent | at least every 10 minutes on long tasks |
+| `agent.done` / `agent.fail` | agent | `-m "summary" -d '{"files":["path", ...]}'` |
+| `note` | orchestrator | `-m "human-readable phase note"` |
+
+The page derives state from events: a task's status is its latest `task.status` event unless its agents have
+reported more recently; an agent with no activity for 10 minutes and no `agent.done`/`agent.fail` shows as stale.
+
+## Database layout
+
+- `tasks/<taskId>`: `{id, title, phase, order, workstream?, dependsOn?, estimate?, placeholder?}`; seeded by the
+  orchestrator, replaced when the implementation roadmap is approved.
+- `events/<tsMs>-<agentId>-<seq>`: one document per event (fields as written by `log.sh`). Document ids sort
+  chronologically; the page subscribes to the latest 1,000 by `tsMs`.
+
+Capacity: the artifact database holds at most 25,000 documents. Agents log at step boundaries, not per tool
+call. When a run is finished and archived, the orchestrator prunes its events from the database (the JSONL
+keeps the full history, and the page can load it from a dropped file).
+
+## Syncing missed events
+
+See `sync.md`. `tools/monitor/ops.sh <runId>` prints db_write-ready op batches for a whole run.

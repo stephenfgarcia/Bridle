@@ -1,0 +1,8 @@
+# OS / editor
+.DS_Store
+
+# Local agent progress logs (durable fallback for the Bridle Build Monitor); never committed
+.bridle/progress/
+
+# Claude Code session transcripts
+.claude-sessions/
