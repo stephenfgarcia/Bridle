@@ -10,10 +10,11 @@
 <style>
 :root {
   color-scheme: light;
-  /* Layout: header strip / three scrolling panels (tasks, agents, logs) / timeline strip. */
+  /* Layout: a scrolling page; one view at a time (overview, tasks, agents, logs, factory, timeline), each a stack of roomy blocks. */
   --bg: #f9f9f7;
   --surface: #fcfcfb;
   --surface-2: #f3f2ee;
+  --surface-3: #ebeae4;
   --ink: #0b0b0b;
   --ink-2: #52514e;
   --muted: #898781;
@@ -29,101 +30,81 @@
   --critical: #d03b3b;
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --radius: 6px;
+  --radius: 8px;
+  --radius-lg: 14px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0d0d0d;
-    --surface: #1a1a19;
-    --surface-2: #232322;
-    --ink: #f0efec;
-    --ink-2: #c3c2b7;
-    --muted: #898781;
-    --line: #2c2c2a;
-    --axis: #383835;
-    --border: rgba(255, 255, 255, 0.10);
-    --accent: #3987e5;
-    --accent-soft: #0d366b;
-    --accent-ink: #86b6ef;
+    --bg: #0d0d0d; --surface: #1a1a19; --surface-2: #232322; --surface-3: #2c2c2a;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --line: #2c2c2a; --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10); --accent: #3987e5; --accent-soft: #0d366b; --accent-ink: #86b6ef;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0d0d0d;
-  --surface: #1a1a19;
-  --surface-2: #232322;
-  --ink: #f0efec;
-  --ink-2: #c3c2b7;
-  --muted: #898781;
-  --line: #2c2c2a;
-  --axis: #383835;
-  --border: rgba(255, 255, 255, 0.10);
-  --accent: #3987e5;
-  --accent-soft: #0d366b;
-  --accent-ink: #86b6ef;
+  --bg: #0d0d0d; --surface: #1a1a19; --surface-2: #232322; --surface-3: #2c2c2a;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --line: #2c2c2a; --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10); --accent: #3987e5; --accent-soft: #0d366b; --accent-ink: #86b6ef;
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font: 14px/1.45 var(--font-ui);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 12px;
-  padding: 12px 16px 16px;
-}
-h1, h2, h3 { margin: 0; text-wrap: balance; }
-h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
-h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; }
+html { background: var(--bg); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font-ui); }
+.wrap { max-width: 1640px; margin: 0 auto; padding: 16px 20px 48px; }
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; }
+h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 15px; font-weight: 600; }
+h2 .count { font-weight: 400; color: var(--muted); margin-left: 6px; }
+h3 { font-size: 13px; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; }
 p { margin: 0; }
 button, select, input { font: inherit; color: inherit; }
-button { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 10px; cursor: pointer; }
-button:hover { background: var(--line); }
-button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible, .row:focus-visible, .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-select, input[type="search"] { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 8px; min-width: 0; }
+button { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 12px; cursor: pointer; }
+button:hover { background: var(--surface-3); }
+:is(button, select, input, a, .row, .card, .chip, .fcard):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+select, input[type="search"] { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 10px; min-width: 0; }
 .mono { font-family: var(--font-mono); font-size: 12px; }
 .muted { color: var(--muted); }
 .tnum { font-variant-numeric: tabular-nums; }
 a { color: var(--accent-ink); }
 
-/* Header strip */
-.top {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(240px, 1.4fr) auto auto;
-  grid-template-areas: "brand overall tiles conn" "views views views views";
-  gap: 10px 20px;
-  align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 16px;
-}
-.brand { grid-area: brand; }
-.brand .sub { color: var(--ink-2); font-size: 12px; }
-.overall { grid-area: overall; display: grid; gap: 6px; }
-.overall-text { display: flex; gap: 10px; align-items: baseline; font-size: 12px; color: var(--ink-2); }
-.overall-text strong { font-size: 22px; font-weight: 600; color: var(--ink); }
-.tiles { grid-area: tiles; display: flex; gap: 8px; flex-wrap: wrap; }
-.tile { display: grid; gap: 0; min-width: 72px; padding: 4px 10px; border-radius: var(--radius); background: var(--surface-2); border-left: 3px solid var(--c, var(--axis)); }
-.tile .v { font-size: 20px; font-weight: 600; line-height: 1.1; }
-.tile .l { font-size: 11px; color: var(--ink-2); }
-.conn { grid-area: conn; display: flex; gap: 8px; align-items: center; justify-self: end; flex-wrap: wrap; }
-.views { grid-area: views; display: flex; gap: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
-.views a { text-decoration: none; color: var(--ink-2); padding: 3px 10px; border-radius: 999px; }
+/* Header */
+.top { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 24px 14px; display: grid; grid-template-columns: minmax(300px, 1fr) auto; gap: 16px 32px; align-items: start; }
+.brand { display: grid; gap: 6px; }
+.brand .sub { color: var(--ink-2); max-width: 60ch; }
+.conn { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.conn select { max-width: 380px; }
+.kpis { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; align-items: stretch; }
+.kpi { display: grid; gap: 6px; align-content: start; padding: 12px 16px; border-radius: var(--radius); background: var(--surface-2); min-width: 280px; }
+.kpi .v { font-size: 34px; font-weight: 600; line-height: 1; }
+.kpi .l { font-size: 13px; color: var(--ink-2); }
+.kpi .l2 { font-size: 12px; color: var(--muted); }
+.tiles { display: flex; gap: 10px; flex-wrap: wrap; }
+.tile { display: grid; gap: 2px; align-content: start; min-width: 96px; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); border-left: 4px solid var(--c, var(--axis)); }
+.tile .v { font-size: 26px; font-weight: 600; line-height: 1.05; }
+.tile .l { font-size: 12px; color: var(--ink-2); }
+.views { grid-column: 1 / -1; display: flex; gap: 4px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; }
+.views a { text-decoration: none; color: var(--ink-2); padding: 6px 14px; border-radius: 999px; font-weight: 500; }
 .views a[aria-current="page"] { background: var(--accent-soft); color: var(--ink); }
 .views a:hover { color: var(--ink); }
 
-/* Meter */
-.meter { height: 6px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; }
-.meter .fill { display: block; height: 100%; width: 0; background: var(--c, var(--accent)); border-radius: 999px; transition: width 300ms ease; }
-.meter.thin { height: 4px; }
+/* Views and blocks */
+.view { display: none; }
+body[data-view="overview"] .v-overview, body[data-view="tasks"] .v-tasks, body[data-view="agents"] .v-agents,
+body[data-view="logs"] .v-logs, body[data-view="factory"] .v-factory, body[data-view="timeline"] .v-timeline { display: block; }
+.block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 22px 20px; margin-top: 16px; }
+.block > header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.block > header .spacer { flex: 1; }
+.block > header .sub { color: var(--muted); font-size: 13px; }
+.two { display: grid; grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr); gap: 16px; align-items: start; }
+.two > .block { margin-top: 0; }
+.empty { color: var(--ink-2); padding: 10px 0; max-width: 60ch; }
 
-/* Status pills */
-.pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px 1px 6px; border-radius: 999px; font-size: 11.5px; font-weight: 500; white-space: nowrap; background: color-mix(in oklab, var(--c, var(--muted)) 14%, var(--surface)); color: var(--ink); }
+/* Meter and pills */
+.meter { height: 8px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; }
+.meter .fill { display: block; height: 100%; width: 0; background: var(--c, var(--accent)); border-radius: 999px; transition: width 300ms ease; }
+.meter.thin { height: 5px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 7px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; background: color-mix(in oklab, var(--c, var(--muted)) 14%, var(--surface)); color: var(--ink); }
 .pill .ico { color: var(--c, var(--muted)); }
 .ico { width: 12px; height: 12px; flex: none; }
 .ico path, .ico circle { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
@@ -141,64 +122,77 @@ a { color: var(--accent-ink); }
 .s-connecting { --c: var(--muted); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .s-running .ico.solid, .s-connecting .ico.solid { animation: pulse 1.6s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) {
-  .s-running .ico.solid, .s-connecting .ico.solid { animation: none; }
-  .meter .fill { transition: none; }
-}
+@media (prefers-reduced-motion: reduce) { .s-running .ico.solid, .s-connecting .ico.solid { animation: none; } .meter .fill { transition: none; } }
 
-/* Panels */
-.grid { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) minmax(320px, 460px); gap: 12px; min-height: 0; }
-.panel { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-.panel > header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-.panel > header .spacer { flex: 1; }
-.panel .scroll { overflow: auto; min-height: 0; padding: 8px 10px 12px; }
-body[data-view="tasks"] .grid, body[data-view="agents"] .grid, body[data-view="logs"] .grid { grid-template-columns: minmax(0, 1fr); }
-body[data-view="tasks"] .panel:not(.tasks), body[data-view="agents"] .panel:not(.agents), body[data-view="logs"] .panel:not(.logs) { display: none; }
-.empty { color: var(--ink-2); padding: 18px 8px; max-width: 48ch; }
-.empty code { font-family: var(--font-mono); font-size: 12px; }
+/* Progress board */
+.board { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.pcard { display: grid; gap: 8px; padding: 14px 16px; border-radius: var(--radius); background: var(--surface-2); border-left: 4px solid var(--c, var(--axis)); }
+.pcard .ptop { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pcard .pid { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.pcard .ptitle { font-weight: 600; font-size: 15px; }
+.pcard .pstat { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink-2); }
+.pcard .ppct { font-size: 22px; font-weight: 600; line-height: 1; }
 
-/* Tasks */
-.phase { margin: 4px 0 10px; }
-.phase-head { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 6px 6px 4px; }
+/* Task rows */
+.phase { margin-top: 14px; }
+.phase:first-child { margin-top: 0; }
+.phase-head { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 6px 4px 8px; }
 .phase-head .pid { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
-.phase-head .ptitle { font-weight: 600; }
+.phase-head .ptitle { font-weight: 600; font-size: 15px; }
 .phase-head .pcount { font-size: 12px; color: var(--ink-2); }
 .phase-head .meter { grid-column: 1 / -1; }
-.row { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; width: 100%; text-align: left; background: none; border: 0; border-left: 3px solid transparent; border-radius: 0 var(--radius) var(--radius) 0; padding: 6px 8px 6px 6px; cursor: pointer; color: inherit; }
+.row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 150px minmax(140px, 220px) minmax(120px, 1fr) 110px; gap: 12px; align-items: center; width: 100%; text-align: left; background: none; border: 0; border-left: 3px solid transparent; border-radius: 0 var(--radius) var(--radius) 0; padding: 9px 10px 9px 8px; cursor: pointer; color: inherit; }
 .row:hover { background: var(--surface-2); }
 .row[aria-pressed="true"] { background: var(--accent-soft); }
 .row.s-failed { border-left-color: var(--critical); }
-.row.s-stale { border-left-color: var(--warn); }
+.row.s-stale, .row.s-running { border-left-color: var(--c); }
 .row.s-blocked { border-left-color: var(--serious); }
-.row .tid { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); align-self: center; }
-.row .ttitle { font-weight: 500; align-self: center; }
-.row .tmeta { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--ink-2); }
-.row .tmeta .meter { flex: 1; }
-.legend { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 6px 2px; border-top: 1px solid var(--line); margin-top: 8px; }
+.row .tid { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.row .ttitle { font-weight: 500; overflow-wrap: anywhere; }
+.row .tprog { display: flex; align-items: center; gap: 8px; }
+.row .tprog .meter { flex: 1; }
+.row .towner { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
+.row .tupd { font-size: 12px; color: var(--muted); text-align: right; }
+.tevents { margin: 0 0 8px 128px; padding: 8px 12px; background: var(--surface-2); border-radius: var(--radius); display: grid; gap: 4px; }
+.legend { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--line); margin-top: 12px; }
 
-/* Agents */
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
-.card { display: grid; gap: 6px; text-align: left; background: var(--surface-2); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); padding: 10px 12px; cursor: pointer; color: inherit; }
-.card:hover { border-color: var(--axis); }
+/* Activity feed lines */
+.feed { display: grid; gap: 6px; }
+.fl { display: grid; grid-template-columns: 70px minmax(100px, 190px) 1fr; gap: 10px; align-items: baseline; padding: 6px 10px; border-left: 3px solid transparent; border-radius: 0 6px 6px 0; background: var(--surface-2); }
+.fl.lvl-error { border-left-color: var(--critical); }
+.fl.lvl-warn { border-left-color: var(--warn); }
+.fl.t-done { border-left-color: var(--good); }
+.fl.t-start { border-left-color: var(--accent); }
+.fl .ft { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.fl .fa { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
+.fl .fm { font-size: 13px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tag { display: inline-block; font-family: var(--font-mono); font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--surface-3); color: var(--ink-2); margin-right: 6px; vertical-align: 1px; }
+
+/* Agent cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.card { display: grid; gap: 8px; align-content: start; text-align: left; background: var(--surface-2); border: 1px solid var(--border); border-left: 4px solid var(--c, var(--axis)); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; color: inherit; }
+.card:hover { border-color: var(--axis); border-left-color: var(--c, var(--axis)); }
 .card[aria-pressed="true"] { outline: 2px solid var(--accent); }
-.card.s-stale { border-left-color: var(--warn); }
-.card.s-failed { border-left-color: var(--critical); }
-.card.s-done { border-left-color: var(--good); }
-.card.s-running { border-left-color: var(--accent); }
 .card .ctop { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-.card .clabel { font-weight: 600; overflow-wrap: anywhere; }
-.card .cid { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere; }
-.card .cmsg { font-size: 12.5px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.card .cfoot { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--muted); }
-.card .cprog { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.card .clabel { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+.card .cid { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
+.card .cstep { font-size: 12px; color: var(--accent-ink); font-weight: 500; }
+.card .cmsg { font-size: 13px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.card .cprog { display: flex; gap: 10px; align-items: center; font-size: 13px; }
 .card .cprog .meter { flex: 1; }
+.card .cfoot { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.group { margin-top: 18px; }
+.group:first-of-type { margin-top: 0; }
+.group > h3 { margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+.group > h3 .count { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
 
 /* Logs */
-.logs .controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; width: 100%; }
-.logs .controls input[type="search"] { flex: 1; min-width: 120px; }
-.logs .controls label { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; color: var(--ink-2); }
-.log { list-style: none; margin: 0; padding: 0; font-family: var(--font-mono); font-size: 12px; }
-.log li { display: grid; grid-template-columns: 64px minmax(80px, 160px) 1fr; gap: 10px; padding: 3px 6px; border-left: 3px solid transparent; border-radius: 0 4px 4px 0; }
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%; }
+.controls input[type="search"] { flex: 1; min-width: 180px; }
+.controls label { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.logscroll { overflow: auto; min-height: 360px; max-height: 72vh; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 8px; background: var(--surface); }
+.log { list-style: none; margin: 0; padding: 0; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.5; }
+.log li { display: grid; grid-template-columns: 70px minmax(120px, 200px) 1fr; gap: 12px; padding: 5px 8px; border-left: 3px solid transparent; border-radius: 0 4px 4px 0; }
 .log li:nth-child(even) { background: color-mix(in oklab, var(--surface-2) 60%, var(--surface)); }
 .log li.lvl-warn { border-left-color: var(--warn); }
 .log li.lvl-error { border-left-color: var(--critical); background: color-mix(in oklab, var(--critical) 8%, var(--surface)); }
@@ -207,116 +201,119 @@ body[data-view="tasks"] .panel:not(.tasks), body[data-view="agents"] .panel:not(
 .log .lt { color: var(--muted); }
 .log .la { color: var(--ink-2); overflow-wrap: anywhere; }
 .log .lm { overflow-wrap: anywhere; white-space: pre-wrap; }
-.log .tag { display: inline-block; font-size: 10.5px; padding: 0 5px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); margin-right: 6px; vertical-align: 1px; }
-.logs .scroll.dragging { outline: 2px dashed var(--accent); outline-offset: -6px; }
-.logs .foot { font-size: 11.5px; color: var(--muted); padding: 6px 14px; border-top: 1px solid var(--line); display: flex; gap: 10px; justify-content: space-between; }
-.panel.logs { grid-template-rows: auto minmax(0, 1fr) auto; }
+.logscroll.dragging { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.foot { font-size: 12px; color: var(--muted); padding-top: 10px; display: flex; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
 .flash { font-size: 12px; color: var(--ink-2); }
 
 /* Timeline */
-.timeline { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-.timeline > header { display: flex; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); }
-.timeline > header .range { font-size: 12px; color: var(--ink-2); }
-#tl-body { overflow: auto; max-height: 240px; padding: 6px 10px 10px; }
-#tl-body svg { display: block; font-family: var(--font-mono); font-size: 11px; }
-#tl-body .lbl { fill: var(--ink-2); }
-#tl-body .tick { fill: var(--muted); }
-#tl-body .gridline { stroke: var(--line); stroke-width: 1; }
-#tl-body .axis { stroke: var(--axis); stroke-width: 1; }
-#tl-body .bar { rx: 3; }
-#tl-body .bar.s-running { fill: var(--accent); }
-#tl-body .bar.s-done { fill: var(--good); }
-#tl-body .bar.s-failed { fill: var(--critical); }
-#tl-body .bar.s-stale { fill: var(--warn); }
-#tl-body .now { stroke: var(--ink-2); stroke-dasharray: 2 3; }
-.tooltip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--bg); padding: 6px 9px; border-radius: 6px; font-size: 12px; max-width: 320px; }
+.tlwrap { overflow-x: auto; }
+.tlwrap svg { display: block; font-family: var(--font-mono); font-size: 11.5px; }
+.tlwrap .lbl { fill: var(--ink-2); }
+.tlwrap .tick { fill: var(--muted); }
+.tlwrap .gridline { stroke: var(--line); stroke-width: 1; }
+.tlwrap .axis { stroke: var(--axis); stroke-width: 1; }
+.tlwrap .bar { rx: 3; }
+.tlwrap .bar.s-running { fill: var(--accent); }
+.tlwrap .bar.s-done { fill: var(--good); }
+.tlwrap .bar.s-failed { fill: var(--critical); }
+.tlwrap .bar.s-stale { fill: var(--warn); }
+.tlwrap .now { stroke: var(--ink-2); stroke-dasharray: 2 3; }
+.tlwrap .phaseband { fill: var(--surface-2); }
+.tooltip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--bg); padding: 7px 10px; border-radius: 6px; font-size: 12.5px; max-width: 340px; }
 .tooltip[hidden] { display: none; }
 
 /* Factory */
-.panel.factory { display: none; }
-body[data-view="factory"] .grid { grid-template-columns: minmax(0, 1fr); }
-body[data-view="factory"] .panel.factory { display: grid; }
 .line-wrap { overflow-x: auto; padding-bottom: 6px; }
-.line { display: grid; grid-template-columns: repeat(7, minmax(150px, 1fr)); gap: 8px; min-width: 1064px; }
-.station { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); min-height: 150px; display: grid; grid-template-rows: auto 1fr; }
-.station > header { padding: 8px 10px; border-bottom: 2px solid var(--line); display: grid; gap: 1px; }
+.line { display: grid; grid-template-columns: repeat(7, minmax(170px, 1fr)); gap: 10px; min-width: 1200px; }
+.station { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); min-height: 180px; display: grid; grid-template-rows: auto 1fr; }
+.station > header { padding: 10px 12px; border-bottom: 2px solid var(--line); display: grid; gap: 2px; }
 .station.active > header { border-bottom-color: var(--accent); }
-.station .sname { font-weight: 600; }
-.station .sworker { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
-.station .scount { font-size: 11px; color: var(--muted); }
-.station .slot { padding: 8px; display: grid; gap: 8px; align-content: start; }
-.fcard { display: grid; gap: 5px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--c, var(--axis)); border-radius: var(--radius); padding: 8px 10px; cursor: pointer; color: inherit; font: inherit; }
+.station .sname { font-weight: 600; font-size: 15px; }
+.station .sworker { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); }
+.station .scount { font-size: 12px; color: var(--muted); }
+.station .slot { padding: 10px; display: grid; gap: 10px; align-content: start; }
+.fcard { display: grid; gap: 6px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--c, var(--axis)); border-radius: var(--radius); padding: 10px 12px; cursor: pointer; color: inherit; font: inherit; }
 .fcard:hover { border-color: var(--axis); border-left-color: var(--c, var(--axis)); }
 .fcard[aria-pressed="true"] { outline: 2px solid var(--accent); }
-.fcard .fid { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); display: flex; justify-content: space-between; gap: 6px; align-items: center; }
-.fcard .ftitle { font-size: 12.5px; line-height: 1.3; }
-.fcard .fagent { font-size: 11px; color: var(--accent-ink); overflow-wrap: anywhere; }
-.fcard .fsince { font-size: 11px; color: var(--muted); }
+.fcard .fid { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+.fcard .ftitle { font-size: 13px; line-height: 1.35; }
+.fcard .fagent { font-size: 12px; color: var(--accent-ink); overflow-wrap: anywhere; }
+.fcard .fsince { font-size: 12px; color: var(--muted); }
 .track { display: flex; align-items: center; }
-.track .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--axis); flex: none; }
+.track .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--axis); flex: none; }
 .track .dot.passed { background: var(--good); border-color: var(--good); }
 .track .dot.current { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
 .track .dot.failed { background: var(--critical); border-color: var(--critical); }
 .track .dot.blocked { background: var(--serious); border-color: var(--serious); }
 .track .seg { flex: 1; height: 2px; background: var(--line); min-width: 6px; }
 .track .seg.passed { background: var(--good); }
-.fsec { display: grid; gap: 8px; margin-top: 14px; }
-.fsec h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
-.flow { display: flex; flex-wrap: wrap; gap: 6px 0; align-items: center; }
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; font: inherit; color: inherit; font-size: 12px; }
+.flow { display: flex; flex-wrap: wrap; gap: 8px 0; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; font: inherit; color: inherit; font-size: 12.5px; }
 .chip .n { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 .chip .sw { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--muted)); flex: none; }
 .chip.next { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .chip[aria-pressed="true"] { outline: 2px solid var(--accent); }
 .chip.ph { background: none; border-style: dashed; }
-.arrow { color: var(--axis); padding: 0 5px; font-size: 12px; }
-.phase-sep { width: 100%; font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--font-mono); }
-.fdetail { display: grid; gap: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+.arrow { color: var(--axis); padding: 0 6px; font-size: 12px; }
+.phase-sep { width: 100%; font-size: 12px; color: var(--muted); margin-top: 8px; font-family: var(--font-mono); }
+.fdetail { display: grid; gap: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
 .fdetail .dtitle { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.fdetail .track-lg { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.fdetail .st { display: grid; gap: 4px; justify-items: center; font-size: 11px; color: var(--ink-2); text-align: center; }
-.fdetail .st .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--axis); }
+.fdetail .track-lg { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.fdetail .st { display: grid; gap: 5px; justify-items: center; font-size: 12px; color: var(--ink-2); text-align: center; }
+.fdetail .st .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--axis); }
 .fdetail .st .dot.passed { background: var(--good); border-color: var(--good); }
 .fdetail .st .dot.current { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 3.5px var(--accent); }
 .fdetail .st .dot.failed { background: var(--critical); border-color: var(--critical); }
 .fdetail .st .dot.blocked { background: var(--serious); border-color: var(--serious); }
 .fdetail .st .when { font-family: var(--font-mono); color: var(--muted); }
-.fdetail .hist { margin: 0; padding-left: 18px; font-size: 12px; display: grid; gap: 2px; }
+.fdetail .hist { margin: 0; padding-left: 18px; font-size: 13px; display: grid; gap: 3px; }
 .fdetail .hist .mono { color: var(--ink-2); }
 
 /* Responsive */
 @media (max-width: 1100px) {
-  .top { grid-template-columns: 1fr auto; grid-template-areas: "brand conn" "overall overall" "tiles tiles" "views views"; }
-  body[data-view="overview"] .grid { grid-template-columns: 1fr 1fr; }
-  body[data-view="overview"] .panel.logs { grid-column: 1 / -1; }
+  .top { grid-template-columns: 1fr; }
+  .kpis { justify-content: flex-start; }
+  .two { grid-template-columns: 1fr; }
+  .row { grid-template-columns: 100px minmax(0, 1fr) 130px; grid-template-rows: auto auto; }
+  .row .tprog { grid-column: 1 / 3; }
+  .row .towner { grid-column: 3; }
+  .row .tupd { grid-column: 1 / -1; text-align: left; }
+  .tevents { margin-left: 0; }
 }
-@media (max-width: 760px) {
-  body { height: auto; grid-template-rows: auto auto auto; }
-  body[data-view="overview"] .grid { grid-template-columns: 1fr; }
-  .panel .scroll { max-height: 60vh; }
-  .top { grid-template-columns: 1fr; grid-template-areas: "brand" "overall" "tiles" "conn" "views"; }
-  .fdetail .track-lg { grid-template-columns: repeat(4, 1fr); }
-  .conn { justify-self: start; }
-  .log li { grid-template-columns: 56px 1fr; }
+@media (max-width: 700px) {
+  .wrap { padding: 12px 14px 32px; }
+  .top { padding: 16px; }
+  .kpi { min-width: 0; width: 100%; }
+  .row { grid-template-columns: 1fr; }
+  .row .tprog, .row .towner, .row .tupd { grid-column: 1; }
+  .fl { grid-template-columns: 62px 1fr; }
+  .fl .fm { grid-column: 1 / -1; }
+  .log li { grid-template-columns: 62px 1fr; }
   .log li .lm { grid-column: 1 / -1; }
+  .fdetail .track-lg { grid-template-columns: repeat(4, 1fr); }
 }
 </style>
 </head>
 <body data-view="overview">
+<div class="wrap">
 <header class="top">
   <div class="brand">
     <h1>Bridle Build Monitor</h1>
-    <p class="sub">Structural-engineering simulation LMS build: every agent, task, and log line, live.</p>
+    <p class="sub">Structural-engineering simulation LMS build. Every agent, task, and log line, live.</p>
+    <div class="conn">
+      <select id="run-select" aria-label="Run"><option value="all">All runs</option></select>
+      <span class="pill s-connecting" id="conn-pill"></span>
+      <span class="muted tnum" id="last-age"></span>
+    </div>
   </div>
-  <div class="overall">
-    <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Tasks complete" id="overall-meter"><span class="fill" id="overall-fill"></span></div>
-    <div class="overall-text"><strong id="overall-pct">0%</strong><span id="overall-count">0 of 0 tasks done</span><span id="overall-phase" class="muted"></span></div>
-  </div>
-  <div class="tiles" id="tiles" aria-label="Agent counters"></div>
-  <div class="conn">
-    <select id="run-select" aria-label="Run"><option value="all">All runs</option></select>
-    <span class="pill s-connecting" id="conn-pill"></span>
-    <span class="age muted tnum" id="last-age"></span>
+  <div class="kpis">
+    <div class="kpi" aria-label="Overall progress">
+      <span class="v" id="overall-pct">0%</span>
+      <span class="l" id="overall-count">0 of 0 tasks done</span>
+      <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Tasks complete" id="overall-meter"><span class="fill" id="overall-fill"></span></div>
+      <span class="l2" id="overall-phase"></span>
+    </div>
+    <div class="tiles" id="tiles" aria-label="Agent counters"></div>
   </div>
   <nav class="views" aria-label="Views">
     <a href="#overview">Overview</a>
@@ -324,22 +321,33 @@ body[data-view="factory"] .panel.factory { display: grid; }
     <a href="#agents">Agents</a>
     <a href="#logs">Logs</a>
     <a href="#factory">Factory</a>
+    <a href="#timeline">Timeline</a>
   </nav>
 </header>
 
-<main class="grid">
-  <section class="panel tasks" aria-labelledby="h-tasks">
-    <header><h2 id="h-tasks">Tasks</h2><span class="muted" id="tasks-sub"></span><span class="spacer"></span><button type="button" id="clear-sel" hidden>Show all</button></header>
-    <div class="scroll" id="tasks-body"></div>
+<main>
+  <section class="view v-overview" aria-label="Overview">
+    <section class="block" aria-labelledby="h-board"><header><h2 id="h-board">Progress board</h2><span class="sub" id="board-sub"></span></header><div class="board" id="board"></div></section>
+    <div class="two" style="margin-top:16px">
+      <section class="block" aria-labelledby="h-current"><header><h2 id="h-current">Current phase</h2><span class="sub" id="current-sub"></span></header><div id="current"></div></section>
+      <section class="block" aria-labelledby="h-working"><header><h2 id="h-working">Working now<span class="count" id="working-count"></span></h2></header><div id="working"></div></section>
+    </div>
+    <section class="block" aria-labelledby="h-activity"><header><h2 id="h-activity">Latest activity</h2><span class="sub">newest first, heartbeats hidden</span></header><div class="feed" id="activity"></div></section>
+    <section class="block" aria-labelledby="h-tl"><header><h2 id="h-tl">Timeline</h2><span class="sub" id="tl-range"></span></header><div class="tlwrap" id="tl-body"></div></section>
   </section>
-  <section class="panel agents" aria-labelledby="h-agents">
-    <header><h2 id="h-agents">Agents</h2><span class="muted" id="agents-sub"></span></header>
-    <div class="scroll" id="agents-body"></div>
+
+  <section class="view v-tasks" aria-label="Tasks">
+    <section class="block"><header><h2>Tasks<span class="count" id="tasks-sub"></span></h2><span class="spacer"></span><button type="button" id="clear-sel" hidden>Clear selection</button></header><div id="tasks-body"></div></section>
   </section>
-  <section class="panel logs" aria-labelledby="h-logs">
-    <header>
-      <h2 id="h-logs">Logs</h2><span class="muted" id="logs-sub"></span>
-      <div class="controls">
+
+  <section class="view v-agents" aria-label="Agents">
+    <section class="block"><header><h2>Agents<span class="count" id="agents-sub"></span></h2></header><div id="agents-body"></div></section>
+  </section>
+
+  <section class="view v-logs" aria-label="Logs">
+    <section class="block">
+      <header><h2>Logs<span class="count" id="logs-sub"></span></h2></header>
+      <div class="controls" style="margin-bottom:10px">
         <select id="level-select" aria-label="Minimum level"><option value="debug">All levels</option><option value="info">Info and up</option><option value="warn">Warnings and up</option><option value="error">Errors only</option></select>
         <input type="search" id="search" placeholder="Search message, agent, task" aria-label="Search logs">
         <label><input type="checkbox" id="autoscroll" checked> Follow</label>
@@ -348,20 +356,20 @@ body[data-view="factory"] .panel.factory { display: grid; }
         <input type="file" id="file-input" accept=".jsonl,.json,.txt,.log" multiple hidden>
         <span class="flash" id="flash" aria-live="polite"></span>
       </div>
-    </header>
-    <div class="scroll" id="logs-body"><ol class="log" id="log-list"></ol></div>
-    <div class="foot"><span id="logs-count"></span><span>Drop a .jsonl file from .bridle/progress here to view offline history.</span></div>
+      <div class="logscroll" id="logs-body"><ol class="log" id="log-list"></ol></div>
+      <div class="foot"><span id="logs-count"></span><span>Drop a .jsonl file from .bridle/progress here to view offline history.</span></div>
+    </section>
   </section>
-  <section class="panel factory" aria-labelledby="h-factory">
-    <header><h2 id="h-factory">Factory</h2><span class="muted" id="factory-sub"></span><span class="spacer"></span><span class="muted" id="factory-next"></span></header>
-    <div class="scroll" id="factory-body"></div>
+
+  <section class="view v-factory" aria-label="Factory">
+    <section class="block"><header><h2>Factory</h2><span class="sub" id="factory-sub"></span><span class="spacer"></span><span class="sub" id="factory-next"></span></header><div id="factory-body"></div></section>
+  </section>
+
+  <section class="view v-timeline" aria-label="Timeline">
+    <section class="block"><header><h2>Timeline</h2><span class="sub" id="tl-range-full"></span></header><div class="tlwrap" id="tl-body-full"></div></section>
   </section>
 </main>
-
-<footer class="timeline" aria-labelledby="h-tl">
-  <header><h2 id="h-tl">Timeline</h2><span class="range" id="tl-range"></span></header>
-  <div id="tl-body"></div>
-</footer>
+</div>
 <div class="tooltip" id="tooltip" hidden></div>
 
 <script>
@@ -699,19 +707,35 @@ function pill(status, metaTable) {
   return h('span', { 'class': 'pill s-' + status }, icon(meta.icon), meta.label);
 }
 function meter(pct, status, thin) {
-  var m = h('div', { 'class': 'meter' + (thin ? ' thin' : ''), role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(pct) });
+  var m = h('div', { 'class': 'meter' + (thin ? ' thin' : ''), role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(Math.round(pct)) });
   var f = h('span', { 'class': 'fill' + (status ? ' s-' + status : '') });
   f.style.width = Math.max(0, Math.min(100, pct)) + '%';
   m.appendChild(f);
   return m;
 }
 function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+function statusFill(status) { return status === 'done' ? 'done' : status === 'failed' ? 'failed' : status === 'stale' ? 'stale' : status === 'blocked' ? 'blocked' : null; }
+function phaseTitle(ph) {
+  for (var i = 0; i < PHASES.length; i++) if (PHASES[i].id === ph) return PHASES[i].title;
+  return ph;
+}
+function phaseStatus(p) {
+  if (!p.tasks.length) return 'planned';
+  if (p.tasks.some(function (t) { return t.status === 'failed'; })) return 'failed';
+  if (p.tasks.some(function (t) { return t.status === 'blocked'; })) return 'blocked';
+  if (p.active) return 'running';
+  if (p.done === p.tasks.length) return 'done';
+  if (p.tasks.some(function (t) { return t.status === 'review'; })) return 'review';
+  return 'planned';
+}
+var PHASE_LABEL = { planned: 'Not started', running: 'In progress', done: 'Done', failed: 'Failed', blocked: 'Blocked', review: 'In review', queued: 'Queued', stale: 'Stale' };
 
 var $ = function (id) { return document.getElementById(id); };
 var els = {};
-['overall-meter', 'overall-fill', 'overall-pct', 'overall-count', 'overall-phase', 'tiles', 'run-select', 'conn-pill', 'last-age', 'tasks-body', 'tasks-sub', 'clear-sel',
-  'agents-body', 'agents-sub', 'logs-body', 'logs-sub', 'log-list', 'logs-count', 'level-select', 'search', 'autoscroll', 'copy-btn', 'load-btn', 'file-input', 'flash',
-  'tl-body', 'tl-range', 'tooltip', 'factory-body', 'factory-sub', 'factory-next'].forEach(function (id) { els[id] = $(id); });
+['overall-meter', 'overall-fill', 'overall-pct', 'overall-count', 'overall-phase', 'tiles', 'run-select', 'conn-pill', 'last-age',
+  'board', 'board-sub', 'current', 'current-sub', 'h-current', 'working', 'working-count', 'activity', 'tl-body', 'tl-range', 'tl-body-full', 'tl-range-full',
+  'tasks-body', 'tasks-sub', 'clear-sel', 'agents-body', 'agents-sub', 'logs-body', 'logs-sub', 'log-list', 'logs-count', 'level-select', 'search', 'autoscroll',
+  'copy-btn', 'load-btn', 'file-input', 'flash', 'factory-body', 'factory-sub', 'factory-next', 'tooltip'].forEach(function (id) { els[id] = $(id); });
 
 /* ---------- Rendering ---------- */
 var renderQueued = false;
@@ -721,17 +745,19 @@ function scheduleRender() {
   renderQueued = true;
   requestAnimationFrame(function () { renderQueued = false; render(); });
 }
-
 function setConn(c, detail) { state.conn = c; state.connDetail = detail || ''; scheduleRender(); }
+function currentView() { return document.body.getAttribute('data-view') || 'overview'; }
 
 function render() {
   var d = derive(Date.now());
+  var v = currentView();
   renderHeader(d);
-  renderTasks(d);
-  renderAgents(d);
-  renderLogs(d);
-  renderTimeline(d);
-  renderFactory(d);
+  if (v === 'overview') renderOverview(d);
+  if (v === 'tasks') renderTasks(d);
+  if (v === 'agents') renderAgents(d);
+  if (v === 'logs') renderLogs(d);
+  if (v === 'factory') renderFactory(d);
+  if (v === 'timeline') renderTimeline(d, els['tl-body-full'], els['tl-range-full']);
 }
 
 function renderHeader(d) {
@@ -740,13 +766,13 @@ function renderHeader(d) {
   els['overall-meter'].setAttribute('aria-valuenow', String(pct));
   els['overall-pct'].textContent = pct + '%';
   els['overall-count'].textContent = d.totals.done + ' of ' + d.totals.tasks + ' tasks done';
-  els['overall-phase'].textContent = d.current ? 'Now in ' + d.current.id + ' ' + d.current.title : (d.totals.done === d.totals.tasks && d.totals.tasks ? 'All phases complete' : 'Nothing running');
+  els['overall-phase'].textContent = d.current ? 'Now in ' + d.current.id + ' ' + d.current.title : (d.totals.done === d.totals.tasks && d.totals.tasks ? 'All phases complete' : 'No phase has running work');
 
   clear(els.tiles);
-  [['running', d.totals.running, 'running', 'var(--accent)'], ['stale', d.totals.stale, 'stale', 'var(--warn)'], ['blocked', d.totals.blocked, 'blocked', 'var(--serious)'],
-    ['failed', d.totals.failed, 'failed', 'var(--critical)'], ['doneAgents', d.totals.doneAgents, 'agents done', 'var(--good)']].forEach(function (t) {
-    var tile = h('div', { 'class': 'tile' }, h('span', { 'class': 'v', text: String(t[1]) }), h('span', { 'class': 'l', text: t[2] }));
-    tile.style.setProperty('--c', t[3]);
+  [[d.totals.running, 'working', 'var(--accent)'], [d.totals.stale, 'stale', 'var(--warn)'], [d.totals.blocked, 'blocked', 'var(--serious)'],
+    [d.totals.failed, 'failed', 'var(--critical)'], [d.totals.doneAgents, 'finished', 'var(--good)']].forEach(function (t) {
+    var tile = h('div', { 'class': 'tile' }, h('span', { 'class': 'v tnum', text: String(t[0]) }), h('span', { 'class': 'l', text: t[1] }));
+    tile.style.setProperty('--c', t[2]);
     els.tiles.appendChild(tile);
   });
 
@@ -758,7 +784,7 @@ function renderHeader(d) {
     sel.appendChild(h('option', { value: 'all', text: 'All runs (' + d.runs.size + ')' }));
     want.slice(1).forEach(function (id) {
       var r = d.runs.get(id);
-      sel.appendChild(h('option', { value: id, text: (r.name ? r.name + ' · ' : '') + shortRun(id) + (r.ended ? ' · ended' : ' · active') }));
+      sel.appendChild(h('option', { value: id, text: (r.name ? r.name.slice(0, 48) + ' · ' : '') + shortRun(id) + (r.ended ? ' · ended' : ' · active') }));
     });
   }
   sel.value = d.runFilter;
@@ -772,31 +798,114 @@ function renderHeader(d) {
   els['last-age'].textContent = d.lastTs ? 'last event ' + fmtAgo(d.now - d.lastTs) + ' ago' : 'no events yet';
 }
 
+/* Shared pieces */
+function agentCard(a, d) {
+  var card = h('button', { type: 'button', 'class': 'card s-' + a.display, 'aria-pressed': state.selectedAgent === a.key ? 'true' : 'false',
+    onclick: function () { state.selectedAgent = state.selectedAgent === a.key ? null : a.key; state.selectedTask = null; location.hash = '#logs'; scheduleRender(); } },
+    h('div', { 'class': 'ctop' }, h('span', { 'class': 'clabel', text: a.label }), pill(a.display)),
+    h('div', { 'class': 'cid', text: a.id + (a.taskId ? ' · ' + a.taskId : '') + (a.phase ? ' · ' + a.phase : '') + (a.runId ? ' · ' + shortRun(a.runId) : '') }),
+    a.step ? h('div', { 'class': 'cstep', text: 'Step: ' + a.step }) : null,
+    h('div', { 'class': 'cmsg', text: a.lastMessage || 'No message yet' }),
+    h('div', { 'class': 'cprog' }, meter(a.progress, statusFill(a.display)), h('span', { 'class': 'tnum', text: Math.round(a.progress) + '%' })),
+    h('div', { 'class': 'cfoot' },
+      h('span', { text: (a.endTs ? 'finished ' + fmtAgo(d.now - a.endTs) + ' ago' : 'last seen ' + fmtAgo(d.now - a.lastTs) + ' ago') + ' · ran ' + fmtDur((a.endTs || d.now) - a.firstTs) }),
+      h('span', { text: (a.errors ? a.errors + ' errors · ' : '') + a.count + ' events · click for logs' })));
+  return card;
+}
+function feedLine(e, d, showTask) {
+  var cls = 'fl lvl-' + e.level + (e.type === 'agent.done' ? ' t-done' : e.type === 'agent.start' ? ' t-start' : '');
+  var tag = e.type.replace('agent.', '') + (e.progress != null && e.type !== 'agent.log' ? ' ' + Math.round(e.progress) + '%' : '') + (e.status ? ' ' + e.status : '') + (e.step && e.type === 'card.move' ? ' → ' + e.step : '');
+  return h('div', { 'class': cls, title: e.ts },
+    h('span', { 'class': 'ft', text: fmtTime(e.tsMs) }),
+    h('span', { 'class': 'fa', text: (e.agentLabel || e.agentId || (e.type.indexOf('run.') === 0 ? 'run' : 'orchestrator')) }),
+    h('span', { 'class': 'fm' }, h('span', { 'class': 'tag', text: tag }), (showTask && e.taskId ? '[' + e.taskId + '] ' : '') + e.message));
+}
+function taskRow(t, d) {
+  var row = h('button', { type: 'button', 'class': 'row s-' + t.status, 'aria-pressed': state.selectedTask === t.id ? 'true' : 'false',
+    onclick: function () { state.selectedTask = state.selectedTask === t.id ? null : t.id; state.selectedAgent = null; scheduleRender(); } },
+    h('span', { 'class': 'tid', text: t.id }),
+    h('span', { 'class': 'ttitle', text: t.title + (t.placeholder ? ' (placeholder)' : '') }),
+    pill(t.status),
+    h('span', { 'class': 'tprog' }, meter(t.progress, statusFill(t.status), true), h('span', { 'class': 'tnum', text: t.progress + '%' })),
+    h('span', { 'class': 'towner', text: t.owner ? t.owner.label : '' , title: t.owner ? t.owner.id : '' }),
+    h('span', { 'class': 'tupd', text: t.updatedTs ? fmtAgo(d.now - t.updatedTs) + ' ago' : '' }));
+  if (t.statusNote) row.title = t.statusNote;
+  return row;
+}
+function taskEvents(t, d, n) {
+  var evs = d.evs.filter(function (e) { return e.taskId === t.id && e.type !== 'agent.heartbeat'; });
+  if (!evs.length) return h('div', { 'class': 'tevents' }, h('span', { 'class': 'muted', text: 'No activity yet.' }));
+  evs = evs.slice(-n).reverse();
+  return h('div', { 'class': 'tevents' }, evs.map(function (e) { return feedLine(e, d, false); }));
+}
+
+/* Overview */
+function renderOverview(d) {
+  var board = els.board; clear(board);
+  var phases = d.phases.filter(function (p) { return p.tasks.length; });
+  els['board-sub'].textContent = d.totals.done + ' of ' + d.totals.tasks + ' tasks done across ' + phases.length + ' phases';
+  phases.forEach(function (p) {
+    var st = phaseStatus(p);
+    var running = p.tasks.filter(function (t) { return t.status === 'running' || t.status === 'stale'; }).length;
+    var card = h('div', { 'class': 'pcard s-' + st },
+      h('div', { 'class': 'ptop' }, h('span', { 'class': 'pid', text: p.id }), h('span', { 'class': 'pill s-' + st }, icon((STATUS_META[st] || STATUS_META.planned).icon), PHASE_LABEL[st] || st)),
+      h('div', { 'class': 'ptitle', text: p.title }),
+      h('div', { 'class': 'pstat' }, h('span', { 'class': 'ppct tnum', text: p.pct + '%' }), h('span', { text: p.done + ' of ' + p.tasks.length + ' done' + (running ? ' · ' + running + ' running' : '') })),
+      meter(p.pct, statusFill(st)));
+    board.appendChild(card);
+  });
+
+  var cur = d.current;
+  if (!cur) {
+    var latest = null;
+    d.tasks.forEach(function (t) { if (t.updatedTs && (!latest || t.updatedTs > latest.updatedTs)) latest = t; });
+    if (latest) d.phases.forEach(function (p) { if (p.id === latest.phase) cur = p; });
+  }
+  if (!cur) cur = phases.filter(function (p) { return p.done < p.tasks.length; })[0] || phases[0];
+  var curEl = els.current; clear(curEl);
+  if (!cur) { curEl.appendChild(h('p', { 'class': 'empty', text: 'No tasks yet.' })); els['current-sub'].textContent = ''; }
+  else {
+    els['h-current'].textContent = 'Current phase: ' + cur.id + ' ' + cur.title;
+    els['current-sub'].textContent = cur.done + ' of ' + cur.tasks.length + ' done · ' + cur.pct + '%';
+    curEl.appendChild(meter(cur.pct, statusFill(phaseStatus(cur))));
+    var list = h('div', { style: 'margin-top:10px' });
+    cur.tasks.forEach(function (t) {
+      list.appendChild(taskRow(t, d));
+      if (t.status === 'running' || t.status === 'stale' || t.status === 'failed' || t.status === 'blocked' || state.selectedTask === t.id) list.appendChild(taskEvents(t, d, state.selectedTask === t.id ? 12 : 3));
+    });
+    curEl.appendChild(list);
+  }
+
+  var working = d.agents.filter(function (a) { return a.display === 'running'; }).sort(function (a, b) { return b.lastTs - a.lastTs; });
+  els['working-count'].textContent = working.length ? String(working.length) : '';
+  var w = els.working; clear(w);
+  if (!working.length) w.appendChild(h('p', { 'class': 'empty', text: d.totals.stale ? 'No agent is reporting right now; ' + d.totals.stale + ' went quiet without finishing (see Agents).' : 'No agent is working right now.' }));
+  else { var grid = h('div', { 'class': 'cards', style: 'grid-template-columns: 1fr' }); working.forEach(function (a) { grid.appendChild(agentCard(a, d)); }); w.appendChild(grid); }
+
+  var act = els.activity; clear(act);
+  var recent = d.evs.filter(function (e) { return e.type !== 'agent.heartbeat'; }).slice(-20).reverse();
+  if (!recent.length) act.appendChild(h('p', { 'class': 'empty', text: 'No events yet. Agents report here as soon as the first one starts.' }));
+  else recent.forEach(function (e) { act.appendChild(feedLine(e, d, true)); });
+
+  renderTimeline(d, els['tl-body'], els['tl-range']);
+}
+
+/* Tasks */
 function renderTasks(d) {
-  var body = els['tasks-body'];
-  clear(body);
+  var body = els['tasks-body']; clear(body);
   els['tasks-sub'].textContent = d.totals.tasks + ' tasks · ' + d.phases.filter(function (p) { return p.tasks.length; }).length + ' phases';
-  els['clear-sel'].hidden = !(state.selectedTask || state.selectedAgent);
+  els['clear-sel'].hidden = !state.selectedTask;
   d.phases.forEach(function (p) {
     if (!p.tasks.length) return;
+    var st = phaseStatus(p);
     var ph = h('section', { 'class': 'phase', 'aria-label': p.id + ' ' + p.title });
-    var head = h('div', { 'class': 'phase-head' },
-      h('span', { 'class': 'pid', text: p.id }),
-      h('span', { 'class': 'ptitle', text: p.title }),
-      h('span', { 'class': 'pcount tnum', text: p.done + '/' + p.tasks.length + ' done · ' + p.pct + '%' }),
-      meter(p.pct, p.active ? 'running' : (p.done === p.tasks.length ? 'done' : null), true));
-    ph.appendChild(head);
+    ph.appendChild(h('div', { 'class': 'phase-head' },
+      h('span', { 'class': 'pid', text: p.id }), h('span', { 'class': 'ptitle', text: p.title }),
+      h('span', { 'class': 'pcount tnum', text: p.done + '/' + p.tasks.length + ' done · ' + p.pct + '% · ' + (PHASE_LABEL[st] || st) }),
+      meter(p.pct, statusFill(st), true)));
     p.tasks.forEach(function (t) {
-      var row = h('button', { type: 'button', 'class': 'row s-' + t.status, 'aria-pressed': state.selectedTask === t.id ? 'true' : 'false',
-        onclick: function () { state.selectedTask = state.selectedTask === t.id ? null : t.id; state.selectedAgent = null; scheduleRender(); } },
-        h('span', { 'class': 'tid', text: t.id }),
-        h('span', { 'class': 'ttitle', text: t.title + (t.placeholder ? ' (placeholder)' : '') }),
-        h('span', { 'class': 'tmeta' }, pill(t.status), meter(t.progress, t.status === 'done' ? 'done' : t.status === 'failed' ? 'failed' : t.status === 'stale' ? 'stale' : null, true),
-          h('span', { 'class': 'tnum', text: t.progress + '%' }),
-          t.owner ? h('span', { 'class': 'mono', text: t.owner.label, title: t.owner.id }) : null,
-          h('span', { 'class': 'muted tnum', text: t.updatedTs ? fmtAgo(d.now - t.updatedTs) + ' ago' : '' })));
-      if (t.statusNote) row.title = t.statusNote;
-      ph.appendChild(row);
+      ph.appendChild(taskRow(t, d));
+      if (state.selectedTask === t.id) ph.appendChild(taskEvents(t, d, 15));
     });
     body.appendChild(ph);
   });
@@ -805,35 +914,26 @@ function renderTasks(d) {
   body.appendChild(legend);
 }
 
+/* Agents */
 function renderAgents(d) {
-  var body = els['agents-body'];
-  clear(body);
-  var list = d.agents.slice();
-  if (state.selectedTask) list = list.filter(function (a) { return a.taskId === state.selectedTask; });
-  list.sort(function (a, b) { return (STATUS_ORDER[a.display] - STATUS_ORDER[b.display]) || (b.lastTs - a.lastTs); });
-  els['agents-sub'].textContent = (state.selectedTask ? 'on ' + state.selectedTask + ': ' : '') + list.length + ' of ' + d.agents.length;
-  if (!list.length) {
-    body.appendChild(h('p', { 'class': 'empty' }, d.agents.length ? 'No agents on the selected task yet.' :
-      'No agents have reported yet. Each planning or implementation agent sends agent.start, agent.progress, agent.log, and agent.done events; they appear here as cards within seconds of being written.'));
-    return;
-  }
-  var grid = h('div', { 'class': 'cards' });
-  list.forEach(function (a) {
-    var card = h('button', { type: 'button', 'class': 'card s-' + a.display, 'aria-pressed': state.selectedAgent === a.key ? 'true' : 'false',
-      onclick: function () { state.selectedAgent = state.selectedAgent === a.key ? null : a.key; scheduleRender(); } },
-      h('div', { 'class': 'ctop' }, h('span', { 'class': 'clabel', text: a.label }), pill(a.display)),
-      h('div', { 'class': 'cid', text: a.id + (a.taskId ? ' · ' + a.taskId : '') + (a.phase ? ' · ' + a.phase : '') }),
-      h('div', { 'class': 'cmsg', text: (a.step ? a.step + ': ' : '') + (a.lastMessage || 'No message yet') }),
-      h('div', { 'class': 'cprog' }, meter(a.progress, a.display === 'done' ? 'done' : a.display === 'failed' ? 'failed' : a.display === 'stale' ? 'stale' : null), h('span', { 'class': 'tnum', text: Math.round(a.progress) + '%' })),
-      h('div', { 'class': 'cfoot' },
-        h('span', { text: (a.endTs ? 'finished ' + fmtAgo(d.now - a.endTs) + ' ago' : 'last seen ' + fmtAgo(d.now - a.lastTs) + ' ago') + ' · ran ' + fmtDur((a.endTs || d.now) - a.firstTs) }),
-        h('span', { text: (a.errors ? a.errors + ' err · ' : '') + a.count + ' ev' })));
-    card.title = a.runId ? 'run ' + a.runId : '';
-    grid.appendChild(card);
-  });
-  body.appendChild(grid);
+  var body = els['agents-body']; clear(body);
+  var all = d.agents.slice();
+  var working = all.filter(function (a) { return a.display === 'running'; }).sort(function (a, b) { return b.lastTs - a.lastTs; });
+  var idleOrder = { stale: 0, failed: 1, done: 2 };
+  var idle = all.filter(function (a) { return a.display !== 'running'; }).sort(function (a, b) { return (idleOrder[a.display] - idleOrder[b.display]) || (b.lastTs - a.lastTs); });
+  els['agents-sub'].textContent = working.length + ' working · ' + idle.length + ' idle';
+  if (!all.length) { body.appendChild(h('p', { 'class': 'empty', text: 'No agents have reported yet. Each agent sends start, progress, log, and done events; they appear here as cards within seconds of being written.' })); return; }
+  var g1 = h('section', { 'class': 'group' }, h('h3', {}, 'Working now', h('span', { 'class': 'count', text: working.length + (working.length === 1 ? ' agent' : ' agents') })));
+  if (!working.length) g1.appendChild(h('p', { 'class': 'empty', text: 'No agent is working right now.' }));
+  else { var c1 = h('div', { 'class': 'cards' }); working.forEach(function (a) { c1.appendChild(agentCard(a, d)); }); g1.appendChild(c1); }
+  body.appendChild(g1);
+  var g2 = h('section', { 'class': 'group' }, h('h3', {}, 'Idle', h('span', { 'class': 'count', text: idle.length + ' · ' + idle.filter(function (a) { return a.display === 'done'; }).length + ' finished, ' + idle.filter(function (a) { return a.display === 'stale'; }).length + ' stale, ' + idle.filter(function (a) { return a.display === 'failed'; }).length + ' failed' })));
+  if (!idle.length) g2.appendChild(h('p', { 'class': 'empty', text: 'Nothing idle.' }));
+  else { var c2 = h('div', { 'class': 'cards' }); idle.forEach(function (a) { c2.appendChild(agentCard(a, d)); }); g2.appendChild(c2); }
+  body.appendChild(g2);
 }
 
+/* Logs */
 function renderLogs(d) {
   var list = d.evs;
   var scope = 'all events';
@@ -852,17 +952,15 @@ function renderLogs(d) {
   });
   var total = list.length;
   if (list.length > LOG_TAIL) list = list.slice(list.length - LOG_TAIL);
-  els['logs-sub'].textContent = scope;
-  els['logs-count'].textContent = total ? 'showing ' + list.length + ' of ' + total + ' lines' + (d.all.length >= EVENT_WINDOW ? ' · live window holds the latest ' + EVENT_WINDOW + ' events' : '') : '';
-
+  els['logs-sub'].textContent = scope + (state.selectedAgent || state.selectedTask ? ' (press Escape for all)' : '');
+  els['logs-count'].textContent = total ? 'showing ' + list.length + ' of ' + total + ' lines' + (d.all.length >= EVENT_WINDOW ? ' · the live window holds the latest ' + EVENT_WINDOW + ' events' : '') : '';
   var ol = els['log-list'];
   var scroller = els['logs-body'];
-  var atBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 40;
   clear(ol);
   if (!list.length) {
     var msg = d.all.length ? 'No lines match the current filters.' :
       (state.conn === 'offline' ? 'No live connection. Load or drop a .jsonl file from .bridle/progress to review a run.' :
-        'No events yet. Implementation has not started; agents will report here as soon as the first workflow runs.');
+        'No events yet. Agents report here as soon as the first workflow runs.');
     ol.appendChild(h('li', {}, h('p', { 'class': 'empty', text: msg })));
     lastVisibleLogText = '';
     return;
@@ -870,63 +968,58 @@ function renderLogs(d) {
   var lines = [];
   list.forEach(function (e) {
     var cls = 'lvl-' + e.level + (e.type === 'agent.done' ? ' t-done' : e.type === 'agent.start' ? ' t-start' : '');
-    var tag = e.type.replace('agent.', '');
-    var li = h('li', { 'class': cls },
+    var tag = e.type.replace('agent.', '') + (e.progress != null && e.type !== 'agent.log' ? ' ' + Math.round(e.progress) + '%' : '') + (e.status ? ' ' + e.status : '');
+    ol.appendChild(h('li', { 'class': cls },
       h('span', { 'class': 'lt', text: fmtTime(e.tsMs), title: e.ts }),
       h('span', { 'class': 'la', text: e.agentId || (e.type.indexOf('run.') === 0 ? 'run' : 'orchestrator') }),
-      h('span', { 'class': 'lm' }, h('span', { 'class': 'tag', text: tag + (e.progress != null && e.type !== 'agent.log' ? ' ' + Math.round(e.progress) + '%' : '') + (e.status ? ' ' + e.status : '') }),
-        (e.taskId && !state.selectedTask ? '[' + e.taskId + '] ' : '') + e.message));
-    ol.appendChild(li);
+      h('span', { 'class': 'lm' }, h('span', { 'class': 'tag', text: tag }), (e.taskId && !state.selectedTask ? '[' + e.taskId + '] ' : '') + e.message)));
     lines.push(e.ts + ' ' + (e.agentId || '-') + ' ' + e.type + (e.taskId ? ' [' + e.taskId + ']' : '') + ' ' + e.message);
   });
   lastVisibleLogText = lines.join('\n');
-  if (state.autoscroll && (atBottom || true)) scroller.scrollTop = scroller.scrollHeight;
+  if (state.autoscroll) scroller.scrollTop = scroller.scrollHeight;
 }
 
-function renderTimeline(d) {
-  var body = els['tl-body'];
+/* Timeline */
+function renderTimeline(d, body, rangeEl) {
   clear(body);
   var rows = d.agents.slice().sort(function (a, b) { return (phaseIndex(a.phase) - phaseIndex(b.phase)) || (a.firstTs - b.firstTs); });
-  if (!rows.length) {
-    els['tl-range'].textContent = '';
-    body.appendChild(h('p', { 'class': 'empty', text: 'Agent start and finish times draw here as a Gantt strip once the first agent reports.' }));
-    return;
-  }
+  if (!rows.length) { rangeEl.textContent = ''; body.appendChild(h('p', { 'class': 'empty', text: 'Agent start and finish times draw here as a Gantt strip once the first agent reports.' })); return; }
   var t0 = Infinity, t1 = 0, anyRunning = false;
   rows.forEach(function (a) { if (a.firstTs < t0) t0 = a.firstTs; var end = a.endTs || a.lastTs; if (end > t1) t1 = end; if (!a.endTs) anyRunning = true; });
   if (anyRunning && d.now > t1) t1 = d.now;
   if (t1 - t0 < 60000) t1 = t0 + 60000;
-  var width = Math.max(480, body.clientWidth - 4);
-  var gutter = 170, right = 16, rowH = 18, top = 20, barH = 10;
-  var height = top + rows.length * rowH + 8;
+  var width = Math.max(640, body.clientWidth - 4);
+  var gutter = 230, right = 20, rowH = 22, top = 26, barH = 12;
+  var height = top + rows.length * rowH + 10;
   var svg = svgEl('svg', { width: width, height: height, viewBox: '0 0 ' + width + ' ' + height, role: 'img', 'aria-label': 'Timeline of ' + rows.length + ' agents' });
   var span = t1 - t0;
   var x = function (t) { return gutter + (t - t0) / span * (width - gutter - right); };
-  var stepMs = niceStep(span, Math.floor((width - gutter - right) / 90));
+  var stepMs = niceStep(span, Math.floor((width - gutter - right) / 96));
+  rows.forEach(function (a, i) { if (i % 2 === 1) svg.appendChild(svgEl('rect', { x: 0, y: top + i * rowH, width: width, height: rowH, 'class': 'phaseband' })); });
   for (var t = Math.ceil(t0 / stepMs) * stepMs; t <= t1; t += stepMs) {
-    svg.appendChild(svgEl('line', { x1: x(t), x2: x(t), y1: top - 4, y2: height - 6, 'class': 'gridline' }));
-    var tx = svgEl('text', { x: x(t), y: 12, 'text-anchor': 'middle', 'class': 'tick' });
+    svg.appendChild(svgEl('line', { x1: x(t), x2: x(t), y1: top - 6, y2: height - 8, 'class': 'gridline' }));
+    var tx = svgEl('text', { x: x(t), y: 14, 'text-anchor': 'middle', 'class': 'tick' });
     tx.textContent = fmtTime(t).slice(0, span > 6 * 3600000 ? 5 : 8);
     svg.appendChild(tx);
   }
-  svg.appendChild(svgEl('line', { x1: gutter, x2: width - right, y1: top - 4, y2: top - 4, 'class': 'axis' }));
-  if (anyRunning) svg.appendChild(svgEl('line', { x1: x(d.now), x2: x(d.now), y1: top - 4, y2: height - 6, 'class': 'now' }));
+  svg.appendChild(svgEl('line', { x1: gutter, x2: width - right, y1: top - 6, y2: top - 6, 'class': 'axis' }));
+  if (anyRunning) svg.appendChild(svgEl('line', { x1: x(d.now), x2: x(d.now), y1: top - 6, y2: height - 8, 'class': 'now' }));
   rows.forEach(function (a, i) {
     var y = top + i * rowH;
-    var lbl = svgEl('text', { x: gutter - 8, y: y + barH, 'text-anchor': 'end', 'class': 'lbl' });
-    var name = (a.phase ? a.phase + ' ' : '') + a.label;
-    lbl.textContent = name.length > 24 ? name.slice(0, 23) + '…' : name;
+    var lbl = svgEl('text', { x: gutter - 10, y: y + barH + 3, 'text-anchor': 'end', 'class': 'lbl' });
+    var name = (a.phase ? a.phase + ' · ' : '') + a.label;
+    lbl.textContent = name.length > 30 ? name.slice(0, 29) + '…' : name;
     svg.appendChild(lbl);
     var end = a.endTs || (a.status === 'running' ? d.now : a.lastTs);
     var x1 = x(a.firstTs), x2 = Math.max(x(end), x1 + 3);
-    var bar = svgEl('rect', { x: x1, y: y + 2, width: x2 - x1, height: barH, 'class': 'bar s-' + a.display });
+    var bar = svgEl('rect', { x: x1, y: y + 4, width: x2 - x1, height: barH, 'class': 'bar s-' + a.display });
     bar.addEventListener('mousemove', function (ev) { showTip(ev, a, d); });
     bar.addEventListener('mouseleave', hideTip);
     svg.appendChild(bar);
-    if (!a.endTs && a.status === 'running') svg.appendChild(svgEl('circle', { cx: x2, cy: y + 2 + barH / 2, r: 4, 'class': 'bar s-' + a.display }));
+    if (!a.endTs && a.status === 'running') svg.appendChild(svgEl('circle', { cx: x2, cy: y + 4 + barH / 2, r: 5, 'class': 'bar s-' + a.display }));
   });
   body.appendChild(svg);
-  els['tl-range'].textContent = fmtDateTime(t0) + ' to ' + (anyRunning ? 'now' : fmtDateTime(t1)) + ' · ' + rows.length + ' agents';
+  rangeEl.textContent = fmtDateTime(t0) + ' to ' + (anyRunning ? 'now' : fmtDateTime(t1)) + ' · ' + rows.length + ' agents';
 }
 function niceStep(span, maxTicks) {
   var steps = [30000, 60000, 120000, 300000, 600000, 900000, 1800000, 3600000, 7200000, 14400000, 21600000, 43200000, 86400000];
@@ -941,17 +1034,14 @@ function showTip(ev, a, d) {
   tip.appendChild(h('div', { text: 'started ' + fmtDateTime(a.firstTs) + ', ' + (a.endTs ? 'finished ' + fmtDateTime(a.endTs) : 'still running') + ', ' + fmtDur((a.endTs || d.now) - a.firstTs) + ', ' + Math.round(a.progress) + '%' }));
   tip.hidden = false;
   var px = ev.clientX + 14, py = ev.clientY + 14;
-  if (px + 330 > window.innerWidth) px = ev.clientX - 330;
+  if (px + 350 > window.innerWidth) px = ev.clientX - 350;
   if (py + 80 > window.innerHeight) py = ev.clientY - 80;
   tip.style.left = px + 'px';
   tip.style.top = py + 'px';
 }
 function hideTip() { els.tooltip.hidden = true; }
 
-function phaseTitle(ph) {
-  for (var i = 0; i < PHASES.length; i++) if (PHASES[i].id === ph) return PHASES[i].title;
-  return ph;
-}
+/* Factory */
 function trackDots(c, big) {
   var wrap = h('div', { 'class': big ? 'track-lg' : 'track', 'aria-label': 'Station ' + (c.idx + 1) + ' of ' + STATIONS.length + ': ' + c.station });
   STATIONS.forEach(function (st, i) {
@@ -961,8 +1051,7 @@ function trackDots(c, big) {
     if (big) {
       var last = null;
       c.history.forEach(function (x) { if (x.station === st) last = x; });
-      wrap.appendChild(h('div', { 'class': 'st' }, h('span', { 'class': cls }), h('span', { text: STATION_META[st].title }),
-        h('span', { 'class': 'when', text: last ? fmtTime(last.ts) : '' })));
+      wrap.appendChild(h('div', { 'class': 'st' }, h('span', { 'class': cls }), h('span', { text: STATION_META[st].title }), h('span', { 'class': 'when', text: last ? fmtTime(last.ts) : '' })));
     } else {
       if (i > 0) wrap.appendChild(h('span', { 'class': 'seg' + (i <= c.idx || c.station === 'ship' ? ' passed' : '') }));
       wrap.appendChild(h('span', { 'class': cls, title: STATION_META[st].title }));
@@ -972,8 +1061,7 @@ function trackDots(c, big) {
 }
 function selectCard(id) { state.selectedTask = state.selectedTask === id ? null : id; state.selectedAgent = null; scheduleRender(); }
 function renderFactory(d) {
-  var body = els['factory-body'];
-  clear(body);
+  var body = els['factory-body']; clear(body);
   var onLine = d.cards.filter(function (c) { return c.idx > 0 && c.station !== 'ship'; }).length;
   var shipped = d.cards.filter(function (c) { return c.station === 'ship'; }).length;
   els['factory-sub'].textContent = d.cards.length + ' cards · ' + onLine + ' on the line · ' + shipped + ' shipped';
@@ -983,7 +1071,7 @@ function renderFactory(d) {
   STATIONS.forEach(function (st) {
     var here = d.cards.filter(function (c) { return c.station === st; });
     var busy = here.some(function (c) { return c.active.length; });
-    var col = h('section', { 'class': 'station' + (busy ? ' active' : ''), role: 'listitem', 'aria-label': STATION_META[st].title },
+    line.appendChild(h('section', { 'class': 'station' + (busy ? ' active' : ''), role: 'listitem', 'aria-label': STATION_META[st].title },
       h('header', {}, h('span', { 'class': 'sname', text: STATION_META[st].title }), h('span', { 'class': 'sworker', text: STATION_META[st].worker }),
         h('span', { 'class': 'scount tnum', text: here.length + (here.length === 1 ? ' card' : ' cards') })),
       h('div', { 'class': 'slot' }, here.map(function (c) {
@@ -994,19 +1082,18 @@ function renderFactory(d) {
           trackDots(c, false),
           c.active.length ? h('div', { 'class': 'fagent', text: c.active.map(function (a) { return a.label; }).join(', ') + (c.active[0].step ? ' · ' + c.active[0].step : '') }) : null,
           c.since ? h('div', { 'class': 'fsince', text: 'here for ' + fmtAgo(d.now - c.since) }) : null);
-      })));
-    line.appendChild(col);
+      }))));
   });
   wrap.appendChild(line);
   body.appendChild(wrap);
 
-  var sec = h('div', { 'class': 'fsec' }, h('h3', { text: 'Planned progression' }));
+  var sec = h('div', { 'class': 'group' }, h('h3', { text: 'Planned progression' }));
   var flow = h('div', { 'class': 'flow' });
   var lastPhase = null, n = 0;
   d.cards.forEach(function (c) {
     var t = c.task;
     if (t.phase !== lastPhase) { flow.appendChild(h('span', { 'class': 'phase-sep', text: t.phase + ' · ' + phaseTitle(t.phase) })); lastPhase = t.phase; }
-    else flow.appendChild(h('span', { 'class': 'arrow', text: '\u2192', 'aria-hidden': 'true' }));
+    else flow.appendChild(h('span', { 'class': 'arrow', text: '→', 'aria-hidden': 'true' }));
     n++;
     var deps = t.dependsOn || [];
     flow.appendChild(h('button', { type: 'button', 'class': 'chip s-' + t.status + (d.nextUp && d.nextUp.task.id === t.id ? ' next' : '') + (t.placeholder ? ' ph' : ''),
@@ -1014,12 +1101,12 @@ function renderFactory(d) {
       onclick: function () { selectCard(t.id); } }, h('span', { 'class': 'n', text: String(n) }), h('span', { 'class': 'sw' }), t.id));
   });
   sec.appendChild(flow);
-  sec.appendChild(h('p', { 'class': 'muted', text: 'Order is phase, then plan order; a card starts only when every card it depends on has shipped. The outlined chip is next up; dashed chips are placeholders until the roadmap is approved.' }));
+  sec.appendChild(h('p', { 'class': 'muted', style: 'margin-top:8px', text: 'Order is phase, then plan order; a card starts only when every card it depends on has shipped. The outlined chip is next up; dashed chips are placeholders until the roadmap is approved.' }));
   body.appendChild(sec);
 
   var sel = null;
   d.cards.forEach(function (c) { if (c.task.id === state.selectedTask) sel = c; });
-  var det = h('div', { 'class': 'fsec' }, h('h3', { text: sel ? 'Card ' + sel.task.id : 'Card detail' }));
+  var det = h('div', { 'class': 'group' }, h('h3', { text: sel ? 'Card ' + sel.task.id : 'Card detail' }));
   if (!sel) det.appendChild(h('p', { 'class': 'empty', text: 'Select a card on the line or in the planned progression to see when it reached each station and who worked it.' }));
   else {
     var t = sel.task, deps = t.dependsOn || [];
@@ -1032,6 +1119,7 @@ function renderFactory(d) {
         return h('li', {}, h('span', { 'class': 'mono', text: fmtDateTime(x.ts) + ' ' }), h('strong', { text: STATION_META[x.station].title }), ' · ' + (x.status || '') + (x.agent ? ' · ' + x.agent : '') + (x.message ? ' · ' + x.message : ''));
       })));
     } else box.appendChild(h('p', { 'class': 'muted', text: 'Not started: no station history yet.' }));
+    box.appendChild(taskEvents(t, d, 10));
     det.appendChild(box);
   }
   body.appendChild(det);
@@ -1111,7 +1199,7 @@ function flash(msg) {
 }
 
 /* ---------- Routing and controls ---------- */
-var VIEWS = ['overview', 'tasks', 'agents', 'logs', 'factory'];
+var VIEWS = ['overview', 'tasks', 'agents', 'logs', 'factory', 'timeline'];
 function applyHash() {
   var v = (location.hash || '#overview').slice(1);
   if (VIEWS.indexOf(v) < 0) v = 'overview';
