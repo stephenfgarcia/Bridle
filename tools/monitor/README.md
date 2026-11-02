@@ -41,6 +41,7 @@ Agents in isolated worktrees must call the script by absolute path from the main
 | `agent.heartbeat` | agent | at least every 10 minutes on long tasks |
 | `agent.done` / `agent.fail` | agent | `-m "summary" -d '{"files":["path", ...]}'` |
 | `note` | orchestrator | `-m "human-readable phase note"` |
+| `card.move` | foreman (`tools/monitor/card.py move`) | `-s <station> -S <status> -P <progress>`; drives the **Factory** view |
 
 The page derives state from events: a task's status is its latest `task.status` event unless its agents have
 reported more recently; an agent with no activity for 10 minutes and no `agent.done`/`agent.fail` shows as stale.
@@ -49,12 +50,17 @@ reported more recently; an agent with no activity for 10 minutes and no `agent.d
 
 - `tasks/<taskId>`: `{id, title, phase, order, workstream?, dependsOn?, estimate?, placeholder?}`; seeded by the
   orchestrator, replaced when the implementation roadmap is approved.
+- The **Factory** view (`#factory`) reads the same collections: a `card.move` event's `step` is the station; see `factory/README.md`.
 - `events/<tsMs>-<agentId>-<seq>`: one document per event (fields as written by `log.sh`). Document ids sort
   chronologically; the page subscribes to the latest 1,000 by `tsMs`.
 
 Capacity: the artifact database holds at most 25,000 documents. Agents log at step boundaries, not per tool
 call. When a run is finished and archived, the orchestrator prunes its events from the database (the JSONL
 keeps the full history, and the page can load it from a dropped file).
+
+## Tests
+
+`node tools/monitor/test/monitor.test.js` runs the page's derivation logic headlessly (status, stale detection, run filter, factory cards, next-up).
 
 ## Syncing missed events
 

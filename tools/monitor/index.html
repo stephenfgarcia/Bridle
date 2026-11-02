@@ -232,6 +232,58 @@ body[data-view="tasks"] .panel:not(.tasks), body[data-view="agents"] .panel:not(
 .tooltip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--bg); padding: 6px 9px; border-radius: 6px; font-size: 12px; max-width: 320px; }
 .tooltip[hidden] { display: none; }
 
+/* Factory */
+.panel.factory { display: none; }
+body[data-view="factory"] .grid { grid-template-columns: minmax(0, 1fr); }
+body[data-view="factory"] .panel.factory { display: grid; }
+.line-wrap { overflow-x: auto; padding-bottom: 6px; }
+.line { display: grid; grid-template-columns: repeat(7, minmax(150px, 1fr)); gap: 8px; min-width: 1064px; }
+.station { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); min-height: 150px; display: grid; grid-template-rows: auto 1fr; }
+.station > header { padding: 8px 10px; border-bottom: 2px solid var(--line); display: grid; gap: 1px; }
+.station.active > header { border-bottom-color: var(--accent); }
+.station .sname { font-weight: 600; }
+.station .sworker { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
+.station .scount { font-size: 11px; color: var(--muted); }
+.station .slot { padding: 8px; display: grid; gap: 8px; align-content: start; }
+.fcard { display: grid; gap: 5px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--c, var(--axis)); border-radius: var(--radius); padding: 8px 10px; cursor: pointer; color: inherit; font: inherit; }
+.fcard:hover { border-color: var(--axis); border-left-color: var(--c, var(--axis)); }
+.fcard[aria-pressed="true"] { outline: 2px solid var(--accent); }
+.fcard .fid { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-2); display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+.fcard .ftitle { font-size: 12.5px; line-height: 1.3; }
+.fcard .fagent { font-size: 11px; color: var(--accent-ink); overflow-wrap: anywhere; }
+.fcard .fsince { font-size: 11px; color: var(--muted); }
+.track { display: flex; align-items: center; }
+.track .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--axis); flex: none; }
+.track .dot.passed { background: var(--good); border-color: var(--good); }
+.track .dot.current { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
+.track .dot.failed { background: var(--critical); border-color: var(--critical); }
+.track .dot.blocked { background: var(--serious); border-color: var(--serious); }
+.track .seg { flex: 1; height: 2px; background: var(--line); min-width: 6px; }
+.track .seg.passed { background: var(--good); }
+.fsec { display: grid; gap: 8px; margin-top: 14px; }
+.fsec h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
+.flow { display: flex; flex-wrap: wrap; gap: 6px 0; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; font: inherit; color: inherit; font-size: 12px; }
+.chip .n { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.chip .sw { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--muted)); flex: none; }
+.chip.next { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.chip[aria-pressed="true"] { outline: 2px solid var(--accent); }
+.chip.ph { background: none; border-style: dashed; }
+.arrow { color: var(--axis); padding: 0 5px; font-size: 12px; }
+.phase-sep { width: 100%; font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--font-mono); }
+.fdetail { display: grid; gap: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+.fdetail .dtitle { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.fdetail .track-lg { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.fdetail .st { display: grid; gap: 4px; justify-items: center; font-size: 11px; color: var(--ink-2); text-align: center; }
+.fdetail .st .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--axis); }
+.fdetail .st .dot.passed { background: var(--good); border-color: var(--good); }
+.fdetail .st .dot.current { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 3.5px var(--accent); }
+.fdetail .st .dot.failed { background: var(--critical); border-color: var(--critical); }
+.fdetail .st .dot.blocked { background: var(--serious); border-color: var(--serious); }
+.fdetail .st .when { font-family: var(--font-mono); color: var(--muted); }
+.fdetail .hist { margin: 0; padding-left: 18px; font-size: 12px; display: grid; gap: 2px; }
+.fdetail .hist .mono { color: var(--ink-2); }
+
 /* Responsive */
 @media (max-width: 1100px) {
   .top { grid-template-columns: 1fr auto; grid-template-areas: "brand conn" "overall overall" "tiles tiles" "views views"; }
@@ -243,6 +295,7 @@ body[data-view="tasks"] .panel:not(.tasks), body[data-view="agents"] .panel:not(
   body[data-view="overview"] .grid { grid-template-columns: 1fr; }
   .panel .scroll { max-height: 60vh; }
   .top { grid-template-columns: 1fr; grid-template-areas: "brand" "overall" "tiles" "conn" "views"; }
+  .fdetail .track-lg { grid-template-columns: repeat(4, 1fr); }
   .conn { justify-self: start; }
   .log li { grid-template-columns: 56px 1fr; }
   .log li .lm { grid-column: 1 / -1; }
@@ -270,6 +323,7 @@ body[data-view="tasks"] .panel:not(.tasks), body[data-view="agents"] .panel:not(
     <a href="#tasks">Tasks</a>
     <a href="#agents">Agents</a>
     <a href="#logs">Logs</a>
+    <a href="#factory">Factory</a>
   </nav>
 </header>
 
@@ -298,6 +352,10 @@ body[data-view="tasks"] .panel:not(.tasks), body[data-view="agents"] .panel:not(
     <div class="scroll" id="logs-body"><ol class="log" id="log-list"></ol></div>
     <div class="foot"><span id="logs-count"></span><span>Drop a .jsonl file from .bridle/progress here to view offline history.</span></div>
   </section>
+  <section class="panel factory" aria-labelledby="h-factory">
+    <header><h2 id="h-factory">Factory</h2><span class="muted" id="factory-sub"></span><span class="spacer"></span><span class="muted" id="factory-next"></span></header>
+    <div class="scroll" id="factory-body"></div>
+  </section>
 </main>
 
 <footer class="timeline" aria-labelledby="h-tl">
@@ -324,12 +382,14 @@ var PHASES = [
 ];
 var SEED_TASKS = [
   { id: 'PLAN-01', title: 'Requirements discovery: 8 domains, completeness critic, gap fill', phase: 'PLAN', order: 1 },
-  { id: 'PLAN-02', title: 'Architecture judge panel: 3 proposals, judges, synthesis', phase: 'PLAN', order: 2 },
-  { id: 'PLAN-03', title: 'UI/UX fan-out: information architecture, workspace, grading, authoring, design system', phase: 'PLAN', order: 3 },
-  { id: 'PLAN-04', title: 'Adversarial polish of the assembled plan', phase: 'PLAN', order: 4 },
-  { id: 'PLAN-05', title: 'Final plan assembled and presented for approval', phase: 'PLAN', order: 5 },
+  { id: 'PLAN-02', title: 'Architecture judge panel: 3 proposals, judges, synthesis', phase: 'PLAN', order: 2, dependsOn: ['PLAN-01'] },
+  { id: 'PLAN-03', title: 'UI/UX fan-out: information architecture, workspace, grading, authoring, design system', phase: 'PLAN', order: 3, dependsOn: ['PLAN-01'] },
+  { id: 'PLAN-04', title: 'Adversarial polish of the assembled plan', phase: 'PLAN', order: 4, dependsOn: ['PLAN-02', 'PLAN-03'] },
+  { id: 'PLAN-05', title: 'Final plan assembled and presented for approval', phase: 'PLAN', order: 5, dependsOn: ['PLAN-04'] },
   { id: 'P0-01', title: 'Build and publish this monitor; seed tasks; first commit', phase: 'P0', order: 1 },
-  { id: 'P0-02', title: 'Repository bootstrap: monorepo, CI, environments', phase: 'P0', order: 2 },
+  { id: 'P0-02', title: 'Repository bootstrap: monorepo, CI, environments', phase: 'P0', order: 2, dependsOn: ['PLAN-05'] },
+  { id: 'P0-03', title: 'Software factory: skill, station agents, cards, Factory view', phase: 'P0', order: 3, dependsOn: ['P0-01'] },
+  { id: 'P0-04', title: 'Monitor JSONL validator (first card through the factory)', phase: 'P0', order: 4, dependsOn: ['P0-03'] },
   { id: 'P1-00', title: 'Foundation work items (detailed in the approved plan, Part E)', phase: 'P1', order: 0, placeholder: true },
   { id: 'P2-00', title: 'Solver core work items (detailed in Part E)', phase: 'P2', order: 0, placeholder: true },
   { id: 'P3-00', title: '3D workspace work items (detailed in Part E)', phase: 'P3', order: 0, placeholder: true },
@@ -342,6 +402,16 @@ var SEED_TASKS = [
 var STALE_MS = 10 * 60 * 1000;
 var EVENT_WINDOW = 1000;
 var LOG_TAIL = 600;
+var STATIONS = ['backlog', 'spec', 'plan', 'build', 'test', 'review', 'ship'];
+var STATION_META = {
+  backlog: { title: 'Backlog', worker: 'planned, not started' },
+  spec: { title: 'Spec', worker: 'you + Claude' },
+  plan: { title: 'Plan', worker: 'factory-planner' },
+  build: { title: 'Build', worker: 'factory-builder' },
+  test: { title: 'Test', worker: 'factory-tester' },
+  review: { title: 'Review', worker: 'factory-reviewer' },
+  ship: { title: 'Ship', worker: 'commit' }
+};
 var LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 var STATUS_ORDER = { running: 0, stale: 1, blocked: 2, failed: 3, review: 4, queued: 5, planned: 6, done: 7 };
 var STATUS_META = {
@@ -481,7 +551,7 @@ function derive(now) {
 
   var statusEvents = new Map();
   evs.forEach(function (e) {
-    if (e.type === 'task.status' && e.taskId) {
+    if ((e.type === 'task.status' || e.type === 'card.move') && e.taskId) {
       var prev = statusEvents.get(e.taskId);
       if (!prev || e.tsMs >= prev.tsMs) statusEvents.set(e.taskId, e);
     }
@@ -536,9 +606,31 @@ function derive(now) {
     blocked: tasks.filter(function (t) { return t.status === 'blocked'; }).length,
     agents: agentList.length
   };
+  var cards = tasks.map(function (t) {
+    var station = 'backlog', history = [];
+    evs.forEach(function (e) {
+      if (e.type !== 'card.move' || e.taskId !== t.id) return;
+      var st = String(e.step || (e.data && e.data.station) || '').toLowerCase();
+      if (STATIONS.indexOf(st) < 0) return;
+      station = st;
+      history.push({ station: st, ts: e.tsMs, agent: e.agentId || '', status: e.status || '', message: e.message });
+    });
+    if (!history.length && t.status === 'done') station = 'ship';
+    var active = agentList.filter(function (a) { return a.taskId === t.id && (a.display === 'running' || a.display === 'stale'); });
+    return { task: t, station: station, idx: STATIONS.indexOf(station), history: history, active: active,
+      since: history.length ? history[history.length - 1].ts : 0 };
+  });
+  var doneIds = {};
+  tasks.forEach(function (t) { if (t.status === 'done') doneIds[t.id] = true; });
+  var nextUp = null;
+  cards.forEach(function (c) {
+    if (nextUp || c.task.placeholder || c.station !== 'backlog' || c.task.status !== 'planned') return;
+    var deps = c.task.dependsOn || [];
+    if (deps.every(function (id) { return doneIds[id]; })) nextUp = c;
+  });
   var current = null;
   phases.forEach(function (p) { if (!current && p.active) current = p; });
-  return { all: all, evs: evs, runs: runs, runFilter: runFilter, agents: agentList, tasks: tasks, phases: phases, totals: totals, current: current,
+  return { all: all, evs: evs, runs: runs, runFilter: runFilter, agents: agentList, tasks: tasks, phases: phases, totals: totals, current: current, cards: cards, nextUp: nextUp,
     lastTs: evs.length ? evs[evs.length - 1].tsMs : 0, now: now };
 }
 
@@ -566,7 +658,7 @@ function shortRun(id) { return id.length > 14 ? id.slice(0, 14) + '…' : id; }
 
 /* Expose pure logic for headless tests (harmless in the browser). */
 if (typeof globalThis !== 'undefined') {
-  globalThis.BridleMonitor = { normEvent: normEvent, derive: derive, state: state, SEED_TASKS: SEED_TASKS, PHASES: PHASES };
+  globalThis.BridleMonitor = { normEvent: normEvent, derive: derive, state: state, SEED_TASKS: SEED_TASKS, PHASES: PHASES, STATIONS: STATIONS };
 }
 if (typeof document === 'undefined') return;
 
@@ -619,7 +711,7 @@ var $ = function (id) { return document.getElementById(id); };
 var els = {};
 ['overall-meter', 'overall-fill', 'overall-pct', 'overall-count', 'overall-phase', 'tiles', 'run-select', 'conn-pill', 'last-age', 'tasks-body', 'tasks-sub', 'clear-sel',
   'agents-body', 'agents-sub', 'logs-body', 'logs-sub', 'log-list', 'logs-count', 'level-select', 'search', 'autoscroll', 'copy-btn', 'load-btn', 'file-input', 'flash',
-  'tl-body', 'tl-range', 'tooltip'].forEach(function (id) { els[id] = $(id); });
+  'tl-body', 'tl-range', 'tooltip', 'factory-body', 'factory-sub', 'factory-next'].forEach(function (id) { els[id] = $(id); });
 
 /* ---------- Rendering ---------- */
 var renderQueued = false;
@@ -639,6 +731,7 @@ function render() {
   renderAgents(d);
   renderLogs(d);
   renderTimeline(d);
+  renderFactory(d);
 }
 
 function renderHeader(d) {
@@ -855,6 +948,95 @@ function showTip(ev, a, d) {
 }
 function hideTip() { els.tooltip.hidden = true; }
 
+function phaseTitle(ph) {
+  for (var i = 0; i < PHASES.length; i++) if (PHASES[i].id === ph) return PHASES[i].title;
+  return ph;
+}
+function trackDots(c, big) {
+  var wrap = h('div', { 'class': big ? 'track-lg' : 'track', 'aria-label': 'Station ' + (c.idx + 1) + ' of ' + STATIONS.length + ': ' + c.station });
+  STATIONS.forEach(function (st, i) {
+    var cls = 'dot';
+    if (i < c.idx || c.station === 'ship') cls += ' passed';
+    else if (i === c.idx && c.station !== 'backlog') cls += c.task.status === 'failed' ? ' failed' : c.task.status === 'blocked' ? ' blocked' : ' current';
+    if (big) {
+      var last = null;
+      c.history.forEach(function (x) { if (x.station === st) last = x; });
+      wrap.appendChild(h('div', { 'class': 'st' }, h('span', { 'class': cls }), h('span', { text: STATION_META[st].title }),
+        h('span', { 'class': 'when', text: last ? fmtTime(last.ts) : '' })));
+    } else {
+      if (i > 0) wrap.appendChild(h('span', { 'class': 'seg' + (i <= c.idx || c.station === 'ship' ? ' passed' : '') }));
+      wrap.appendChild(h('span', { 'class': cls, title: STATION_META[st].title }));
+    }
+  });
+  return wrap;
+}
+function selectCard(id) { state.selectedTask = state.selectedTask === id ? null : id; state.selectedAgent = null; scheduleRender(); }
+function renderFactory(d) {
+  var body = els['factory-body'];
+  clear(body);
+  var onLine = d.cards.filter(function (c) { return c.idx > 0 && c.station !== 'ship'; }).length;
+  var shipped = d.cards.filter(function (c) { return c.station === 'ship'; }).length;
+  els['factory-sub'].textContent = d.cards.length + ' cards · ' + onLine + ' on the line · ' + shipped + ' shipped';
+  els['factory-next'].textContent = d.nextUp ? 'Next up: ' + d.nextUp.task.id + ' ' + d.nextUp.task.title : 'Next up: nothing unblocked';
+  var wrap = h('div', { 'class': 'line-wrap' });
+  var line = h('div', { 'class': 'line', role: 'list', 'aria-label': 'The line' });
+  STATIONS.forEach(function (st) {
+    var here = d.cards.filter(function (c) { return c.station === st; });
+    var busy = here.some(function (c) { return c.active.length; });
+    var col = h('section', { 'class': 'station' + (busy ? ' active' : ''), role: 'listitem', 'aria-label': STATION_META[st].title },
+      h('header', {}, h('span', { 'class': 'sname', text: STATION_META[st].title }), h('span', { 'class': 'sworker', text: STATION_META[st].worker }),
+        h('span', { 'class': 'scount tnum', text: here.length + (here.length === 1 ? ' card' : ' cards') })),
+      h('div', { 'class': 'slot' }, here.map(function (c) {
+        var t = c.task;
+        return h('button', { type: 'button', 'class': 'fcard s-' + t.status, 'aria-pressed': state.selectedTask === t.id ? 'true' : 'false', onclick: function () { selectCard(t.id); } },
+          h('div', { 'class': 'fid' }, h('span', { text: t.id }), pill(t.status)),
+          h('div', { 'class': 'ftitle', text: t.title }),
+          trackDots(c, false),
+          c.active.length ? h('div', { 'class': 'fagent', text: c.active.map(function (a) { return a.label; }).join(', ') + (c.active[0].step ? ' · ' + c.active[0].step : '') }) : null,
+          c.since ? h('div', { 'class': 'fsince', text: 'here for ' + fmtAgo(d.now - c.since) }) : null);
+      })));
+    line.appendChild(col);
+  });
+  wrap.appendChild(line);
+  body.appendChild(wrap);
+
+  var sec = h('div', { 'class': 'fsec' }, h('h3', { text: 'Planned progression' }));
+  var flow = h('div', { 'class': 'flow' });
+  var lastPhase = null, n = 0;
+  d.cards.forEach(function (c) {
+    var t = c.task;
+    if (t.phase !== lastPhase) { flow.appendChild(h('span', { 'class': 'phase-sep', text: t.phase + ' · ' + phaseTitle(t.phase) })); lastPhase = t.phase; }
+    else flow.appendChild(h('span', { 'class': 'arrow', text: '\u2192', 'aria-hidden': 'true' }));
+    n++;
+    var deps = t.dependsOn || [];
+    flow.appendChild(h('button', { type: 'button', 'class': 'chip s-' + t.status + (d.nextUp && d.nextUp.task.id === t.id ? ' next' : '') + (t.placeholder ? ' ph' : ''),
+      'aria-pressed': state.selectedTask === t.id ? 'true' : 'false', title: t.title + (deps.length ? ' · after ' + deps.join(', ') : '') + ' · ' + (STATUS_META[t.status] || {}).label,
+      onclick: function () { selectCard(t.id); } }, h('span', { 'class': 'n', text: String(n) }), h('span', { 'class': 'sw' }), t.id));
+  });
+  sec.appendChild(flow);
+  sec.appendChild(h('p', { 'class': 'muted', text: 'Order is phase, then plan order; a card starts only when every card it depends on has shipped. The outlined chip is next up; dashed chips are placeholders until the roadmap is approved.' }));
+  body.appendChild(sec);
+
+  var sel = null;
+  d.cards.forEach(function (c) { if (c.task.id === state.selectedTask) sel = c; });
+  var det = h('div', { 'class': 'fsec' }, h('h3', { text: sel ? 'Card ' + sel.task.id : 'Card detail' }));
+  if (!sel) det.appendChild(h('p', { 'class': 'empty', text: 'Select a card on the line or in the planned progression to see when it reached each station and who worked it.' }));
+  else {
+    var t = sel.task, deps = t.dependsOn || [];
+    var box = h('div', { 'class': 'fdetail' },
+      h('div', { 'class': 'dtitle' }, h('strong', { text: t.id + ' ' + t.title }), pill(t.status), h('span', { 'class': 'muted', text: t.phase + ' · ' + phaseTitle(t.phase) + (deps.length ? ' · after ' + deps.join(', ') : '') })),
+      trackDots(sel, true));
+    if (sel.active.length) box.appendChild(h('div', { 'class': 'fagent', text: 'Working now: ' + sel.active.map(function (a) { return a.label + (a.step ? ' (' + a.step + ')' : ''); }).join(', ') }));
+    if (sel.history.length) {
+      box.appendChild(h('ol', { 'class': 'hist' }, sel.history.map(function (x) {
+        return h('li', {}, h('span', { 'class': 'mono', text: fmtDateTime(x.ts) + ' ' }), h('strong', { text: STATION_META[x.station].title }), ' · ' + (x.status || '') + (x.agent ? ' · ' + x.agent : '') + (x.message ? ' · ' + x.message : ''));
+      })));
+    } else box.appendChild(h('p', { 'class': 'muted', text: 'Not started: no station history yet.' }));
+    det.appendChild(box);
+  }
+  body.appendChild(det);
+}
+
 /* ---------- Data sources ---------- */
 function ingestEvent(raw, id, source) {
   var e = normEvent(raw, id, source);
@@ -929,7 +1111,7 @@ function flash(msg) {
 }
 
 /* ---------- Routing and controls ---------- */
-var VIEWS = ['overview', 'tasks', 'agents', 'logs'];
+var VIEWS = ['overview', 'tasks', 'agents', 'logs', 'factory'];
 function applyHash() {
   var v = (location.hash || '#overview').slice(1);
   if (VIEWS.indexOf(v) < 0) v = 'overview';
