@@ -59,3 +59,10 @@ keeps the full history, and the page can load it from a dropped file).
 ## Syncing missed events
 
 See `sync.md`. `tools/monitor/ops.sh <runId>` prints db_write-ready op batches for a whole run.
+
+## Backfilling from the harness
+
+`tools/monitor/backfill.py --run <runId> --dir <workflow transcript dir> --task <taskId> --phase <phase>` derives
+`agent.start`, `agent.done`/`agent.fail`, and `agent.heartbeat` events from a Claude Code workflow's own journal and
+per-agent transcripts (real timestamps), appends them to the run's JSONL (deduplicated), and prints op batches to
+mirror. The orchestrator runs it at every workflow boundary so agents that could not report still appear.
