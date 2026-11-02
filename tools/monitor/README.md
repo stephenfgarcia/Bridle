@@ -26,6 +26,11 @@ You are agent <agentId> working on task <taskId> in run <runId>, phase <phase>.
    next, what is blocking).
 ```
 
+Agent types and the database tool: subagents of the built-in `Plan` and `Explore` types cannot load the artifact
+database tool (ToolSearch finds no `mcp__claude-artifacts__*` match for them), so their events reach only the local
+JSONL and must be synced by the orchestrator (`sync.md`). Workflow agents that should appear live on the monitor
+run as `general-purpose` (or a custom type) with read-only instructions in the prompt.
+
 Agents in isolated worktrees must call the script by absolute path from the main checkout:
 `/Users/johnstephenf.garcia/Dev/Dev/Bridle-1/tools/monitor/log.sh`.
 
