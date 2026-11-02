@@ -45,6 +45,12 @@ shows the board live. Arguments: `$ARGUMENTS`.
 
 Mirror = one `mcp__claude-artifacts__db_write` call with `slug` and `ops: [<printed op>]`; never block on it.
 
+Spawning a station: `Agent` with `subagent_type` = the station's name (`factory-planner`, `factory-builder`,
+`factory-tester`, `factory-reviewer`). Agent types are registered when a session starts, so in a session older
+than `.claude/agents/`, the Agent tool will say the type is not found: then use `subagent_type: "general-purpose"`
+and paste the body of `.claude/agents/<station>.md` under a "ROLE" heading above the station prompt. Run one
+station at a time and wait for its result before moving the card.
+
 ## Station prompt (fill the angle brackets; give it to every station agent)
 
 ```

@@ -522,7 +522,7 @@ function derive(now) {
   var agents = new Map();
   evs.forEach(function (e) {
     if (!e.agentId) return;
-    if (e.type === 'run.start' || e.type === 'run.end' || e.type === 'note' || e.type === 'task.status') return;
+    if (e.type === 'run.start' || e.type === 'run.end' || e.type === 'note' || e.type === 'task.status' || e.type === 'card.move') return;
     var key = e.agentId + '@' + (e.runId || '');
     var a = agents.get(key);
     if (!a) {

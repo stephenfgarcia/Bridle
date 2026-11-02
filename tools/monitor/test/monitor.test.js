@@ -70,6 +70,7 @@ console.log('ALL TESTS PASSED', { tasks: d.totals.tasks, agents: d.agents.length
   assert(c['P0-04'].station === 'build' && c['P0-04'].idx === 3 && c['P0-04'].history.length === 3, 'P0-04 at build with 3 history entries');
   assert(c['P0-04'].task.status === 'running' && c['P0-04'].task.progress === 50, 'card.move sets task status/progress: ' + c['P0-04'].task.status + ' ' + c['P0-04'].task.progress);
   assert(c['P0-03'].station === 'ship' && c['P0-03'].task.status === 'done', 'P0-03 shipped');
+  assert(!d4.agents.some(a => a.id === 'factory-planner' || a.id === 'factory-builder'), 'card.move events never create agent cards');
   assert(c['P0-01'].station === 'ship', 'done task without moves sits at ship');
   assert(c['PLAN-03'].station === 'backlog' && c['PLAN-03'].idx === 0, 'untouched task in backlog');
   assert(d4.nextUp === null, 'nothing unblocked while PLAN-01 running and P0-04 in progress: ' + (d4.nextUp && d4.nextUp.task.id));

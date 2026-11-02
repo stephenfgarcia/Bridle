@@ -4,16 +4,17 @@ title: Software factory: skill, station agents, cards, Factory view
 phase: P0
 order: 3
 dependsOn: [P0-01]
-station: review
-status: running
+station: ship
+status: done
 owner: orchestrator
-updated: 2026-11-02T20:30:16Z
+updated: 2026-11-02T20:31:15Z
 history:
   - 2026-11-02T20:30:16Z spec running orchestrator "Spec written (after the fact: the factory was built before the line existed)"
   - 2026-11-02T20:30:16Z plan running orchestrator "Plan: README, line, card.py, skill, 4 station agents, Factory view, tests"
   - 2026-11-02T20:30:16Z build running orchestrator "Built: 16 cards, card.py, skill, agents, Factory view"
   - 2026-11-02T20:30:16Z test running orchestrator "node tools/monitor/test/monitor.test.js: ALL TESTS PASSED, FACTORY TESTS PASSED"
   - 2026-11-02T20:30:16Z review running orchestrator "Self-review PASS; rendering unverified in this session"
+  - 2026-11-02T20:31:15Z ship done orchestrator "Shipped in ee9afdc"
 ---
 
 # P0-03 Software factory: skill, station agents, cards, Factory view
@@ -72,4 +73,6 @@ Findings (advisory): the page has not been rendered in a browser this session; f
 
 
 ## Ship
+
+Commit ee9afdc (P0-03: Software factory). Monitor page republished as version 1793651441-dfb1.
 
