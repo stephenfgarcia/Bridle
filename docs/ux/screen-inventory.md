@@ -1,6 +1,6 @@
 # Screen inventory
 
-79 screens, 69 in the MVP. Full definitions in ux-spec.md and surfaces/.
+79 screens, 68 in the MVP. Full definitions in ux-spec.md and surfaces/.
 
 | # | screen | roles | MVP |
 |---|---|---|---|
@@ -52,7 +52,7 @@
 | 46 | Regrade requests and grade history | TA (scoped), instructor | yes |
 | 47 | Gradebook with ReleaseControl and cell drawer | Instructor; TA (scoped, no release unless granted); learner view | yes |
 | 48 | Cohort insights (progress, mistakes by clause, task stats, AI agreement, at-risk) | Instructor; TA (scoped); author (stats only) | yes |
-| 49 | Similarity report | Instructor; TA (own sections); course lead | yes |
+| 49 | Similarity report (v1.1 per ADR 0002 A9; fingerprints stored at MVP) | Instructor; TA (own sections); course lead | v1.1 |
 | 50 | Teach discussions and announcement composer | Instructor, TA | yes |
 | 51 | Calibration dashboards (GRD-05) | Instructor | v1.x |
 | 52 | Integrity cases and queue | Instructor, integrity officer | v1.x |

@@ -502,7 +502,7 @@ From a task's environment parameters compute reference loads: seismic equivalent
 
 **Acceptance:**
 - ELF base shear and storey distribution match hand calculation for a 5-storey example within 0.5%
-- Generator records all intermediate code parameters (Cs, T, k, Kz, qz, Ce, Ct, Is) in the load case metadata
+- Generator records all intermediate code parameters (Cs, T, k, Kz, qz, Ce, Ct; pg per Risk Category) in the load case metadata
 
 ### SIM-RES-06 Mode shapes, frequencies and buckling modes as results
 

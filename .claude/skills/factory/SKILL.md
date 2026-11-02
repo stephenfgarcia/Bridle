@@ -18,6 +18,19 @@ shows the board live. Arguments: `$ARGUMENTS`.
 - `next`: `card.py list` says who is next up; then `run` that card.
 - `run <id>`: the procedure below, one station at a time. Never skip a station, never run two cards at once.
 
+## Work packages, sub-cards, and manual gates
+
+A roadmap row (an E2 row in the approved plan, for example `P2-02`) is a work package, not a card. At its spec
+station the user approves the row's acceptance criteria and split list once; then create the sub-cards
+`<row>.<n>` with `card.py new <row>.<n> "<title>" --phase <P> --order <row order x 10 + n> --deps <previous
+sub-card or the row's After>`, each changing one package or crate, at most one engineer-day (about 15 files,
+1,500 lines), one test command in `## Test`, one commit named `<row>.<n>: <title>`; the last sub-card carries
+the row's acceptance criteria and closes the row. Human-only artifacts (register approvals, clause attestations,
+SME verification records, the judge measurement report, pentest and accessibility reports, executed licenses) are
+listed in the card frontmatter as `manualGates: [..]`; refuse `ship` while any gate is unticked (`[x]`), and say
+which. Commands expected to run longer than two minutes (cargo build, pnpm install, docker compose up, Playwright
+install) run with run_in_background, with an agent.heartbeat while they run.
+
 ## run <id>
 
 0. Preconditions. The card exists; every card in `dependsOn` has `status: done`; if the card's phase is P1 or

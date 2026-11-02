@@ -43,14 +43,14 @@ Every task is one of five archetypes: Analyze (compute reactions, forces, deflec
 
 ### CAT-04 Author constraints and analysis fidelity per task
 
-Authors can lock geometry, supports, loads, materials or section families; set allowed section catalogs (e.g., only W-shapes 8-24 deep; only IPE/HEA), max member count, min/max section depth, allowed lateral systems, and the analysis fidelity required: linear static (T1-T4), second-order via geometric stiffness or B1/B2 amplification (T5+), seismic ELF (T5+), modal response spectrum (could). Locked fields are not editable by learners and edits to them are impossible rather than merely flagged.
+Authors can lock geometry, supports, loads, materials or section families; set allowed section catalogs (e.g., only W-shapes 8-24 deep; only IPE/HEA), max member count, min/max section depth, allowed lateral systems, and the analysis fidelity required: linear static (T1-T4), second-order via B1/B2 (T3+ members, T4+ sway frames), seismic ELF (T5+), modal response spectrum (could). Locked fields are not editable by learners and edits to them are impossible rather than merely flagged.
 
 **Why:** Locking is both pedagogy (focus the exercise) and anti-gaming (students cannot stiffen a material to pass deflection); fidelity flags tell the grader which second-order/seismic omissions are a learner error versus out of scope.
 
 **Acceptance:**
 - Task schema includes lock flags per entity class and per field
 - A learner's attempt payload that modifies a locked field is rejected server-side
-- Second-order analysis is mandatory when task fidelity is T5+ and the grader flags B2 > 1.1 ignored (see ERR-06)
+- Second-order amplification is mandatory from T3 (B1 on every H1 check) and T4 (B2 on every sway frame) under the task's stability method (DAM default, ELM opt-in; ADR 0002 A5) and the grader flags B2 > 1.1 ignored (see ERR-06)
 
 ### CODE-01 Pluggable, versioned code pack architecture with clause traceability
 
@@ -72,7 +72,7 @@ Generate the full combination set: LRFD 2.3.1 (1.4D; 1.2D+1.6L+0.5(Lr|S|R); 1.2D
 **Acceptance:**
 - Generated combination list for a 3D building with D,L,Lr,S,W,E matches a hand-prepared reference list exactly (name, factors, directions)
 - Learner may author combinations manually in tasks that require it; the grader diffs against the generated set
-- Service combinations (D+L, D+0.5L, D+0.7E, 0.42W drift etc. per task) are generated for serviceability checks
+- Service combinations per ASCE 7-22 Appendix C practice (D+L and D+0.5S for vertical deflection, D+0.5L for long-term, D+0.5L+0.42W for wind drift, author-editable per task) are generated for serviceability checks; seismic drift is not a service combination and is evaluated from the strength-level E case per CODE-07
 
 ### CODE-03 AISC 360-22 steel member checks
 
@@ -120,7 +120,7 @@ Derive wind pressures from the site scenario: qz = 0.00256*Kz*Kzt*Kd*Ke*V^2 (psf
 
 ### CODE-07 ASCE 7-22 seismic Equivalent Lateral Force procedure
 
-From Ss, S1, site class (A-F; D default when unknown), Risk Category and TL: Fa/Fv (Tables 11.4-1/2), SMS/SM1, SDS/SD1, SDC (Tables 11.6-1/2, E/F when S1 >= 0.75), Ie (1.0/1.25/1.5), system R/Omega0/Cd and height/SDC permissions from Table 12.2-1 (e.g., steel SMF 8/3/5.5, steel OMF 3.5/3/3 NP in D-F except exceptions, SCBF 6/2/5, OCBF 3.25/2/3.25, BRBF 8/2.5/5, 'steel not detailed' 3/3/3 B-C only, RC SMF 8/3/5.5, RC IMF 5/3/4.5, RC OMF 3/3/2.5 NP in C+), Ta = Ct*hn^x (0.028/0.8 steel MF, 0.016/0.9 RC MF, 0.03/0.75 EBF/BRBF, 0.02/0.75 other) with Cu cap, Cs = SDS/(R/Ie) with SD1/(T*(R/Ie)) cap and floors 0.044*SDS*Ie >= 0.01 (and 0.5*S1/(R/Ie) when S1 >= 0.6), V = Cs*W, vertical distribution with k, 5% accidental torsion in 3D, rho = 1.0 or 1.3, Ev = 0.2*SDS*D, story drift Delta = Cd*delta_xe/Ie against Table 12.12-1 (0.020/0.015/0.010 hsx by Risk Category; 0.025/0.020/0.015 for <= 4 stories with accommodating nonstructural). Modal response spectrum and the multi-period spectrum are 'could'.
+From Ss, S1, site class (per ASCE 7-22 Chapter 20: A, B, BC, C, CD, D, DE, E (F and the 11.4.8 site-specific E cases refused at MVP); when unknown, the default per 11.4.2 is the most critical of C, CD and D, evaluated per parameter from Tables 11.4-1/11.4-2 or the stored Hazard Tool values), Risk Category and TL: Fa/Fv (Tables 11.4-1/2), SMS/SM1, SDS/SD1, SDC (Tables 11.6-1/2, E/F when S1 >= 0.75), Ie (1.0/1.25/1.5), system R/Omega0/Cd and height/SDC permissions from Table 12.2-1 (e.g., steel SMF 8/3/5.5, steel OMF 3.5/3/3 NP in D-F except exceptions, SCBF 6/2/5, OCBF 3.25/2/3.25, BRBF 8/2.5/5, 'steel not detailed' 3/3/3 B-C only, RC SMF 8/3/5.5, RC IMF 5/3/4.5, RC OMF 3/3/2.5 NP in C+), Ta = Ct*hn^x (0.028/0.8 steel MF, 0.016/0.9 RC MF, 0.03/0.75 EBF/BRBF, 0.02/0.75 other) with Cu cap, Cs = SDS/(R/Ie) with SD1/(T*(R/Ie)) cap and floors 0.044*SDS*Ie >= 0.01 (and 0.5*S1/(R/Ie) when S1 >= 0.6), V = Cs*W with W per 12.7.2 derived from the scenario (dead load including SDL, partitions >= 10 psf where 4.3.2 requires them, 25 percent of storage live load, permanent equipment, 20 percent of pf where pf > 30 psf; W per storey listed in the show-my-loads panel with its source parameters), vertical distribution with k, 5% accidental torsion in 3D, rho = 1.0 or 1.3, Ev = 0.2*SDS*D, story drift Delta = Cd*delta_xe/Ie with delta_xe from the analysis using rho = 1.0, the computed period without the Cu*Ta cap and without the Eq. 12.8-5 minimum (12.8.6.2, 12.8.6.2.1, 12.3.4.1), checked against Table 12.12-1 (0.020/0.015/0.010 hsx by Risk Category; 0.025/0.020/0.015 for <= 4 stories with accommodating nonstructural) and divided by rho for moment-frame-only systems in SDC D-F (12.12.1.1). Modal response spectrum and the multi-period spectrum are 'could'.
 
 **Why:** Seismic is where system choice (R), detailing permissions and drift interact; it is the core of T5 tasks and NSCP-region relevance.
 
@@ -131,18 +131,18 @@ From Ss, S1, site class (A-F; D default when unknown), Risk Category and TL: Fa/
 
 ### CODE-08 Snow, occupancy live loads and live load reduction (ASCE 7-22)
 
-Snow: pf = 0.7*Ce*Ct*Is*pg (Ce 0.9-1.2 by exposure, Ct 1.0/1.1/1.2, Is by Risk Category), low-slope minimum pm, sloped ps = Cs*pf; unbalanced and drift loads are 'should'. Live: Table 4.3-1 values embedded (office 50 psf + 15 psf partition allowance, residential 40, classrooms 40, corridors 80/100, assembly 100, library stacks 150, light/heavy storage 125/250, retail 100, stairs 100, roof Lr 20 reducible to 12, parking 40). Reduction 4.7: L = Lo*(0.25 + 15/sqrt(KLL*AT)) (SI 4.57) with KLL per Table 4.7-1, floors 0.5Lo / 0.4Lo for one / two+ floors, not for Lo > 100 psf (20% for 2+ floor columns), not for assembly, KLL*AT >= 400 ft2. Partitions required where live load < 80 psf.
+Snow (ASCE 7-22 Ch. 7): pf = 0.7*Ce*Ct*pg with pg from the Risk-Category-specific maps or Hazard Tool (the named-site dataset stores pg for Risk Categories I-IV); minimum pm = pg where pg <= 20 psf, else 20 psf; Ce 0.9-1.2 (Table 7.3-1), Ct 1.0/1.1/1.2/1.3 (Table 7.3-2); sloped ps = Cs*pf; unbalanced and drift loads are 'should'. ASCE 7-22 has no snow importance factor. Live: Table 4.3-1 values embedded (office 50 psf + 15 psf partition allowance, residential 40, classrooms 40, corridors 80/100, assembly 100, library stacks 150, light/heavy storage 125/250, retail 100, stairs 100, roof Lr 20 reducible to 12, parking 40). Reduction 4.7: L = Lo*(0.25 + 15/sqrt(KLL*AT)) (SI 4.57) with KLL per Table 4.7-1, floors 0.5Lo / 0.4Lo for one / two+ floors, not for Lo > 100 psf (20% for 2+ floor columns), not for assembly, KLL*AT >= 400 ft2. Partitions required where live load < 80 psf.
 
 **Why:** Correct occupancy loads and reduction rules are the first 'real-world' decision in any design task and are randomizable per learner.
 
 **Acceptance:**
 - Live-load reduction for interior column tributary 900 ft2 (KLL = 4) reproduces 0.5-floor result 0.25+15/60 = 0.50 -> clamped per rules
-- Snow load for pg 30 psf, Ce 1.0, Ct 1.0, Is 1.0 = 21 psf, with pm = 20 psf comparison shown
+- Snow load for pg 30 psf (the site's Risk Category II map value), Ce 1.0, Ct 1.0 = 21 psf, with pm = 20 psf comparison shown
 - Grader flags omitted partition allowance and omitted roof live load where applicable
 
 ### CODE-09 Serviceability limit table (deflection and drift)
 
-Default limits (author-overridable per task, learner-visible): floor live-load deflection L/360, total load L/240, roof L/180 (no ceiling) / L/240, members supporting brittle finishes L/480, cantilevers 2L/360 (i.e., L/180 on cantilever length), crane/bridges L/600-L/800 (T6), RC per ACI Table 24.2.2 including long-term; lateral: wind total drift H/400 and story drift h/400 under 10-year wind (0.42W per ASCE 7 Commentary CC.2.2, author-selectable), seismic drift per CODE-07; vibration is 'could'. Deflection checks use service (unfactored) combinations; RC uses effective inertia Ie and creep multiplier; steel uses gross I.
+Default limits (author-overridable per task, learner-visible): floor live-load deflection L/360, total load L/240, roof L/180 (no ceiling) / L/240, members supporting brittle finishes L/480, cantilevers 2L/360 (i.e., L/180 on cantilever length), crane/bridges L/600-L/800 (T6), RC per ACI Table 24.2.2 including long-term; lateral: wind total drift H/400 and story drift h/400 under 10-year wind (0.42W per ASCE 7 Commentary CC.2.2, author-selectable), seismic drift per CODE-07; vibration is 'could'. Deflection checks use service (unfactored) combinations; RC uses effective inertia Ie and creep multiplier; steel uses gross I. Steel: D = 0 in the total-load limit per the IBC 1604.3 footnote; author override recorded on the task.
 
 **Why:** Students routinely pass strength and fail serviceability or check deflection under factored loads; the limits and the combination to use must be explicit.
 
@@ -153,7 +153,7 @@ Default limits (author-overridable per task, learner-visible): floor live-load d
 
 ### SITE-01 Site/environment scenario schema
 
-A task defines a Scenario object: risk category (I-IV), occupancy per floor/roof, location (named site or lat/long, drives hazard values), wind (V by risk category, exposure B/C/D, Kzt, enclosure class, ground elevation Ke), seismic (Ss, S1, TL, site class, optional PGA; NSCP: zone, soil profile, source type, fault distance), snow (pg, Ce, Ct, roof slope and heating), rain/ponding (could), temperature (installation temp and +/- delta T), soil (allowable bearing qa, soil type, water table, foundation type: isolated spread / strip / mat / piles; base fixity assumption), superimposed dead loads per surface (finishes, partitions, ceiling/MEP, roofing, cladding). Each parameter is fixed, hidden (learner must look it up from the brief), or randomized (SITE-03).
+A task defines a Scenario object: risk category (I-IV), occupancy per floor/roof, location (named site or lat/long, drives hazard values), wind (V by risk category, exposure B/C/D, Kzt, enclosure class, ground elevation Ke), seismic (Ss, S1, TL, site class per ASCE 7-22 Chapter 20: A, B, BC, C, CD, D, DE, E (F and the 11.4.8 site-specific E cases refused at MVP); when unknown, the default per 11.4.2 is the most critical of C, CD and D, evaluated per parameter from Tables 11.4-1/11.4-2 or the stored Hazard Tool values; optional PGA; NSCP: zone, soil profile, source type, fault distance), snow (pg per Risk Category, Ce, Ct, roof slope and heating), rain/ponding (could), temperature (installation temp and +/- delta T), soil (allowable bearing qa, soil type, water table, foundation type: isolated spread / strip / mat / piles; base fixity assumption), superimposed dead loads per surface (finishes, partitions, ceiling/MEP, roofing, cladding). Each parameter is fixed, hidden (learner must look it up from the brief), or randomized (SITE-03).
 
 **Why:** This object is the 'environment' the AI grader evaluates against; it must be structured so loads derive deterministically and the grader can test consistency.
 
@@ -197,7 +197,7 @@ Supports must be consistent with the scenario's foundation type and soil: fixed 
 
 ### SITE-06 Scenario-structure consistency rules
 
-Rule set evaluated before grading: snow load present only where pg > 0; seismic required where SDC >= B per pack (SDC A exempt); system R permitted in resulting SDC and height; OMF/OCBF restrictions in SDC D-F; exposure D only for sites flagged coastal/open water; wind speed consistent with risk-category map; thermal case required when restrained length > 300 ft (90 m) or temperature range given; partition allowance where occupancy requires; Risk Category IV implies Ie, Is and drift limits updated together.
+Rule set evaluated before grading: snow load present only where pg > 0; seismic required where SDC >= B per pack (SDC A exempt); system R permitted in resulting SDC and height; OMF/OCBF restrictions in SDC D-F; exposure D only for sites flagged coastal/open water; wind speed consistent with risk-category map; thermal case required when restrained length > 300 ft (90 m) or temperature range given; partition allowance where occupancy requires; Risk Category IV implies Ie, the Risk Category IV pg and V map values, and drift limits updated together.
 
 **Why:** These are the 'engineering judgment' consistency checks a reviewing engineer makes; encoding them is cheap and catches many environment-related errors.
 
@@ -217,7 +217,7 @@ Per member, the governing demand/capacity ratio and governing criterion (strengt
 
 ### QUAL-02 Material economy versus seeded benchmark
 
-Compute steel mass (t), concrete volume (m3), rebar mass (t), formwork area (m2) and a cost index using author-configurable regional unit costs (defaults: fabricated steel per t, concrete per m3, rebar per t, formwork per m2 in USD/EUR/PHP). Score = 100% if ratio r = learner/benchmark <= 1.05; linear to 0% at r = 1.50; bonus up to +5% when r < 0.95 with every check passing. Benchmark = seeded reference solution (SITE-03); authors can replace it with a curated solution.
+Compute steel mass (t), concrete volume (m3), rebar mass (t), formwork area (m2) and a cost index using author-configurable regional unit costs (defaults: fabricated steel per t, concrete per m3, rebar per t, formwork per m2 in USD/EUR/PHP). Score = 100% if ratio r = learner/benchmark <= 1.05; linear to 0% at r = 1.50; never above 100% (OPT-01; beating the benchmark is reported as evidence, not credited). Benchmark = seeded reference solution (SITE-03); authors can replace it with a curated solution.
 
 **Why:** Design optimization is a stated 'best for'; without a fair benchmark, economy scoring is arbitrary.
 
@@ -299,7 +299,7 @@ Compare learner dead load to engine-computed self-weight + SDL per member; flag 
 
 ### ERR-06 Unbraced length, effective length and stability-method misuse
 
-Lb for LTB must come from modeled lateral bracing or declared bracing conditions (continuous top-flange by deck/slab, discrete braces at purlins/joists); grader compares learner Lb to geometric bracing spacing and flags Lb < actual spacing. K/Lc inconsistent with sway condition (K = 1.0 columns in an unbraced moment frame under ELM), Lcx vs Lcy mismatch with intermediate bracing, truss top chord unbraced out of plane without purlins, ELM used with Delta2nd/Delta1st > 1.5, notional loads omitted under DAM, second-order effects ignored where B2 > 1.1, seismic theta > 0.10 not amplified.
+Lb for LTB must come from modeled lateral bracing or declared bracing conditions (continuous top-flange by deck/slab, discrete braces at purlins/joists); grader compares learner Lb to geometric bracing spacing and flags Lb < actual spacing. K/Lc inconsistent with sway condition (K = 1.0 columns in an unbraced moment frame under ELM), Lcx vs Lcy mismatch with intermediate bracing, truss top chord unbraced out of plane without purlins, ELM used with Delta2nd/Delta1st > 1.5, notional loads omitted under DAM, second-order effects ignored where B2 > 1.1, seismic theta > 0.10 not amplified; Cb declared vs computed per unbraced segment; Cb = 1.0 is always accepted as conservative.
 
 **Why:** Unbraced length and K errors are the most consequential steel-design misconceptions and directly affect LTB/column capacity.
 
@@ -481,7 +481,7 @@ IPE, HEA/HEB/HEM, UPN/UPE, equal/unequal angles, CHS/SHS/RHS (EN 10210 hot-finis
 
 ### GRD-05 Anti-gaming and author calibration
 
-Detect manipulations: editing E, density, Fy/f'c beyond catalog, deleting or scaling loads, disabling self-weight, adding supports, changing locked geometry, setting Lb = 0 or K < 1.0 without bracing, using unrealistic section catalogs, submitting the reference solution verbatim. Authors can run the grader over sample/golden submissions, view score distributions, adjust weights/thresholds, and publish only when the golden set grades as expected.
+Detect manipulations: editing E, density, Fy/f'c beyond catalog, deleting or scaling loads, disabling self-weight, adding supports, changing locked geometry, setting Lb = 0 or K < 1.0 without bracing, declaring Cb larger than the value computed from the segment moment diagram (Eq. F1-1) by more than 2 percent (Critical when it flips a verdict), using unrealistic section catalogs, submitting the reference solution verbatim. Authors can run the grader over sample/golden submissions, view score distributions, adjust weights/thresholds, and publish only when the golden set grades as expected.
 
 **Why:** Randomization and locks reduce gaming but a grader scoring economy invites parameter tricks; calibration tooling gives instructors confidence.
 
@@ -575,7 +575,7 @@ ECONOMY, QUALITY, JUDGMENT
 - T6: pedestrian through/pony/Warren/Pratt truss bridges (span 20-60 m, pedestrian LL 90 psf/5 kPa, L/360-L/1000 deflection), lattice telecom towers (wind on lattice, Cf by solidity), design optimization challenges and Diagnose tasks | second-order where relevant | all plus economy benchmarks | wind, seismic, temperature, soil
 
 ## 3. Scenario -> load mapping (US pack)
-risk category -> Ie, Is, V map, drift limit; occupancy -> Lo, partitions, KLL reduction, f1 (NSCP); surfaces -> SDL; sections+materials -> self-weight; V, exposure, Kzt, Ke, enclosure, geometry -> qz, Cp, GCpi -> W(+/-X, +/-Y, +/-GCpi); Ss, S1, site class, TL, system, hn, W -> SDS/SD1/SDC/Cs/V -> E(+/-X, +/-Y, +/-5% ecc, Ev); pg, Ce, Ct, Is, slope -> S; delta T -> T; qa, foundation type -> support fixity defaults and bearing check; water table/coastal flag -> exposure D permission.
+risk category -> Ie, pg and V map values, drift limit; occupancy -> Lo, partitions, KLL reduction, f1 (NSCP); surfaces -> SDL; sections+materials -> self-weight; V, exposure, Kzt, Ke, enclosure, geometry -> qz, Cp, GCpi -> W(+/-X, +/-Y, +/-GCpi); Ss, S1, site class, TL, system, hn, W -> SDS/SD1/SDC/Cs/V -> E(+/-X, +/-Y, +/-5% ecc, Ev); pg (per Risk Category), Ce, Ct, slope -> S; delta T -> T; qa, foundation type -> support fixity defaults and bearing check; water table/coastal flag -> exposure D permission.
 
 ## 4. Randomizable parameters (default ranges; author-editable)
 spans 4-12 m (US 12-40 ft) step 0.5 m/1 ft; bays 2-5; stories 1-6; story height 3.0-4.5 m; occupancy from {office, residential, classroom, assembly, light storage, retail}; V from map set {95,105,115,120,130,140,150,160,170,180 mph} or NSCP {250,260,270,290 km/h}; exposure {B,C,D}; (Ss,S1) from named-site list; site class {C,D,E}; pg {0,20,30,40,50,70 psf}; qa {1500,2000,3000,4000 psf}; steel {A992,A36,A572-50}; f'c {3,4,5,6 ksi}; rebar {60,80} or PH {275,415}; risk category {II,III}; delta T 20-40 C. Constraint rules: no snow with tropical sites; SDC-dependent system list; exposure D only coastal sites.

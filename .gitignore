@@ -6,3 +6,7 @@
 
 # Claude Code session transcripts
 .claude-sessions/
+
+# Local secrets (docs/ops/secrets.md); never committed
+.env.local
+.env.*.local

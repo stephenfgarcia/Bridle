@@ -22,12 +22,13 @@ An author creates a simulation task by choosing a starter from the template libr
 
 ### TB-02 Design code basis and unit system per task
 
-Each task declares a code basis (MVP: one code family, recommended ASCE 7-22 loads + AISC 360-22 steel; Eurocode EN 1990/1991/1993, NSCP 2015, ACI 318 etc. as pluggable code modules later), a design method (LRFD/ASD or ULS/SLS) and a unit system (SI or US customary) with display precision. The code basis determines the available load-combination sets, resistance/safety factors, deflection and drift presets, section families and the checks the auto-checker and AI grader apply.
+Each task declares a code basis (MVP: one code family, recommended ASCE 7-22 loads + AISC 360-22 steel; Eurocode EN 1990/1991/1993, NSCP 2015, ACI 318 etc. as pluggable code modules later), a design method (LRFD/ASD or ULS/SLS) and a unit system (SI or US customary) with display precision. The code basis determines the available load-combination sets, resistance/safety factors, deflection and drift presets, section families and the checks the auto-checker and AI grader apply. The design-method picker offers only methods for which the pinned resistance pack has factors; the publish gate blocks a task whose combination family and resistance factors disagree.
 
 **Why:** Grading against real-world criteria is meaningless without a declared code; a per-task setting supports mixed-code curricula and future expansion without a rewrite.
 
 **Acceptance:**
 - Author selects code basis, design method and unit system; downstream pickers (combinations, limits, section families, material grades) filter to that basis.
+- At MVP the design-method picker offers LRFD only (ASD disabled with the reason 'ASD resistances ship after the pilot'); a task whose combination family and resistance factors disagree fails the publish gate.
 - Changing the code basis on a task with existing combinations or limits warns and offers to remap or clear dependent settings.
 - Code basis identifier and code-module version are stored on the task version and shown to learners in the task brief.
 
@@ -229,7 +230,7 @@ Any task, guided lesson, lesson or quiz can be saved as a template in a library 
 
 ### TL-02 Platform starter template pack
 
-The platform ships a curated pack of at least ten task templates with environment presets, starter model, reference solution, rubric and auto-checks: simply supported beam, cantilever, two-span continuous beam, Warren truss, Pratt truss, 2D portal frame, multi-story 2D moment frame, 3D braced frame, roof truss under snow and wind, pedestrian bridge truss, and a flat plate/slab. Each pack item is also a regression fixture for the engine and grader.
+The platform ships a curated pack of at least ten task templates with environment presets, starter model, reference solution, rubric and auto-checks: simply supported beam, cantilever, two-span continuous beam, Warren truss, Pratt truss, 2D portal frame (the template records whether its roof is flat or gabled; a gabled roof uses the Fig. 27.3-1 gable Cp cases of CODE-06), multi-story 2D moment frame, 3D braced frame, roof truss under snow and wind, pedestrian bridge truss, and a flat plate/slab. Each pack item is also a regression fixture for the engine and grader.
 
 **Why:** Instructors will not adopt an empty authoring tool, and the pack doubles as test content for the simulation and grading pipeline.
 

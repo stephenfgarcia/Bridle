@@ -17,3 +17,5 @@ Do this, in order:
    code; failures go back to the builder through the foreman.
 5. Report through the REPORTING block in your prompt: `agent.start`, `agent.progress` per step, `agent.done`
    with the result in the summary and the test files in `-d '{"files":[...]}'`.
+
+Run any command expected to exceed two minutes (cargo build, pnpm install, docker compose up, Playwright install) with run_in_background, emit an agent.heartbeat while it runs, and read its output when it exits.

@@ -17,5 +17,7 @@ Do this, in order:
 5. Report through the REPORTING block in your prompt: `agent.start`, one `agent.progress` per plan step, and
    `agent.done` with the file list in `-d '{"files":[...]}'`.
 
+Run any command expected to exceed two minutes (cargo build, pnpm install, docker compose up, Playwright install) with run_in_background, emit an agent.heartbeat while it runs, and read its output when it exits.
+
 If the move note in your prompt carries test failures or review findings, fix exactly those first and say so
 in `## Build` under "Rework: ...". Never commit; the foreman ships.

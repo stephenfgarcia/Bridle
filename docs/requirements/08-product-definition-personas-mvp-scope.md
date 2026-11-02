@@ -166,7 +166,7 @@ Learner mastery per outcome is computed from graded rubric criteria tagged to th
 
 ### MVP-01 MVP content: one ready-to-teach course
 
-Ship one complete course, 'Structural Analysis and Design Fundamentals (Steel and Reinforced Concrete)', co-authored with design-partner instructors: 8-12 modules and 20-30 activities including guided lessons, simulation tasks, 2-3 design-optimization tasks with benchmarks, and one capstone with a written justification memo, each with rubric, reference solution and randomized scenario parameters.
+Ship one complete course, 'Structural Analysis and Design Fundamentals (Steel)' (title per ADR 0002 A6; reinforced-concrete members appear only in Analyze modules with author-declared effective stiffness until the ACI pack ships in v1.1), co-authored with design-partner instructors: 8-12 modules and 20-30 activities including guided lessons, simulation tasks, 2-3 design-optimization tasks with benchmarks, and one capstone with a written justification memo, each with rubric, reference solution and randomized scenario parameters.
 
 **Why:** Instructors adopt whole courses, not isolated tasks; a complete course is the only way to test the full loop and the grading agreement metric at scale.
 
@@ -198,14 +198,14 @@ Hybrid AI grading (deterministic re-analysis, rule checks, LLM rubric evaluation
 
 ### MVP-04 MVP go-to-market scope
 
-MVP serves (a) one to three pilot institutions on manually provisioned tenants with free pilot agreements or manual invoicing and CSV grade export to the institution's LMS, and (b) a free self-serve sandbox with sample tasks for individuals with a waitlist for paid self-serve. LTI, SSO, card payments and corporate features are v1.x.
+MVP serves (a) one to three pilot institutions on manually provisioned tenants with free pilot agreements or manual invoicing and CSV grade export to the institution's LMS, and (b) a free self-serve sandbox with sample tasks for individuals with a waitlist for paid self-serve; (b) is deferred to v1.1 per ADR 0002 A9 together with GTM-01 and TOS-03, so at MVP accounts are created by roster import, invite or join code only. LTI, SSO, card payments and corporate features are v1.x.
 
 **Why:** Avoids building integrations and billing before the core loop is validated while still capturing demand signal from individuals.
 
 **Acceptance:**
 - A pilot tenant can be created and configured by the team in <= 1 hour.
 - CSV grade export matches Canvas and Moodle gradebook import formats (documented and tested).
-- Sandbox signup requires no payment details.
+- Sandbox signup requires no payment details (v1.1, with (b)).
 
 ### MVP-05 MVP exit criteria
 
@@ -259,6 +259,8 @@ After viewing graded feedback, learners see a one-tap 'Was this feedback useful?
 - Negative ratings with comments appear in the instructor's task insights.
 
 ### GTM-01 Self-serve identity and signup
+
+**Status:** deferred to v1.1 per ADR 0002 A9 (with MVP-04(b) and TOS-03); at MVP accounts are created by roster import, invite or join code only, and there is no public self-serve sign-up or sandbox.
 
 Individuals sign up with verified email and password or Google OAuth, choose a role intent (student, practitioner, instructor) and land in the free sandbox. Self-serve instructors get a sandbox course with sample tasks, plan-limited learner caps and a 'request institution pilot' path. Institution users are provisioned by roster import in MVP and by SSO/LTI in v1.x.
 
@@ -530,7 +532,7 @@ NCEES mapping: PE Civil: Structural (single CBT exam, 80 questions) topics such 
 Differentiators: (1) assignment = scenario + live 3D FEA + rubric; (2) AI grading on real-world criteria with instructor in the loop; (3) per-learner randomization and similarity signals; (4) outcome mastery mapped to ABET/NCEES; (5) zero-install cross-platform; (6) instructor time savings; (7) minutes-not-weeks feedback latency. Defensibility comes from calibrated course content and rubrics, the grading-agreement dataset, and LMS integrations.
 
 ## 4. MVP definition and growth sequencing
-In MVP: one course (MVP-01); trusses, beams, steel frames up to ~3 stories, RC beam/column checks; linear static; US code pack (ASCE 7-22 combinations with simplified wind/seismic/snow inputs, AISC 360-22, ACI 318-19) with edition pinned per course; US customary and SI; guided lessons, simulation tasks, 2-3 optimization tasks with benchmarks, capstone with memo; hybrid AI grading with 100% human review; learner home, self-check, review queue, basic insights, TA role, admin console, CSV roster import and CSV grade export; free sandbox; event instrumentation and dashboards; entitlement service with Free and Pilot/Institution plans.
+In MVP: one course (MVP-01); trusses, beams, steel frames up to ~3 stories, RC members in Analyze tasks only (ADR 0002 A6); linear static; US code pack (ASCE 7-22 combinations with simplified wind/seismic/snow inputs, AISC 360-22, ACI 318-19) with edition pinned per course; US customary and SI; guided lessons, simulation tasks, 2-3 optimization tasks with benchmarks, capstone with memo; hybrid AI grading with 100% human review; learner home, self-check, review queue, basic insights, TA role, admin console, CSV roster import and CSV grade export in generic, Canvas and Moodle layouts (ADR 0002 A8); free sandbox (v1.1 per ADR 0002 A9); event instrumentation and dashboards; entitlement service with Free and Pilot/Institution plans.
 Out of MVP: plates/shells, modal/dynamic/nonlinear, Eurocode/NSCP packs, moving loads, LTI, SSO, card payments, certificates, corporate teams, marketplace, mobile/tablet, leaderboards, group projects.
 v1.x (after MVP-05 exit criteria): LTI 1.3 Core + Deep Linking + AGS + NRPS; SAML/OIDC SSO; Stripe self-serve with Individual Pro; PDH certificates; practitioner paths with exam-spec tags; procurement pack; mastery gating; at-risk alerts; full hand-calc walkthrough; seat pools and billing lifecycle; AI-grading quotas.
 v2: corporate team plans and private content; Eurocode and NSCP 2015 packs; modal and P-delta; plates; access-code/inclusive-access model; content marketplace; EU AI Act conformance work for EU sales; group projects (ABET SO5).

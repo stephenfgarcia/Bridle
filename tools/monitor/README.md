@@ -43,13 +43,13 @@ Agents in isolated worktrees must call the script by absolute path from the main
 | `agent.start` | agent | `-m "plan of attack"` |
 | `agent.progress` | agent | `-P 0-100 -s step -m "..."` |
 | `agent.log` | agent | `-l debug|info|warn|error -m "..."` |
-| `agent.heartbeat` | agent | at least every 10 minutes on long tasks |
+| `agent.heartbeat` | agent | at least every 10 minutes on long tasks, and while a background command (`run_in_background`) runs |
 | `agent.done` / `agent.fail` | agent | `-m "summary" -d '{"files":["path", ...]}'` |
 | `note` | orchestrator | `-m "human-readable phase note"` |
 | `card.move` | foreman (`tools/monitor/card.py move`) | `-s <station> -S <status> -P <progress>`; drives the **Factory** view |
 
 The page derives state from events: a task's status is its latest `task.status` event unless its agents have
-reported more recently; an agent with no activity for 10 minutes and no `agent.done`/`agent.fail` shows as stale.
+reported more recently; an agent with no activity for 10 minutes and no `agent.done`/`agent.fail` shows as stale. A builder or tester whose long command runs in the background (`run_in_background`, see `.claude/agents/factory-builder.md` and `factory-tester.md`) heartbeats while it runs and is not stale: an agent with a background command still running is never counted stale (plan D3).
 
 ## Database layout
 
