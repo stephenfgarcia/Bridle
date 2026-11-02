@@ -4,16 +4,17 @@ title: Monitor JSONL validator (first card through the factory)
 phase: P0
 order: 4
 dependsOn: [P0-03]
-station: review
-status: running
-owner: factory-reviewer
-updated: 2026-11-02T21:08:36Z
+station: ship
+status: done
+owner: orchestrator
+updated: 2026-11-02T21:14:07Z
 history:
   - 2026-11-02T20:31:57Z spec running orchestrator "Spec ready: validator for .bridle/progress JSONL files; 5 acceptance criteria"
   - 2026-11-02T20:31:57Z plan running factory-planner "Planning: factory-planner spawned"
   - 2026-11-02T20:40:00Z build running factory-builder "Plan accepted (7 steps, 5 tests); factory-builder spawned"
   - 2026-11-02T20:55:20Z test running factory-tester "Build accepted: tools/monitor/check.py + README line; factory-tester spawned"
   - 2026-11-02T21:08:36Z review running factory-reviewer "Tests pass (6 tests, 0.46 s); factory-reviewer spawned"
+  - 2026-11-02T21:14:07Z ship done orchestrator "Shipped in cf6276b; review PASS with 2 advisory notes"
 ---
 
 # P0-04 Monitor JSONL validator (first card through the factory)
@@ -293,4 +294,6 @@ modified files in the tree (PLAN-01 shipped, PLAN-02/03 launched, this card's fr
 
 
 ## Ship
+
+Commit cf6276b (P0-04: Monitor JSONL validator). Exit checks by the foreman: 6/6 tests pass, review VERDICT: PASS, all sections filled. Advisory findings from review left as a follow-up (check.py:88 overflow guard for absurd tsMs values; summary echoes values from invalid lines by design).
 
