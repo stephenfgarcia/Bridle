@@ -62,6 +62,8 @@ keeps the full history, and the page can load it from a dropped file).
 
 `node tools/monitor/test/monitor.test.js` runs the page's derivation logic headlessly (status, stale detection, run filter, factory cards, next-up).
 
+`python3 tools/monitor/check.py [--run <runId>] [--summary]` validates every line of `.bridle/progress/**/*.jsonl` (exit 0 all valid, 1 at least one bad line, 2 the run directory does not exist); `python3 tools/monitor/test/check.test.py` runs its tests.
+
 ## Syncing missed events
 
 See `sync.md`. `tools/monitor/ops.sh <runId>` prints db_write-ready op batches for a whole run.
