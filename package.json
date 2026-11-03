@@ -10,7 +10,10 @@
     "lint": "biome ci .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "fmt": "biome check --write . && cargo fmt --all"
+    "fmt": "biome check --write . && cargo fmt --all",
+    "dev": "bash tools/dev.sh up",
+    "dev:down": "bash tools/dev.sh down",
+    "dev:reset": "bash tools/dev.sh reset"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
