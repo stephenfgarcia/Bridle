@@ -28,7 +28,7 @@ itself. The two items marked `gate:` are the `manualGates` of card P0-06.3 (see
 - [x] (b) Default branch `main` (automatic). Set by the first push: the repository was empty and `main` was the
   first branch to arrive. Proof: `gh repo view stephenfgarcia/Bridle --json isEmpty,defaultBranchRef --jq
   '[.isEmpty, .defaultBranchRef.name]'` = `[false,"main"]`.
-- [ ] (c) Actions (user; gate: Actions enabled on GitHub). Settings > Actions > General: under "Actions
+- [x] (c) Actions (user; gate: Actions enabled on GitHub). Settings > Actions > General: under "Actions
   permissions" select "Allow all actions and reusable workflows" (= `allowed_actions: all`, today's state); under
   "Workflow permissions" select "Read repository contents and packages permissions" and leave "Allow GitHub
   Actions to create and approve pull requests" unchecked (today: `default_workflow_permissions: read`,
@@ -36,16 +36,19 @@ itself. The two items marked `gate:` are the `manualGates` of card P0-06.3 (see
   repos/stephenfgarcia/Bridle/actions/permissions --jq .enabled` = `true` (today
   `{"enabled":true,"allowed_actions":"all"}`). The workflow is `.github/workflows/check.yml` (name `check`; jobs
   `changes`, `code`, `docs` and the summary job `check`, the one required context; see "Actions workflow").
-  Ticked at P0-02.3 by its docs-only proof pull request, which records the first run's URL here.
+  Ticked at P0-02.3: the first run, on its proof pull request #1 (branch `ci/p0-02-3`, commit `fb6c9dd`), is
+  https://github.com/stephenfgarcia/Bridle/actions/runs/41639588796 (2026-11-03 12:54Z, 60 s end to end; jobs
+  `changes` success, `code` success in 44 s, `docs` skipped, `check` success).
 - [x] (d) Secrets and variables: none now (user). Settings > Secrets and variables > Actions: nothing to add
   before P0-02.3 (today: 0 secrets, 0 variables). Later, per the "GitHub Actions" column of `docs/ops/secrets.md`,
   each on the card that needs it: Variables tab > "New repository variable" for `AWS_OIDC_ROLE_ARN`,
   `TOFU_STATE_BUCKET` and `TOFU_LOCK_TABLE` (P0-05.2); Secrets tab > "New repository secret" for
   `SENTRY_AUTH_TOKEN` (P7-02). Everything else in that column is a service container or a per-run random value.
-  The credential git pushes with must carry the `workflow` scope before P0-02.3 pushes `.github/workflows/`
-  (GitHub refuses such a push without it); gh's token has it (`gh auth status` lists `workflow`), and `gh auth
-  setup-git` makes git use that token instead of the `osxkeychain` entry (it edits `~/.gitconfig`: the user's
-  decision, to be taken only if that push is refused).
+  The credential git pushes with must carry the `workflow` scope to push `.github/workflows/` (GitHub refuses
+  such a push without it): P0-02.3's push of `ci/p0-02-3` with `check.yml` went through the `osxkeychain` entry
+  on 2026-11-03 without a refusal, so that entry has the scope; gh's token has it too (`gh auth status` lists
+  `workflow`), and `gh auth setup-git` would make git use that token instead (it edits `~/.gitconfig`: the
+  user's decision, only if a push is ever refused).
 - [x] (e) Branch protection on `main` (user; gate: branch protection on main). Precondition met on 2026-11-03 by
   item (a): on a free personal plan branch protection rules and rulesets exist only for public repositories (a
   private one answers HTTP 403 "Upgrade to GitHub Pro or make this repository public to enable this feature").
