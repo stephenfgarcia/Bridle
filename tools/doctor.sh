@@ -4,8 +4,11 @@
 #
 # Usage:
 #   bash tools/doctor.sh [--root <dir>]      (from any directory; env BRIDLE_ROOT=<dir> also works)
+#   bash tools/doctor.sh --ci [--root <dir>] (CI subset: only the rows rustup, rust, node, pnpm and the two
+#                                             mirror files, the tools .github/workflows/check.yml installs)
 #
-# Output (plain text): a header line, one row per `tools` key of toolchain.json
+# Output (plain text): a header line (with `(ci subset: rustup, rust, node, pnpm)` under --ci), one row per
+# `tools` key of toolchain.json (under --ci, only the four keys above)
 #   name | want | have | ok|MISSING|MISMATCH
 # one row per mirror file
 #   rust-toolchain.toml | want | have | ok|DRIFT <field> want X have Y
@@ -36,24 +39,35 @@ OK, MISSING, MISMATCH = "ok", "MISSING", "MISMATCH"
 SEMVER = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
+CI_SUBSET = ("rustup", "rust", "node", "pnpm")  # the tools CI installs (.github/workflows/check.yml)
+
+
 def usage(stream):
     stream.write(
-        "usage: bash tools/doctor.sh [--root <dir>]\n"
+        "usage: bash tools/doctor.sh [--ci] [--root <dir>]\n"
         "Checks every pin in <root>/tools/toolchain.json against the tools on PATH, and the mirror\n"
         "files <root>/rust-toolchain.toml and <root>/.node-version against the pins. <root> is the\n"
         "repository holding this script; env BRIDLE_ROOT overrides it and --root overrides both.\n"
-        "Exit 0 only when every row is ok.\n"
+        "--ci checks only the CI subset (%s) and the two mirror files: the tools\n"
+        ".github/workflows/check.yml installs on the runner.\n"
+        "Exit 0 only when every row is ok.\n" % ", ".join(CI_SUBSET)
     )
 
 
 def parse_args(argv, default_root):
+    """Returns (root, ci): the repository root and whether --ci was given."""
     root = os.environ.get("BRIDLE_ROOT") or default_root
+    ci = False
     i = 0
     while i < len(argv):
         a = argv[i]
         if a in ("-h", "--help"):
             usage(sys.stdout)
             sys.exit(0)
+        if a == "--ci":
+            ci = True
+            i += 1
+            continue
         if a == "--root" and i + 1 < len(argv):
             root = argv[i + 1]
             i += 2
@@ -65,7 +79,7 @@ def parse_args(argv, default_root):
         sys.stderr.write("doctor: unknown argument %r\n" % a)
         usage(sys.stderr)
         sys.exit(2)
-    return os.path.abspath(root)
+    return os.path.abspath(root), ci
 
 
 # ---------------------------------------------------------------- subprocess helpers
@@ -373,7 +387,7 @@ def check_node_version(root, pin):
 
 def main():
     wrapper_root = sys.argv[1]
-    root = parse_args(sys.argv[2:], wrapper_root)
+    root, ci = parse_args(sys.argv[2:], wrapper_root)
     pins_path = os.path.join(root, "tools", "toolchain.json")
     try:
         with open(pins_path, encoding="utf-8") as f:
@@ -387,6 +401,8 @@ def main():
     ctx = {"root": root}
     started = time.time()
     names = [n for n in tools if not n.startswith("$")]
+    if ci:  # the CI subset, in toolchain.json's order; the mirror rows below stay
+        names = [n for n in names if n in CI_SUBSET]
     with ThreadPoolExecutor(max_workers=max(1, len(names))) as ex:
         futures = [(n, ex.submit(safe_probe, n, tools[n], ctx)) for n in names]
         rows = [(n, want_text(n, tools[n])) + f.result() for n, f in futures]
@@ -398,7 +414,10 @@ def main():
 
     name_w = max(len(r[0]) for r in rows)
     want_w = max(len(r[1]) for r in rows)
-    print("Bridle toolchain doctor: %d checks in %.1f s (pins %s)" % (len(rows), elapsed, pins_path))
+    header = "Bridle toolchain doctor: %d checks in %.1f s (pins %s)" % (len(rows), elapsed, pins_path)
+    if ci:
+        header += " (ci subset: %s)" % ", ".join(CI_SUBSET)
+    print(header)
     for name, want, have, status in rows:
         print("%-*s | %-*s | %s | %s" % (name_w, name, want_w, want, have, status))
     bad = [r[0] for r in rows if r[3] != OK]

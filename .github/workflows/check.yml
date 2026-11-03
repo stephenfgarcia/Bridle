@@ -1,0 +1,125 @@
+# Bridle pull-request check (card P0-02.3): the workflow behind the `check` status that branch protection on
+# `main` requires. Runs on every pull request (any base branch, so a PR into a lane branch runs too) and on
+# every push to `main`.
+#
+# Jobs (docs/ops/github.md, "Actions workflow"):
+#   changes  dorny/paths-filter: does the diff touch anything besides docs/**, factory/** and *.md?
+#            -> output `code` ('true' / 'false'). Needs `pull-requests: read` on pull_request events.
+#   code     the heavy job, only when code == 'true': node 22 from .node-version with the pnpm cache, pnpm
+#            from package.json `packageManager`, the Rust toolchain at the pins of tools/toolchain.json
+#            (read with jq, as its $comment says), sccache on the Actions cache, then
+#            `pnpm install --frozen-lockfile`, `bash tools/doctor.sh --ci` and `pnpm check`.
+#   docs     the light job, only when code != 'true': prints what a docs-only change skipped.
+#   check    the summary job, always run (`if: always()`): green only when `changes` succeeded and exactly
+#            one of `code` / `docs` succeeded while the other was skipped. This is the one context branch
+#            protection requires, so a docs-only pull request is never blocked.
+#
+# Every `uses:` is pinned to a full commit SHA; the trailing comment is the tag that SHA named when pinned.
+# To re-resolve a pin: `gh api repos/<owner>/<repo>/commits/<tag> --jq .sha`.
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DO_NOT_TRACK: "1"
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          # some-with-excludes: a file counts when it matches a plain rule and none of the `!` rules.
+          # `**` matches every path, dotfiles and .github/ included; the three excludes are the docs paths.
+          predicate-quantifier: some-with-excludes
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!factory/**'
+              - '!**/*.md'
+
+  code:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No `version` input: the action reads `packageManager` from package.json. It must run before
+      # setup-node, whose `cache: pnpm` needs pnpm on PATH.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - id: pins
+        name: Read the Rust pins from tools/toolchain.json
+        run: |
+          {
+            echo "channel=$(jq -r '.tools.rust.channel' tools/toolchain.json)"
+            echo "targets=$(jq -r '.tools.rust.targets | join(",")' tools/toolchain.json)"
+            echo "components=$(jq -r '.tools.rust.components | join(",")' tools/toolchain.json)"
+          } >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+      # master, 2026-10-16 (the action has no version tags). It does not read rust-toolchain.toml, so the
+      # pins come from toolchain.json above; rust-toolchain.toml names the same channel for cargo itself.
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master 2026-10-16
+        with:
+          toolchain: ${{ steps.pins.outputs.channel }}
+          targets: ${{ steps.pins.outputs.targets }}
+          components: ${{ steps.pins.outputs.components }}
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
+      - run: pnpm install --frozen-lockfile
+      - run: bash tools/doctor.sh --ci
+      - run: pnpm check
+
+  docs:
+    needs: changes
+    if: needs.changes.outputs.code != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          echo "docs-only change (only docs/**, factory/** or *.md touched): skipped lint, typecheck, test," \
+               "cargo fmt, cargo clippy, cargo test and the toolchain doctor (job 'code')."
+
+  check:
+    needs: [changes, code, docs]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require changes + exactly one of code / docs
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          CODE: ${{ needs.code.result }}
+          DOCS: ${{ needs.docs.result }}
+        run: |
+          echo "changes=$CHANGES code=$CODE docs=$DOCS"
+          case "$CHANGES/$CODE/$DOCS" in
+            success/success/skipped) echo "check: ok (code path)" ;;
+            success/skipped/success) echo "check: ok (docs-only path)" ;;
+            *) echo "check: FAILED (changes=$CHANGES code=$CODE docs=$DOCS)"; exit 1 ;;
+          esac
