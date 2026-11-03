@@ -5,11 +5,12 @@ phase: P0
 order: 1
 dependsOn: [PLAN-05]
 estimate: 1
-station: backlog
-status: planned
-owner: -
-updated: 2026-11-03T08:29:21Z
+station: spec
+status: running
+owner: orchestrator
+updated: 2026-11-03T08:33:53Z
 history:
+  - 2026-11-03T08:33:53Z spec running orchestrator "Row approved by the user: split into P0-06.1 pins+installs+doctor, .2 allowlist, .3 first push; installs and GitHub push authorized"
 ---
 
 # P0-06 Toolchain and machine bootstrap
