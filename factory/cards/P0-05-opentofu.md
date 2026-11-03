@@ -2,7 +2,7 @@
 id: P0-05
 title: OpenTofu
 phase: P0
-order: 4
+order: 5
 dependsOn: [P0-02]
 estimate: 5
 station: backlog

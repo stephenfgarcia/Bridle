@@ -2,7 +2,7 @@
 id: P0-07
 title: External dependencies and legal register
 phase: P0
-order: 3
+order: 4
 dependsOn: [P0-02]
 estimate: 2
 station: backlog

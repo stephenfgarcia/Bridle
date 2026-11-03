@@ -2,7 +2,7 @@
 id: P0-08
 title: Factory lanes (parallel mode)
 phase: P0
-order: 5
+order: 3
 dependsOn: [P0-02]
 estimate: 1
 station: backlog
