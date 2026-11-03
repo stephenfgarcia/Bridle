@@ -2,8 +2,8 @@
 
 The stateful services a Bridle process needs on a developer machine run as one docker compose project
 (`compose.yaml`, project name `bridle`), driven by three pnpm scripts. Nothing in it is a secret: every
-credential is a committed default from `.env.example`. Application containers are card P0-02.4, migrations
-come later; this page covers only the services.
+credential is a committed default from `.env.example`. The application container image (one image, four
+entrypoints) is the last section, "Application image"; migrations come later.
 
 ## Services
 
@@ -122,3 +122,79 @@ itself, so the stack is three images. The documented fallback, should RustFS fai
 `SELECT 'a' < 'B'` is false, on glibc (`en_US.UTF-8`, as on RDS in P0-05) it is true. Do not rely on
 linguistic ordering matching between local and staging; where order matters, sort with an explicit
 `COLLATE "C"` or an ICU collation in the query or the column definition, which behaves the same everywhere.
+
+## Application image
+
+The deployment unit of the architecture (sections 3, 15, 16): one container image, four entrypoints. The root
+`Dockerfile` builds it and `tools/entrypoint.sh` dispatches on its first argument, `web`, `worker`, `judge` or
+`system`. Every name is a stub today: it prints `<name> <sha>` and exits 0, or stays up behind `--serve` with a
+health endpoint. P0-02.5 puts the Next.js server behind `web` and later cards the pg-boss processors behind the
+other three, under the same names in the same image (card P0-02.4 introduced it).
+
+The base image, verbatim from the Dockerfile (the only `FROM` with a tag; tag and digest are bumped together):
+
+```
+FROM node:22.23.4-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS base
+```
+
+Debian bookworm slim rather than alpine: glibc, so native modules need no musl builds; node 22.23.4 is the exact
+version the host runs under nvm (`tools/toolchain.json` pins the major); 347 MB on disk as `docker images`
+lists it on arm64 (343,893,906 bytes by `docker image inspect`), with corepack, no pnpm, no curl. The digest is
+the multi-arch index (linux/arm64 and linux/amd64), so the same line builds on an M-series Mac and on an x86
+runner.
+
+| Stage | From | Does |
+|---|---|---|
+| `base` | the pinned image | nothing: the one place the version is typed |
+| `deps` | `base` | `corepack enable pnpm && corepack install -g pnpm@12.16.1` (the toolchain pin, equal to `packageManager`), copies the `.dockerignore`'d context to `/app`, then `pnpm install --frozen-lockfile --store-dir /pnpm/store` with the store on a BuildKit cache mount (`--mount=type=cache,id=bridle-pnpm-store,target=/pnpm/store`): the layer is reused until the context changes, and when it does the packages come from the mount, not the network |
+| `build` | `deps` | `pnpm exec turbo run build` (no package has a `build` script yet, so turbo runs nothing; apps/web's build lands in P0-02.5), then the prune: `rm -rf node_modules packages/*/node_modules` and `pnpm install --frozen-lockfile --prod --ignore-scripts` from the same mount (an in-place `--prod` over a full tree keeps too much) |
+| `runtime` | `base` | copies `package.json`, `pnpm-workspace.yaml`, the pruned `node_modules`, `packages/` and `tools/entrypoint.sh` (mode 755), all owned by `node`; `NODE_ENV=production`, `PORT=3000`; then `ARG GIT_SHA` to `ENV GIT_SHA` and the `org.opencontainers.image.revision` label, last so a new sha re-runs only those lines; `USER node`, `EXPOSE 3000`, the `HEALTHCHECK`, `ENTRYPOINT ["/app/tools/entrypoint.sh"]`, no `CMD` |
+
+Build and run, from the repository root (docker 29 with BuildKit, as OrbStack and Docker Desktop ship it):
+
+```sh
+docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD) -t bridle:dev .
+docker run --rm bridle:dev web                  # web a875638    (worker, judge, system alike)
+docker run --rm bridle:dev                      # usage: entrypoint.sh (web|worker|judge|system) [--serve]   exit 2
+docker run --rm bridle:dev bogus                # the same usage line on stderr, nothing on stdout, exit 2
+docker run --rm --entrypoint id bridle:dev -u   # 1000  (the node user; nothing in the image runs as root)
+docker run --rm -p 3000:3000 bridle:dev web --serve   # web a875638, then: web a875638 serving /healthz on :3000
+curl -i http://127.0.0.1:3000/healthz           # 200 application/json {"ok":true,"entrypoint":"web","sha":"a875638"}
+docker stop <container>                         # SIGTERM: the server closes and the process exits 0, not 137
+```
+
+Any path but `GET /healthz` answers 404. Without `--build-arg GIT_SHA=...` the sha is `unknown` (`web unknown`).
+`GIT_SHA` and `PORT` are plain environment variables in the container, so `-e PORT=8080 -p 8080:8080` moves the
+server. The same health server backs all four names under `--serve`, so the image's `HEALTHCHECK` (a `node -e`
+probe of `http://127.0.0.1:$PORT/healthz` every 30 s, 3 s timeout, 5 s start period, 3 retries; there is no curl
+in the image) is honest for every process. Docker honours it (`docker ps` shows `(healthy)`); ECS ignores image
+healthchecks, and the task definition gets its own in P0-05.
+
+Build context (`.dockerignore`): the pnpm workspace and the entrypoint, 13 files and 44 KB today: `package.json`,
+`pnpm-workspace.yaml`, `pnpm-lock.yaml`, `turbo.json`, `biome.json`, `tsconfig.base.json`, `.editorconfig`,
+`.node-version`, `packages/*/{package.json,tsconfig.json,src/}`, `tools/entrypoint.sh`. Everything else stays out:
+`.git*` (`.git`, `.github`, `.gitignore`, `.gitattributes`), `node_modules` and `**/node_modules` (the host's macOS
+tree must never reach a Linux image), `**/.turbo`, `**/dist`, `**/*.tsbuildinfo`, the Rust workspace (`target`,
+`crates`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `rustfmt.toml`), `.bridle`, `.claude`,
+`.claude-sessions`, `.worktrees`, `docs`, `factory`, `tools/*` except the entrypoint, `compose.yaml`, the
+`Dockerfile` and `.dockerignore` themselves, `*.md`, `**/.DS_Store`, and `.env*`: a developer's `.env.local`
+(docs/ops/secrets.md) must never land in a layer, so the whole family is excluded, `.env.example` included (the
+image needs none of it).
+
+Measured on this machine (M4, OrbStack, the base image already pulled) by card P0-02.4 on 2026-11-03: cold build
+(empty builder cache) 8 s wall, of which corepack's pnpm download 2.3 s and `pnpm install` 3.5 s; warm rebuild
+with nothing changed under 1 s, every step `CACHED`; a changed source file re-runs the install from the store
+mount in 2 s with `downloaded 0`; a new `GIT_SHA` alone rebuilds in under 1 s. Image size
+(`docker image inspect bridle:dev --format '{{.Size}}'`) 343,942,622 bytes = 344 MB, of which 343,893,906 bytes
+is the base image: the workspace adds 49 KB until the apps arrive. One cold build on 2026-11-03 failed at
+`corepack install -g pnpm@12.16.1` with `Error when performing the request to https://registry.npmjs.org/...`
+after 4 s (a transient registry fetch; the probe of the same step passed seconds later): run the build again,
+a failed step is never cached.
+
+Test: `bash tools/test/image.test.sh` (never part of `pnpm test`: it needs the docker engine; about 20 s warm, a
+few minutes cold). It builds the image with the current sha, runs the four entrypoints, probes `--serve` on a random
+loopback port, checks the unknown-name exit code and the build context, and reads this section.
+
+Out of scope for the image today: pushing it to a registry (P0-05, with the ECS task definitions); Rust
+compilation and the wasm artifacts (they are built by the Rust workspace and copied in by later cards, never
+compiled here); a compose service for the application (`compose.yaml` stays services only).
