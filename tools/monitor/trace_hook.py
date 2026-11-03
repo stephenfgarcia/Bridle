@@ -20,6 +20,7 @@ import os
 import re
 import sys
 
+sys.dont_write_bytecode = True  # keep the tree free of __pycache__
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import monlib  # noqa: E402
 
