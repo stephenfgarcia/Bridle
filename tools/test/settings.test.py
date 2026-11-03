@@ -8,7 +8,8 @@ is run. The repository root is resolved from this file's own path.)
 One test per acceptance criterion of the card, named in each test's docstring:
   test_json_and_rules   AC1  the file parses (no duplicate keys) and ends with one newline; `hooks` precedes
                              `permissions`; `allow` and `deny` are lists of unique `Tool(specifier)` strings;
-                             each of the spec's 21 allow and 9 deny rules is present, and no other rule is;
+                             each of the 22 allow (the spec's 21 plus `Bash(gh pr merge *)`) and 9 deny rules is
+                             present, and no other rule is;
                              no allow entry duplicates a deny entry
   test_hooks_intact     AC1  the three monitor hooks of P0-10 (PostToolUse, PostToolUseFailure, SubagentStop)
                              are exactly as committed in 126d1f8: one command hook each, ending in
@@ -44,7 +45,8 @@ RULE = re.compile(r'^[A-Za-z]+\(.+\)$')  # Tool(specifier)
 CREDENTIALS_RULE = re.compile(r'credentials?\b.*\bnever\b|\bnever\b.*\bcredentials?', re.IGNORECASE)
 
 # The spec's AC1 lists, in the spec's order (amended at the plan station on 2026-11-03: no
-# `Bash(aws sts get-caller-identity)` allow, since a deny always wins; seven destructive Bash deny patterns).
+# `Bash(aws sts get-caller-identity)` allow, since a deny always wins; seven destructive Bash deny patterns;
+# `Bash(gh pr merge *)` added by the user on 2026-11-03 at the ship of P0-02.3 so the factory merges its own PRs).
 ALLOW = [
     'Bash(cargo *)',
     'Bash(rustup *)',
@@ -67,6 +69,7 @@ ALLOW = [
     'Bash(tools/monitor/*)',
     'Bash(python3 tools/monitor/*)',
     'Bash(bash tools/doctor.sh)',
+    'Bash(gh pr merge *)',
 ]
 DENY = [
     'Bash(tofu apply *)',
@@ -81,7 +84,7 @@ DENY = [
 ]
 DESTRUCTIVE = DENY[:7]  # the seven Bash patterns
 READ_DENIES = DENY[7:]  # the two Read patterns
-assert len(ALLOW) == 21 and len(DENY) == 9 and len(DESTRUCTIVE) == 7 and len(READ_DENIES) == 2
+assert len(ALLOW) == 22 and len(DENY) == 9 and len(DESTRUCTIVE) == 7 and len(READ_DENIES) == 2
 
 # The hooks block as committed by the monitor card P0-10 (commit 126d1f8); this card must not change it.
 TRACE_HOOK = {'type': 'command', 'command': '"$CLAUDE_PROJECT_DIR"' + HOOK_SUFFIX, 'async': True, 'timeout': 20}
@@ -230,13 +233,13 @@ class SettingsTests(unittest.TestCase):
 
     def test_json_and_rules(self):
         """AC1: valid JSON (no duplicate keys, one trailing newline), hooks before permissions, allow and deny are
-        lists of unique Tool(specifier) strings holding exactly the spec's 21 allow and 9 deny rules, and no
+        lists of unique Tool(specifier) strings holding exactly the 22 allow and 9 deny rules, and no
         allow entry duplicates a deny entry."""
         self.assertNoProblems(check_text(self.text))
         self.assertNoProblems(check_rules(self.doc))
         self.assertEqual(list(self.doc), ['hooks', 'permissions'])
         allow, deny = self.doc['permissions']['allow'], self.doc['permissions']['deny']
-        self.assertEqual(len(allow), 21)
+        self.assertEqual(len(allow), 22)
         self.assertEqual(len(deny), 9)
         for rule in ALLOW:
             self.assertIn(rule, allow)
@@ -263,7 +266,7 @@ class SettingsTests(unittest.TestCase):
 
     def test_assertions_bite(self):
         """AC3: the checks fail, naming the entry, when a deny or allow rule is missing (each of the 9 deny and
-        21 allow rules in turn), when an allow entry duplicates a deny entry, when a hook is removed or changed,
+        22 allow rules in turn), when an allow entry duplicates a deny entry, when a hook is removed or changed,
         when a rule leaves the doc; a duplicate key is rejected at parse time."""
         self.assertNoProblems(check_rules(self.doc))  # the baseline is clean, so every failure below is the edit
         for rule in DENY:

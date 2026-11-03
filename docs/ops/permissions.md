@@ -42,6 +42,7 @@ as well as `cargo build`).
 | `Bash(tools/monitor/*)` | the monitor protocol: `tools/monitor/log.sh` and the other monitor scripts |
 | `Bash(python3 tools/monitor/*)` | the monitor's Python tools and `tools/monitor/test/*.test.py` |
 | `Bash(bash tools/doctor.sh)` | the toolchain doctor, exactly as written (`bash tools/doctor.sh --root <dir>` still prompts) |
+| `Bash(gh pr merge *)` | merging a card's pull request once its `check` run is green (the user's decision at the ship of P0-02.3, 2026-11-03: the factory merges its own PRs). `Bash(gh pr *)` already matches the text; the explicit rule is what made Claude Code's auto mode stop refusing the merge as a merge without review. Branch protection still requires the `check` status |
 
 ## Deny: always refused
 

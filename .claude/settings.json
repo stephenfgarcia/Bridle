@@ -46,7 +46,8 @@
       "Bash(tofu plan *)",
       "Bash(tools/monitor/*)",
       "Bash(python3 tools/monitor/*)",
-      "Bash(bash tools/doctor.sh)"
+      "Bash(bash tools/doctor.sh)",
+      "Bash(gh pr merge *)"
     ],
     "deny": [
       "Bash(tofu apply *)",
