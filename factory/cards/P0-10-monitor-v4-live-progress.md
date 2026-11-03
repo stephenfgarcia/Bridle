@@ -4,8 +4,8 @@ title: Monitor v4: live progress
 phase: P0
 order: 10
 dependsOn: [P0-04]
-station: review
-status: running
+station: ship
+status: done
 owner: orchestrator
 updated: 2026-11-03T09:15:35Z
 history:
@@ -14,6 +14,7 @@ history:
   - 2026-11-03T08:42:22Z build running orchestrator "Building directly in the main session (tooling card, no station agents)"
   - 2026-11-03T09:15:35Z test running orchestrator "Tests: monitor.test.js (7 groups), check/mirror/serve suites OK; real tree validates clean; headless render checked"
   - 2026-11-03T09:15:35Z review running orchestrator "Self-review PASS: 5 acceptance criteria covered; no secrets traced; hooks async"
+  - 2026-11-03T09:15:35Z ship done orchestrator "Shipped in 126d1f8; published artifact version 1793697282-136d"
 ---
 
 # P0-10 Monitor v4: live progress
@@ -96,3 +97,4 @@ finished history of the same kind and show nothing otherwise; the artifact lags 
 
 ## Ship
 
+Commit 126d1f8 (artifact version 1793697282-136d, published 2026-11-03T09:14:42Z). The card's shipped state is committed as "P0-10: card shipped".
