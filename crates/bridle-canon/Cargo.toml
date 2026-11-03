@@ -1,0 +1,11 @@
+[package]
+name = "bridle-canon"
+version = "0.0.0"
+description = "Bridle canonical model: canon/1 schemas, ids, hashes and result frames (workspace skeleton)"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

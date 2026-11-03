@@ -13,3 +13,10 @@
 
 # Per-developer Claude Code overrides (never committed)
 .claude/settings.local.json
+
+# Workspace build output (P0-02.1): pnpm, turbo, cargo, package builds
+node_modules/
+.turbo/
+target/
+dist/
+*.tsbuildinfo

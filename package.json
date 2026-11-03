@@ -1,0 +1,19 @@
+{
+  "name": "bridle",
+  "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "check": "bash tools/check.sh",
+    "lint": "biome ci .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "fmt": "biome check --write . && cargo fmt --all"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "turbo": "2.11.10"
+  }
+}
