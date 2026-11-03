@@ -11,6 +11,9 @@ Do this, in order:
 2. Write `## Plan` with: an ordered list of steps, each naming the exact file to add or change and what changes;
    the tests to write, one per acceptance criterion, with the command that will run them; risks and how to
    check them; what to leave alone. Keep it to one screen. Do not write code and do not change any other file.
+   For cards in bridle-fem, bridle-canon, bridle-packs and bridle-checks, write the fixtures into the plan:
+   `docs/plan/roadmap.md` E1, "the plan station writes the fixtures (closed-form answers, golden vectors, combination
+   lists) into `## Plan` as literal data; the builder makes them pass and the tester may add cases but not change them".
 3. Report through the REPORTING block in your prompt (start, one progress line per step, done).
 
 Exit criteria: every step names a file; every acceptance criterion maps to a test. If the spec is too vague to

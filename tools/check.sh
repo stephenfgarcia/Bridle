@@ -13,8 +13,9 @@
 #   4 cargo-fmt     cargo fmt --all --check
 #   5 cargo-clippy  cargo clippy --workspace --all-targets -- -D warnings
 #   6 cargo-test    cargo test --workspace
-# Prints one line per step, `check: <n>/6 <name> ok <t>s` or `check: <n>/6 <name> FAILED (exit <code>)
-# after <t>s` (and exits with that code), then a last line `check: 6/6 ok in <t>s`. Wall times have one
+#   7 docs          bash tools/test/docs.test.sh  (README links, roadmap vs cards, progress board, decisions log; bash 3.2 and python3)
+# Prints one line per step, `check: <n>/7 <name> ok <t>s` or `check: <n>/7 <name> FAILED (exit <code>)
+# after <t>s` (and exits with that code), then a last line `check: 7/7 ok in <t>s`. Wall times have one
 # decimal and come from node's clock (Date.now()), so besides the tools above the script needs only
 # bash 3.2 and awk.
 set -euo pipefail
@@ -23,7 +24,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 export DO_NOT_TRACK=1 # turbo: no telemetry and no first-run telemetry banner
 
-STEPS=6
+STEPS=7
 
 now_ms() { node -p 'Date.now()'; }
 
@@ -51,4 +52,5 @@ run_step 3 test pnpm test
 run_step 4 cargo-fmt cargo fmt --all --check
 run_step 5 cargo-clippy cargo clippy --workspace --all-targets -- -D warnings
 run_step 6 cargo-test cargo test --workspace
+run_step 7 docs bash tools/test/docs.test.sh
 echo "check: $STEPS/$STEPS ok in $(elapsed "$CHECK_START" "$(now_ms)")s"

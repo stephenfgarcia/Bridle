@@ -1,6 +1,6 @@
 # MVP build sequence
 
-From the final architecture (Part E of the plan turns these into factory cards).
+From the final architecture (Part E of `docs/plan/roadmap.md` turns these into factory cards).
 
 | # | step | deliverable | depends on | estimate |
 |---|---|---|---|---|

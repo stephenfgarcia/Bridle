@@ -36,4 +36,20 @@ open `http://127.0.0.1:8787/`.
 ```
 
 A review FAIL or a failing test sends the card back to **build** once, with the findings as the note.
-Nothing ships without: tests passing, review PASS, all card sections filled, and a commit named after the card.
+Nothing ships without: tests passing, review PASS, every card section through `## Review` filled, and a commit named
+after the card; then `## Ship` (the hash and the run URL), the done state, the regenerated board and the log entry go
+into one `Cards: <id> shipped` commit.
+
+## Resume
+
+After a break, in this order: the root [README.md](../README.md); `python3 tools/monitor/card.py list` (every card's station
+and status, who is next up); `docs/plan/progress.md` (the board, the owner's open items, the log of shipped cards);
+`docs/plan/roadmap.md` E3 (the order of execution); then `/factory next`.
+
+## Several sessions at once
+
+- Re-read a file before editing it: the other session may have changed it.
+- Stage only your own files, with explicit paths; never `git add -A`.
+- Announce every commit to the other session.
+- Only one session runs the watch (`tools/monitor/watch.sh`); a second card runs alongside only when the owner says so and the
+  two cards share no files (recorded in the card's Spec as a process note).

@@ -10,7 +10,9 @@ Do this, in order:
    the build notes), and the changed files.
 2. Write or extend tests so that every acceptance criterion has at least one test. Use the project's existing
    test tooling; if there is none for this language, a plain script with assertions that exits non-zero on
-   failure is fine. Put tests where the plan says, else next to the code.
+   failure is fine. Put tests where the plan says, else next to the code. For cards in bridle-fem, bridle-canon,
+   bridle-packs and bridle-checks the fixtures are literal data in `## Plan` (`docs/plan/roadmap.md` E1: "the builder
+   makes them pass and the tester may add cases but not change them").
 3. Run the tests. Record the exact commands and the verbatim result lines.
 4. Write `## Test`: the command(s) to run, which criterion each test covers, results (pass/fail per test), and
    any failure output verbatim. State clearly at the top: `RESULT: PASS` or `RESULT: FAIL`. Do not fix product

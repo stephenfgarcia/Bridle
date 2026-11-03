@@ -1,3 +1,10 @@
+<!-- Header added by card P0-11. Everything from the H1 below is a verbatim copy; amend it only by a commit to this file. -->
+> **Status:** approved 2026-11-03 (second approval, the complete plan; the first approval, the same day, covered Part D only).
+> **Canonical:** from the commit of card P0-11 on, this file is the plan; amendments are commits to this file, each with a dated row in docs/decisions/log.md or an entry in docs/plan/progress.md.
+> **Origin:** /Users/johnstephenf.garcia/.claude/plans/lets-plan-first-in-stateless-pizza.md (371 lines, 79,908 bytes), copied unchanged: the body is not edited, summarized or improved.
+> **Superseded in part:** Part D sections D2 to D6 describe monitor v1 to v3; the monitor as built is docs/plan/monitor-v4.md and tools/monitor/README.md (protocol v2, 2026-11-03).
+> **As of:** the body's status statements (Context, D0, "PLAN-05 sits at review", E4 rows 1 and 2) are as presented on 2026-11-03 07:23; docs/plan/progress.md is the live status.
+
 # Bridle: Structural-Engineering Simulation LMS, Full Plan
 
 ## Context

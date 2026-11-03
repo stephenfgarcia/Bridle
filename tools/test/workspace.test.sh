@@ -24,14 +24,14 @@
 #                                 exits 0 without rewriting pnpm-lock.yaml or pnpm-workspace.yaml and leaves
 #                                 node_modules/.bin/turbo; `bash tools/doctor.sh` from the repository root exits 0
 #                                 with `doctor: <tools keys + 2> ok, 0 failed`
-#   check                    AC3  `pnpm check` from the root exits 0, prints the six `check: n/6 <name> ok <t>s`
-#                                 lines in the order lint, typecheck, test, cargo-fmt, cargo-clippy, cargo-test,
-#                                 then `check: 6/6 ok in <t>s`, in under 180 s on this test's clock, and leaves
+#   check                    AC3  `pnpm check` from the root exits 0, prints the seven `check: n/7 <name> ok <t>s`
+#                                 lines in the order lint, typecheck, test, cargo-fmt, cargo-clippy, cargo-test, docs,
+#                                 then `check: 7/7 ok in <t>s`, in under 180 s on this test's clock, and leaves
 #                                 `git status --porcelain` unchanged; in the installed copy a format error in
-#                                 packages/units/src/index.ts stops it at `check: 1/6 lint FAILED (exit <code>)`
-#                                 with a non-zero exit and no 2/6 line, and an unformatted line appended to
-#                                 crates/bridle-canon/src/lib.rs stops it at `check: 4/6 cargo-fmt FAILED` after
-#                                 1/6 to 3/6 ok with no 5/6 line; with both files restored (cmp-identical to the
+#                                 packages/units/src/index.ts stops it at `check: 1/7 lint FAILED (exit <code>)`
+#                                 with a non-zero exit and no 2/7 line, and an unformatted line appended to
+#                                 crates/bridle-canon/src/lib.rs stops it at `check: 4/7 cargo-fmt FAILED` after
+#                                 1/7 to 3/7 ok with no 5/7 line; with both files restored (cmp-identical to the
 #                                 repository's) the copy's `pnpm check` exits 0 again
 #
 # Run:  bash tools/test/workspace.test.sh      (from any directory; the script finds the repository from its own path)
@@ -102,8 +102,8 @@ run_to() {  # $1 = directory, $2 = file, $3.. = command: runs it there, stdout t
   OUT="$(cd "$dir" && "$@" 2>&1 >"$file")"
   RC=$?
 }
-steps_of() {  # $1 = check output: its step lines as "<n>/6 <name> <ok|FAILED>|..." in order (the summary line
-              # `check: 6/6 ok in <t>s` is not a step line)
+steps_of() {  # $1 = check output: its step lines as "<n>/7 <name> <ok|FAILED>|..." in order (the summary line
+              # `check: 7/7 ok in <t>s` is not a step line)
   printf '%s\n' "$1" | awk '/^check: [0-9]+\/[0-9]+ [a-z-]+ (ok|FAILED)/ { printf "%s %s %s|", $2, $3, $4 }'
 }
 check_lines() {  # $1 = check output: every `check:` line
@@ -308,7 +308,7 @@ echo "ok - fresh-clone"
 
 # ---- check (AC3) ------------------------------------------------------------------------------------------------
 CASE=check
-WANT_PASS="1/6 lint ok|2/6 typecheck ok|3/6 test ok|4/6 cargo-fmt ok|5/6 cargo-clippy ok|6/6 cargo-test ok|"
+WANT_PASS="1/7 lint ok|2/7 typecheck ok|3/7 test ok|4/7 cargo-fmt ok|5/7 cargo-clippy ok|6/7 cargo-test ok|7/7 docs ok|"
 STATUS_BEFORE="$(git -C "$ROOT" status --porcelain)"
 t0="$(date +%s)"
 run_in "$ROOT" pnpm check
@@ -317,11 +317,11 @@ ELAPSED=$((t1 - t0))
 [ "$RC" -eq 0 ] || fail "pnpm check from the root: exit $RC" "$OUT"
 have="$(steps_of "$OUT")"
 [ "$have" = "$WANT_PASS" ] || fail "pnpm check: step lines: expected '$WANT_PASS', got '$have'" "$OUT"
-n="$(printf '%s\n' "$OUT" | grep -c -E '^check: [1-6]/6 [a-z-]+ ok [0-9]+\.[0-9]s$')"
-[ "$n" -eq 6 ] || fail "pnpm check: expected 6 step lines of the form 'check: n/6 <name> ok <t>s', found $n" "$OUT"
+n="$(printf '%s\n' "$OUT" | grep -c -E '^check: [1-7]/7 [a-z-]+ ok [0-9]+\.[0-9]s$')"
+[ "$n" -eq 7 ] || fail "pnpm check: expected 7 step lines of the form 'check: n/7 <name> ok <t>s', found $n" "$OUT"
 last="$(last_check_line "$OUT")"
-printf '%s\n' "$last" | grep -q -E '^check: 6/6 ok in [0-9]+\.[0-9]s$' \
-  || fail "pnpm check: last line: expected 'check: 6/6 ok in <t>s', got '$last'" "$OUT"
+printf '%s\n' "$last" | grep -q -E '^check: 7/7 ok in [0-9]+\.[0-9]s$' \
+  || fail "pnpm check: last line: expected 'check: 7/7 ok in <t>s', got '$last'" "$OUT"
 [ "$ELAPSED" -lt 180 ] || fail "pnpm check took $ELAPSED s on the test's clock, limit 180 s" "$OUT"
 STATUS_AFTER="$(git -C "$ROOT" status --porcelain)"
 [ "$STATUS_BEFORE" = "$STATUS_AFTER" ] \
@@ -338,10 +338,10 @@ run_in "$COPY" pnpm check
 [ "$RC" -ne 0 ] || fail "pnpm check in the copy with a format error in $TS: expected a non-zero exit, got 0" "$OUT"
 LINT_RC=$RC
 have="$(steps_of "$OUT")"
-[ "$have" = "1/6 lint FAILED|" ] \
-  || fail "format error in $TS: step lines: expected '1/6 lint FAILED|' and nothing after it, got '$have'" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^check: 1/6 lint FAILED \(exit [0-9]+\) after [0-9]+\.[0-9]s$' \
-  || fail "format error in $TS: no 'check: 1/6 lint FAILED (exit <code>) after <t>s' line" "$OUT"
+[ "$have" = "1/7 lint FAILED|" ] \
+  || fail "format error in $TS: step lines: expected '1/7 lint FAILED|' and nothing after it, got '$have'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^check: 1/7 lint FAILED \(exit [0-9]+\) after [0-9]+\.[0-9]s$' \
+  || fail "format error in $TS: no 'check: 1/7 lint FAILED (exit <code>) after <t>s' line" "$OUT"
 echo "# copy with a format error in $TS: pnpm check exit $LINT_RC"
 check_lines "$OUT" | sed 's/^/#   /'
 cp "$ROOT/$TS" "$COPY/$TS" && cmp -s "$ROOT/$TS" "$COPY/$TS" || fail "cannot restore the copy's $TS"
@@ -353,10 +353,10 @@ run_in "$COPY" pnpm check
 [ "$RC" -ne 0 ] || fail "pnpm check in the copy with an unformatted line in $RS: expected a non-zero exit, got 0" "$OUT"
 FMT_RC=$RC
 have="$(steps_of "$OUT")"
-[ "$have" = "1/6 lint ok|2/6 typecheck ok|3/6 test ok|4/6 cargo-fmt FAILED|" ] \
-  || fail "unformatted $RS: step lines: expected '1/6 lint ok|2/6 typecheck ok|3/6 test ok|4/6 cargo-fmt FAILED|', got '$have'" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^check: 4/6 cargo-fmt FAILED \(exit [0-9]+\) after [0-9]+\.[0-9]s$' \
-  || fail "unformatted $RS: no 'check: 4/6 cargo-fmt FAILED (exit <code>) after <t>s' line" "$OUT"
+[ "$have" = "1/7 lint ok|2/7 typecheck ok|3/7 test ok|4/7 cargo-fmt FAILED|" ] \
+  || fail "unformatted $RS: step lines: expected '1/7 lint ok|2/7 typecheck ok|3/7 test ok|4/7 cargo-fmt FAILED|', got '$have'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^check: 4/7 cargo-fmt FAILED \(exit [0-9]+\) after [0-9]+\.[0-9]s$' \
+  || fail "unformatted $RS: no 'check: 4/7 cargo-fmt FAILED (exit <code>) after <t>s' line" "$OUT"
 echo "# copy with an unformatted line in $RS: pnpm check exit $FMT_RC"
 check_lines "$OUT" | sed 's/^/#   /'
 cp "$ROOT/$RS" "$COPY/$RS" && cmp -s "$ROOT/$RS" "$COPY/$RS" || fail "cannot restore the copy's $RS"

@@ -6,9 +6,9 @@ Where every secret lives, by name. No secret value appears in this file, in `.en
 
 - Three homes, nothing else: `.env.local` (gitignored) on a developer machine; GitHub Actions secrets and variables for CI; AWS Secrets Manager for staging and production (architecture section 13: "secrets only in AWS Secrets Manager", rotation within 90 days with a tested runbook; services read them through their IAM task role).
 - No station agent (plan, build, test, review, ship) ever needs a production credential. Cards run against docker compose (Postgres, MinIO, mailpit) with the compose defaults, and the tester uses record/replay fixtures for the Anthropic API by default (`pnpm test` is green offline). The only live Anthropic call in the roadmap is the P5-03 measurement run, a `manualGates:` item the user runs with `ANTHROPIC_API_KEY` in `.env.local` and commits the report under `docs/verification/`; the weekly capped live run on staging uses the staging key from Secrets Manager.
-- Agents never log secrets (monitor protocol rule 4), never print or commit `.env.local`, and never copy a value from one home to another. A card that needs a new secret adds its name to this file and to `.env.example` (empty value) in the same commit; the user fills the value (E4 of the plan lists what only the user can obtain).
+- Agents never log secrets (monitor protocol rule 4), never print or commit `.env.local`, and never copy a value from one home to another. A card that needs a new secret adds its name to this file and to `.env.example` (empty value) in the same commit; the user fills the value (E4 of `docs/plan/roadmap.md` lists what only the user can obtain).
 - CI assumes an IAM role through GitHub's OIDC provider; there are no long-lived AWS access keys anywhere.
-- `.env.local` and `.env.*.local` must be added to `.gitignore` by the P0-02 repository bootstrap card (they are not there yet).
+- `.env.local` and `.env.*.local` are ignored: present in `.gitignore` since `89bed6d` (PLAN-04 follow-ups).
 
 ## Names
 

@@ -179,6 +179,8 @@ Ship one complete course, 'Structural Analysis and Design Fundamentals (Steel)' 
 
 MVP supports linear static analysis of 2D/3D trusses, beams (simply supported, cantilever, continuous) and steel moment/braced frames up to about three stories, plus RC beam and column member checks; a US code pack with ASCE 7-22 combinations (LRFD and ASD) and simplified wind/seismic/snow inputs, AISC 360-22 member checks and ACI 318-19 beam/column checks; US customary and SI units. Out of MVP: plates/shells, modal/dynamic, nonlinear, foundations beyond a bearing check, Eurocode/NSCP packs, moving loads.
 
+Superseded by ADR 0001 R1 and ADR 0002 A2/A6: AISC 360-22 LRFD W-shapes only; RC members in Analyze tasks only; ASD after the pilot.
+
 **Why:** Covers a standard first design course and the three most common teaching structure types while keeping solver, workspace and grader scope achievable for a small team.
 
 **Acceptance:**

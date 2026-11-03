@@ -26,4 +26,4 @@ Q1 US first, NSCP 2015 second; Q2 TypeScript end to end with Rust confined to th
 
 ## Documents that carry the amended wording
 
-`docs/requirements/01` (CAT-04, CODE-02, CODE-07, CODE-08, CODE-09, SITE-01, SITE-06, QUAL-02, ERR-06, GRD-05), `05` (SCN-01, domain notes D, E, F), `00-index` (C1, C5), `07` (TB-02, TL-02), `08` (MVP-01, MVP-04, GTM-01), `11` (DLV-15), `13` (summary, GAP5-FP-02/03); `docs/architecture/architecture.md` (sections 2, 7, 9, 17) and `decisions.md` (D18, D24); `docs/ux/ux-spec.md` (sections 3, 4, 5, 7, 11, 12, 13) and `screen-inventory.md`.
+`docs/requirements/01` (CAT-04, CODE-02, CODE-07, CODE-08, CODE-09, SITE-01, SITE-06, QUAL-02, ERR-06, GRD-05), `05` (SCN-01, domain notes D, E, F), `00-index` (C1, C5), `07` (TB-02, TL-02), `08` (MVP-01, MVP-02, MVP-04, GTM-01), `11` (DLV-15), `13` (summary, GAP5-FP-02/03); `docs/architecture/architecture.md` (sections 2, 7, 9, 17) and `decisions.md` (D18, D24); `docs/ux/ux-spec.md` (sections 3, 4, 5, 7, 11, 12, 13) and `screen-inventory.md`.

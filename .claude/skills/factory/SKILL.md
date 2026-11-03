@@ -13,17 +13,21 @@ shows the board live. Arguments: `$ARGUMENTS`.
 ## Commands
 
 - `status`: run `tools/monitor/card.py list` and `tools/monitor/mirror.py status`; report cards per station, anything
-  blocked or failed, next up, and whether events are waiting to be mirrored.
+  blocked or failed, next up, and whether events are waiting to be mirrored. Also run
+  `python3 tools/monitor/card.py status --check docs/plan/progress.md`: stale means a card was created or shipped
+  without a regeneration; run `--write` and commit the board.
 - `new <id> "<title>" --phase <P> --order <n> [--deps A,B]`: run `tools/monitor/card.py new ...`. It prints a
   `tasks/<id>` op; mirror it (ToolSearch `select:mcp__claude-artifacts__db_write`, slug from `.bridle/monitor.json`).
 - `next`: `card.py list` says who is next up; then `run` that card.
 - `sync [seconds]`: be the mirror. Arm the watch (step 0 below, with the interval if given) and keep mirroring until
   the user stops you; use it from a session that is not running cards while another session does.
-- `run <id>`: the procedure below, one station at a time. Never skip a station, never run two cards at once.
+- `run <id>`: the procedure below, one station at a time. Never skip a station, never run two cards at once; a second
+  card may run alongside only when the owner says so and the two cards share no files, recorded in the card's Spec as
+  a process note.
 
 ## Work packages, sub-cards, and manual gates
 
-A roadmap row (an E2 row in the approved plan, for example `P2-02`) is a work package, not a card. At its spec
+A roadmap row (an E2 row in `docs/plan/roadmap.md`, for example `P2-02`) is a work package, not a card. At its spec
 station the user approves the row's acceptance criteria and split list once; then create the sub-cards
 `<row>.<n>` with `card.py new <row>.<n> "<title>" --phase <P> --order <row order x 10 + n> --deps <previous
 sub-card or the row's After>`, each changing one package or crate, at most one engineer-day (about 15 files,
@@ -37,8 +41,9 @@ install) run with run_in_background, with an agent.heartbeat while they run.
 ## run <id>
 
 0. Preconditions. The card exists; every card in `dependsOn` has `status: done`; if the card's phase is P1 or
-   later, the implementation roadmap (plan file, Part E) has been approved by the user. If a precondition
-   fails, say which and stop. Then arm the mirror so the monitor follows the card live:
+   later, the implementation roadmap `docs/plan/roadmap.md` (Part E; approved 2026-11-03, the canonical copy; the plan
+   file outside the repository is only its origin) has been approved by the user. If a precondition fails, say which
+   and stop. Then arm the mirror so the monitor follows the card live:
    `Monitor({command: 'tools/monitor/watch.sh', timeout_ms: 1800000, description: 'unmirrored monitor events'})`.
    Every notification from it is one short turn: `tools/monitor/mirror.py pending --take`, then for each printed
    line one `mcp__claude-artifacts__db_write` with `slug` (from `.bridle/monitor.json`), `ops` and `idempotencyKey`
@@ -48,6 +53,8 @@ install) run with run_in_background, with an agent.heartbeat while they run.
 1. Spec (you). If `## Spec` is empty, write it with the user: what, why, acceptance criteria (testable),
    files likely touched, out of scope. Then
    `tools/monitor/card.py move <id> spec --agent orchestrator --note "Spec ready"` (the watch mirrors every move).
+   Commit the new card file as `Cards: <id> spec` once the spec is approved, with the board regenerated
+   (`python3 tools/monitor/card.py status --write docs/plan/progress.md`) when the card is new.
 2. Plan. `card.py move <id> plan --note "Planning"`, then spawn the Agent tool with
    `subagent_type: "factory-planner"` and the station prompt below. Read `## Plan` when it returns; if a step
    names no file or the plan ignores an acceptance criterion, send it back once via SendMessage, else continue.
@@ -59,10 +66,14 @@ install) run with run_in_background, with an agent.heartbeat while they run.
 5. Review. `card.py move <id> review --note "Reviewing"`, spawn `factory-reviewer`. FAIL: back to build
    once as in step 4 (then test and review again); second FAIL blocks the card.
 6. Ship (you). Check the exit criteria yourself: tests pass (re-run the command in `## Test`), `## Review` says
-   PASS, every section is filled. `git add` the touched files and the card; commit as `<id>: <title>` with the
-   attribution line from your instructions; write the hash in `## Ship`; then
-   `card.py move <id> ship --status done --agent orchestrator --note "Shipped in <hash>"`.
-   The card's shipped state is committed with the next card (or as `<id>: card shipped` if nothing else is pending).
+   PASS, every section through `## Review` is filled. `git add` the touched files and the card (its sections through
+   `## Review`); commit as `<id>: <title>` with the attribution line from your instructions; push and record the
+   Actions run URL. Then, in this order: write the hash and the run URL in `## Ship`;
+   `card.py move <id> ship --status done --agent orchestrator --note "Shipped in <hash>"`;
+   `python3 tools/monitor/card.py status --write docs/plan/progress.md`; append the card's entry under `## Log` in
+   `docs/plan/progress.md` with its hash and time (`- <date> <time>, <id>, commit <hash>: <title>; <one line>`);
+   commit the card and `docs/plan/progress.md` as `Cards: <id> shipped` and push it at once. So no commit ever
+   holds a log entry without its hash, and every commit passes `pnpm check` in a full clone.
 7. Report: what shipped, what the reviewer flagged, what is next up. Run one last mirror pass (`pending --take`,
    `db_write`, `ack --all`) and stop the watch with `TaskStop` unless another card follows.
 

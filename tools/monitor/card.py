@@ -6,6 +6,10 @@
   card.py new <id> "<title>" --phase P1 --order 3 [--deps A,B] [--no-op]
   card.py move <id> <station> [--status running|done|blocked|failed|review] [--agent name] [--note "..."] [--run factory]
   card.py sync-ops [id ...]        # db_write ops (set) for tasks docs; only for docs that do not exist yet
+  card.py status [--cards DIR]     # the progress board (markdown table, next up) on stdout; no event, nothing from the clock
+  card.py status --write FILE      # regenerate the <!-- board:start --> ... <!-- board:end --> section of FILE (docs/plan/progress.md)
+  card.py status --check FILE      # exit 1 when the board's card ids or its `done` ids differ from the cards (station, owner,
+                                   # updated and next up are rendered, not checked: the board is regenerated at `new` and at ship)
 """
 import sys, os, re, json, subprocess, datetime, argparse, glob
 
@@ -88,20 +92,98 @@ def task_doc(meta):
 def slug(title):
     return re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')[:40]
 
-def cmd_list(_):
+def board_rows(cards_dir=CARDS):
+    """Every card's frontmatter under cards_dir, sorted by (phase, order, id): the rows of `list` and `status`."""
     rows = []
-    for path in sorted(glob.glob(os.path.join(CARDS, '*.md'))):
+    for path in sorted(glob.glob(os.path.join(cards_dir, '*.md'))):
         meta, _ = parse(open(path, encoding='utf-8').read())
         rows.append(meta)
     rows.sort(key=lambda m: (m.get('phase', ''), int(m.get('order', 0)), m.get('id', '')))
+    return rows
+
+def next_up(rows):
+    """The first card at backlog/planned, not a placeholder, with every dependency done; None when nothing is unblocked."""
+    done = {m['id'] for m in rows if m.get('status') == 'done'}
+    return next((m for m in rows if m.get('station', 'backlog') == 'backlog' and m.get('status', 'planned') == 'planned'
+                 and not m.get('placeholder') and all(d in done for d in m.get('dependsOn', []))), None)
+
+def cmd_list(_):
+    rows = board_rows(CARDS)
     print(f"{'id':10} {'phase':6} {'station':8} {'status':9} {'order':5} deps / title")
     for m in rows:
         deps = ','.join(m.get('dependsOn', [])) or '-'
         print(f"{m.get('id',''):10} {m.get('phase',''):6} {m.get('station','backlog'):8} {m.get('status','planned'):9} {str(m.get('order','')):5} {deps} / {m.get('title','')}")
-    done = {m['id'] for m in rows if m.get('status') == 'done'}
-    nxt = next((m for m in rows if m.get('station', 'backlog') == 'backlog' and m.get('status', 'planned') == 'planned'
-                and not m.get('placeholder') and all(d in done for d in m.get('dependsOn', []))), None)
+    nxt = next_up(rows)
     print('next up:', (nxt['id'] + ' ' + nxt['title']) if nxt else 'nothing unblocked')
+
+BOARD_START, BOARD_END = '<!-- board:start -->', '<!-- board:end -->'
+
+def render_board(rows):
+    """The board section of docs/plan/progress.md, newline-terminated: the two markers, one table row per card, next up.
+    Nothing from the clock, the path or the environment: two runs on the same cards give the same bytes."""
+    lines = [BOARD_START, '| id | phase | station | status | owner | updated |', '|---|---|---|---|---|---|']
+    for m in rows:
+        lines.append(f"| {m.get('id', '')} | {m.get('phase', '')} | {m.get('station', 'backlog')} | {m.get('status', 'planned')} "
+                     f"| {m.get('owner', '-')} | {m.get('updated', '')} |")
+    nxt = next_up(rows)
+    lines += ['', 'Next up: ' + ((nxt['id'] + ' ' + nxt['title']) if nxt else 'nothing unblocked'), BOARD_END]
+    return '\n'.join(lines) + '\n'
+
+def board_section(lines):
+    """(start, end) indices of the one board section in lines (a start marker line before an end marker line), else None."""
+    starts = [i for i, line in enumerate(lines) if line == BOARD_START]
+    ends = [i for i, line in enumerate(lines) if line == BOARD_END]
+    if len(starts) != 1 or len(ends) != 1 or starts[0] > ends[0]:
+        return None
+    return starts[0], ends[0]
+
+def board_ids(lines):
+    """(card ids, ids with status done) read from a board section's table rows `| <id> | <phase> | <station> | <status> | ... |`."""
+    ids, done = set(), set()
+    for line in lines:
+        cells = [c.strip() for c in line.split('|')]
+        if len(cells) < 8 or cells[1] in ('', 'id') or cells[1].startswith('-'):
+            continue  # not a table row: a marker, the header, the separator, the empty line, the next-up line
+        ids.add(cells[1])
+        if cells[4] == 'done':
+            done.add(cells[1])
+    return ids, done
+
+def cmd_status(a):
+    # Derived from the cards alone: no monitor event (nothing to report), nothing written under .bridle/.
+    rows = board_rows(a.cards)
+    board = render_board(rows)
+    if not a.write and not a.check:
+        sys.stdout.write(board)
+        return
+    path = a.write or a.check
+    stale = f'card.py status: {path} is stale: run python3 tools/monitor/card.py status --write {path}'
+    if not os.path.isfile(path):
+        raise SystemExit(f'card.py status: {path} does not exist' if a.write else stale)
+    lines = open(path, encoding='utf-8').read().split('\n')
+    sec = board_section(lines)
+    if sec is None:
+        raise SystemExit(f'card.py status: {path} has no board section ({BOARD_START} ... {BOARD_END})' if a.write else stale)
+    if a.check:
+        # Only the two sets that change at `new` and at ship: a card moving between stations keeps the board current.
+        want_ids = {m.get('id', '') for m in rows}
+        want_done = {m['id'] for m in rows if m.get('status') == 'done'}
+        have_ids, have_done = board_ids(lines[sec[0]:sec[1] + 1])
+        if have_ids != want_ids or have_done != want_done:
+            detail = [f'{what}: {", ".join(sorted(s))}' for what, s in (
+                ('cards not on the board', want_ids - have_ids), ('board rows without a card', have_ids - want_ids),
+                ('done in the cards, not on the board', want_done - have_done),
+                ('done on the board, not in the cards', have_done - want_done)) if s]
+            raise SystemExit(stale + '\n  ' + '; '.join(detail))
+        return
+    new = '\n'.join(lines[:sec[0]] + board.split('\n')[:-1] + lines[sec[1] + 1:])
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(new)
+    nxt = next_up(rows)
+    shown = os.path.relpath(path, ROOT)
+    if shown.startswith('..'):
+        shown = path
+    print(f'{shown}: board written ({len(rows)} cards; next up {nxt["id"] if nxt else "nothing unblocked"})', file=sys.stderr)
 
 def cmd_show(a):
     path, meta, body = load(a.id)
@@ -162,6 +244,9 @@ def main():
     p = sub.add_parser('move'); p.add_argument('id'); p.add_argument('station'); p.add_argument('--status'); p.add_argument('--agent')
     p.add_argument('--note'); p.add_argument('--run', default='factory'); p.add_argument('--from', dest='from_station'); p.set_defaults(f=cmd_move)
     p = sub.add_parser('sync-ops'); p.add_argument('ids', nargs='*'); p.set_defaults(f=cmd_sync_ops)
+    p = sub.add_parser('status'); p.add_argument('--cards', default=CARDS, metavar='DIR')
+    g = p.add_mutually_exclusive_group(); g.add_argument('--write', metavar='FILE'); g.add_argument('--check', metavar='FILE')
+    p.set_defaults(f=cmd_status)
     a = ap.parse_args(); a.f(a)
 
 if __name__ == '__main__':

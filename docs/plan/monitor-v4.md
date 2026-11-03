@@ -1,3 +1,8 @@
+<!-- Header added by card P0-11. Everything from the H1 below is a verbatim copy; amend it only by a commit to this file. -->
+> **Status:** the monitor v4 plan of card P0-10, approved 2026-11-03 (card history: "plan approved 2026-11-03"), shipped in 126d1f8.
+> **Canonical:** from the commit of card P0-11 on, this file is the plan; amendments are commits to this file, each with a dated row in docs/decisions/log.md or an entry in docs/plan/progress.md.
+> **Origin:** /Users/johnstephenf.garcia/.claude/plans/can-we-plan-on-floofy-forest.md (109 lines, 21,663 bytes), copied unchanged: the body is not edited, summarized or improved.
+
 # Bridle Build Monitor v4: live progress
 
 ## Context

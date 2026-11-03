@@ -1,6 +1,6 @@
 # Requirements index
 
-Produced 2026-11-03 by the requirements discovery workflow (8 domain agents, a completeness critic, 6 gap-fill agents; 15 agents, 1.3M tokens). Priorities: **must** = MVP, **should** = v1.x, **could** = later. These documents are the input to the architecture and UI/UX work; the approved plan (Part A) summarizes them.
+Produced 2026-11-03 by the requirements discovery workflow (8 domain agents, a completeness critic, 6 gap-fill agents; 15 agents, 1.3M tokens). Priorities: **must** = MVP, **should** = v1.x, **could** = later. These documents are the input to the architecture and UI/UX work; the approved plan (`docs/plan/roadmap.md`, Part A) summarizes them.
 
 | file | area | reqs | must | should | could |
 |---|---|---|---|---|---|
