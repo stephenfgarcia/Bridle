@@ -1,6 +1,6 @@
 # ADR 0002: Architecture amendments to ADR 0001
 
-Status: proposed; adopted at the second plan approval.
+Status: adopted at the second plan approval (2026-11-03).
 Date: 2026-11-03. Input: `docs/architecture/architecture.md` section 2 (amendments A1 to A4, proposed by the architecture), the adversarial polish pass of the assembled plan (A5 to A10), and the plan's section B9, which lists all ten.
 
 Each row amends `docs/decisions/0001-mvp-scope-resolutions.md`: the new text replaces or extends the ADR 0001 row it names. Nothing else in ADR 0001 changes. Where a requirement document carried the superseded wording, the document now cites the amendment.

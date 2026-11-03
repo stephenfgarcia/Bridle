@@ -47,7 +47,7 @@ def parse(text):
     return meta, body
 
 def dump(meta, body):
-    order = ['id', 'title', 'phase', 'order', 'dependsOn', 'station', 'status', 'owner', 'placeholder', 'updated', 'history']
+    order = ['id', 'title', 'phase', 'order', 'dependsOn', 'estimate', 'station', 'status', 'owner', 'placeholder', 'updated', 'history']
     lines = ['---']
     for k in order + [k for k in meta if k not in order]:
         if k not in meta:
@@ -81,6 +81,7 @@ def task_doc(meta):
     d = {'id': meta['id'], 'title': meta['title'], 'phase': meta['phase'], 'order': int(meta.get('order', 0))}
     if meta.get('dependsOn'): d['dependsOn'] = meta['dependsOn']
     if meta.get('placeholder'): d['placeholder'] = True
+    if meta.get('estimate') not in (None, ''): d['estimate'] = meta['estimate']
     d['workstream'] = meta.get('workstream', 'factory')
     return d
 
@@ -114,6 +115,7 @@ def cmd_new(a):
     meta = {'id': a.id, 'title': a.title, 'phase': a.phase, 'order': a.order, 'dependsOn': [d for d in (a.deps or '').split(',') if d],
             'station': 'backlog', 'status': 'planned', 'owner': '-', 'updated': now_iso(), 'history': []}
     if a.placeholder: meta['placeholder'] = True
+    if a.estimate: meta['estimate'] = a.estimate
     body = f'\n# {a.id} {a.title}\n\n' + '\n'.join(f'## {s}\n\n' for s in SECTIONS)
     open(path, 'w', encoding='utf-8').write(dump(meta, body))
     print(os.path.relpath(path, ROOT), file=sys.stderr)
@@ -155,6 +157,7 @@ def main():
     p = sub.add_parser('show'); p.add_argument('id'); p.set_defaults(f=cmd_show)
     p = sub.add_parser('new'); p.add_argument('id'); p.add_argument('title'); p.add_argument('--phase', required=True)
     p.add_argument('--order', type=int, required=True); p.add_argument('--deps', default=''); p.add_argument('--placeholder', action='store_true')
+    p.add_argument('--estimate', default='')
     p.add_argument('--no-op', action='store_true'); p.set_defaults(f=cmd_new)
     p = sub.add_parser('move'); p.add_argument('id'); p.add_argument('station'); p.add_argument('--status'); p.add_argument('--agent')
     p.add_argument('--note'); p.add_argument('--run', default='factory'); p.add_argument('--from', dest='from_station'); p.set_defaults(f=cmd_move)
