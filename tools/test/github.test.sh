@@ -10,7 +10,9 @@
 #                      `manualGates`); every gate name read from the card's `manualGates:` line sits on a
 #                      checklist line marked `(user`
 #   gates         AC3  the card's frontmatter `manualGates:` line is one line listing exactly the two gates
-#                      `Actions enabled on GitHub` and `branch protection on main`, neither ticked (`[x]`)
+#                      `Actions enabled on GitHub` and `branch protection on main`; neither ticked (`[x]`) until
+#                      P0-02.3 ships, both ticked after it, never one (tools/test/ci.test.sh checks the ticks
+#                      against the branch protection)
 #   github-state  --   report only, never fails: with gh logged in, `# ...` lines with the Actions permissions,
 #                      the `main` branch protection (`none (404)`, its fields, or `unavailable (403: ...)` on a
 #                      private repository of a free personal account), the rules that apply to `main`, the secret
@@ -133,18 +135,14 @@ list="$(gate_list)"
 entries="$(gate_entries "$list")"
 ne="$(printf '%s\n' "$entries" | grep -c .)"
 [ "$ne" -eq 2 ] || fail "expected exactly 2 gates, found $ne: [$list]"
-while IFS= read -r e; do
-  case "$e" in
-    '[x]'*) fail "gate '$e' is ticked; both gates stay unticked on this card (the push is the deliverable; P0-02.3 ticks them)" ;;
-  esac
-done <<LIST
-$entries
-LIST
+nt="$(printf '%s\n' "$entries" | grep -c '^\[x\]')"  # P0-02.3 ticks both gates at its ship, never one
+[ "$nt" -eq 0 ] || [ "$nt" -eq "$ne" ] \
+  || fail "$nt of $ne gates ticked; the gates are ticked together at the ship of P0-02.3, never one: [$list]"
 for want in "Actions enabled on GitHub" "branch protection on main"; do
-  c="$(printf '%s\n' "$entries" | grep -c -x -F -- "$want")"
+  c="$(printf '%s\n' "$entries" | sed 's/^\[[ x]\] *//' | grep -c -x -F -- "$want")"  # a ticked gate keeps its name
   [ "$c" -eq 1 ] || fail "'$want' is not an entry of the card's manualGates: [$list]"
 done
-echo "# gates: $(printf '%s\n' "$entries" | sed -n '1p'); $(printf '%s\n' "$entries" | sed -n '2p') (both unticked)"
+echo "# gates: $(printf '%s\n' "$entries" | sed -n '1p'); $(printf '%s\n' "$entries" | sed -n '2p') ($nt of $ne ticked)"
 echo "ok - gates"
 
 # ---- github-state (report only) -------------------------------------------------------------------------------
