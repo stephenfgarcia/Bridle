@@ -14,7 +14,8 @@
       "!.bridle",
       "!docs",
       "!factory",
-      "!tools/toolchain.json"
+      "!tools/toolchain.json",
+      "!tools/agent-hq"
     ]
   },
   "formatter": {
