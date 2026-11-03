@@ -1,0 +1,16 @@
+{
+  "$comment": "Bridle toolchain pins: the single source of truth. Bump rule: edit a pin here, mirror rust.channel / rust.components / rust.targets into rust-toolchain.toml and node.major into .node-version, reinstall the tool with the command in docs/ops/toolchain.md, then run `bash tools/doctor.sh` (it fails on drift between this file and the two mirrors). CI reads pins with jq, e.g. `jq -r .tools.rust.channel tools/toolchain.json`. The keys of `tools` are the doctor's row names.",
+  "tools": {
+    "rustup": { "required": true },
+    "rust": { "channel": "1.99.1", "targets": ["wasm32-unknown-unknown"], "components": ["rustfmt", "clippy"] },
+    "node": { "major": 22 },
+    "pnpm": { "version": "12.16.1" },
+    "wasm-bindgen-cli": { "version": "0.2.130" },
+    "binaryen": { "major": 133 },
+    "wasmtime": { "major": 50 },
+    "opentofu": { "min": "1.13.0" },
+    "awscli": { "major": 2 },
+    "playwright": { "version": "1.64.1", "browsers": ["chromium"] },
+    "docker": { "required": true }
+  }
+}
