@@ -10,3 +10,6 @@
 # Local secrets (docs/ops/secrets.md); never committed
 .env.local
 .env.*.local
+
+# Per-developer Claude Code overrides (never committed)
+.claude/settings.local.json
