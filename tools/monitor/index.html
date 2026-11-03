@@ -736,7 +736,7 @@ function derive(now) {
       a = { key: key, id: e.agentId, label: e.agentLabel || e.agentId, taskId: e.taskId || '', runId: e.runId || '', phase: e.phase || '',
         firstTs: e.tsMs, lastTs: e.tsMs, endTs: null, status: 'running', progress: 0, step: '', stepStartedTs: e.tsMs,
         stepIndex: undefined, stepCount: undefined, steps: [], lastMessage: '', lastMessageTs: 0,
-        lastActivity: null, activityCount: 0, activityTicks: [], errors: 0, count: 0 };
+        lastActivity: null, activityCount: 0, activityTicks: [], errors: 0, count: 0, autoDone: false };
       agents.set(key, a);
     }
     if (e.tsMs < a.firstTs) a.firstTs = e.tsMs;
@@ -744,6 +744,12 @@ function derive(now) {
     if (e.agentLabel) a.label = e.agentLabel;
     if (e.taskId) a.taskId = e.taskId;
     if (e.phase) a.phase = e.phase;
+    /* A done written by the SubagentStop hook (data.auto) is provisional: the agent may be resumed by a
+       background task. Any later report, or tool calls made after that done, put it back to running. */
+    if (a.autoDone && a.status === 'done') {
+      var reviveTs = e.type === 'agent.activity' ? Number((e.data && e.data.untilTsMs) || e.tsMs) : e.tsMs;
+      if (reviveTs > a.endTs) { a.status = 'running'; a.endTs = null; a.autoDone = false; if (a.progress === 100) a.progress = 99; }
+    }
     if (e.type === 'agent.activity') {
       if (!e.ephemeral) a.activityCount++;
       a.activityTicks.push(e.tsMs);
@@ -773,6 +779,7 @@ function derive(now) {
       a.status = e.type === 'agent.done' ? 'done' : 'failed';
       if (e.type === 'agent.done') a.progress = 100;
       a.endTs = e.tsMs;
+      a.autoDone = !!(e.data && e.data.auto === true);
       if (e.message) { a.lastMessage = e.message; a.lastMessageTs = e.tsMs; }
       if (a.steps.length && a.steps[a.steps.length - 1].endTs == null) a.steps[a.steps.length - 1].endTs = e.tsMs;
     }

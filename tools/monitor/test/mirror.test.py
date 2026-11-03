@@ -230,6 +230,13 @@ class TraceHookTests(unittest.TestCase):
         chk = subprocess.run([sys.executable, CHECK, '--root', self.progress], capture_output=True, text=True)
         self.assertEqual(chk.returncode, 0, chk.stdout + chk.stderr)
 
+    def test_subagent_stop_with_background_tasks_writes_nothing(self):
+        monlib.append_event(self.progress, 'factory', 'P0-10-build', {'phase': 'P0', 'taskId': 'P0-10', 'type': 'agent.start', 'message': 'go'})
+        hook(self.root, dict(self.base, hook_event_name='SubagentStop', agent_id='h1', last_assistant_message='waiting for the test run',
+                             background_tasks=[{'id': 'b1', 'status': 'running'}]))
+        lines = monlib.nonblank_lines(os.path.join(self.progress, 'factory', 'P0-10-build.jsonl'))
+        self.assertEqual(len(lines), 1, 'no auto agent.done while a background task is running')
+
     def test_subagent_stop_respects_an_existing_terminal_event(self):
         monlib.append_event(self.progress, 'factory', 'P0-10-build', {'phase': 'P0', 'taskId': 'P0-10', 'type': 'agent.fail', 'level': 'error', 'message': 'no'})
         hook(self.root, dict(self.base, hook_event_name='SubagentStop', agent_id='h1', last_assistant_message='x'))

@@ -138,6 +138,34 @@ console.log('ALL TESTS PASSED', { tasks: d.totals.tasks, agents: d.agents.length
   console.log('ACTIVITY TESTS PASSED');
 }
 
+// ---- an automatic done (SubagentStop hook) is provisional ----
+{
+  reset();
+  const t0 = Date.now() - 300_000;
+  evAt(t0, { agentId: 'P0-02.1-test', seq: 1, type: 'agent.start', message: 'go' });
+  evAt(t0 + 10000, { agentId: 'P0-02.1-test', seq: 2, type: 'agent.heartbeat', message: 'test running in the background' });
+  evAt(t0 + 15000, { agentId: 'P0-02.1-test', seq: 3, type: 'agent.done', message: 'waiting for the run', progress: 100, data: { auto: true, source: 'SubagentStop hook' } });
+  let d = M.derive(Date.now()); let a = d.agents.find(x => x.id === 'P0-02.1-test');
+  assert(a.status === 'done' && a.autoDone === true && a.progress === 100, 'an automatic done counts as done until the agent reports again');
+  evAt(t0 + 23000, { agentId: 'P0-02.1-test', seq: 4, type: 'agent.activity', message: 'folded trace', data: { calls: 1, untilTsMs: t0 + 10500 } });
+  d = M.derive(Date.now()); a = d.agents.find(x => x.id === 'P0-02.1-test');
+  assert(a.status === 'done', 'a folded trace whose calls predate the done does not revive');
+  evAt(t0 + 60000, { agentId: 'P0-02.1-test', seq: 5, type: 'agent.progress', progress: 80, step: 'record', message: 'test finished, writing ## Test' });
+  d = M.derive(Date.now()); a = d.agents.find(x => x.id === 'P0-02.1-test');
+  assert(a.status === 'running' && a.display === 'running' && a.endTs === null && a.autoDone === false && a.progress === 80, 'a later report revives an automatically-done agent: ' + a.status + ' ' + a.progress);
+  assert(d.working.length === 1, 'it is back in the strip');
+  evAt(t0 + 90000, { agentId: 'P0-02.1-test', seq: 6, type: 'agent.done', message: 'RESULT: PASS' });
+  evAt(t0 + 95000, { agentId: 'P0-02.1-test', seq: 7, type: 'agent.progress', progress: 50, message: 'stray' });
+  d = M.derive(Date.now()); a = d.agents.find(x => x.id === 'P0-02.1-test');
+  assert(a.status === 'done' && a.autoDone === false, 'a real done is final even if a stray progress follows');
+  evAt(t0 + 100000, { agentId: 'P0-02.1-build', seq: 1, type: 'agent.start', message: 'go' });
+  evAt(t0 + 110000, { agentId: 'P0-02.1-build', seq: 2, type: 'agent.done', message: 'stopped', data: { auto: true } });
+  evAt(t0 + 130000, { agentId: 'P0-02.1-build', seq: 3, type: 'agent.activity', message: 'new calls', data: { calls: 2, untilTsMs: t0 + 125000 } });
+  d = M.derive(Date.now()); a = d.agents.find(x => x.id === 'P0-02.1-build');
+  assert(a.status === 'running' && a.progress === 99, 'tool calls made after an automatic done revive the agent (progress capped below 100)');
+  console.log('AUTO-DONE TESTS PASSED');
+}
+
 // ---- expected durations from history ----
 {
   reset();

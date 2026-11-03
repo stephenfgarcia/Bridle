@@ -2,7 +2,7 @@
   "title": "Bridle Build Monitor",
   "slug": "0c683356-bb60-44ae-8ef4-52ce6912715d",
   "url": "https://claude.ai/artifact/2XrtuDHaVJqc9ug8YewJW8",
-  "publishedVersion": "1793697282-136d",
+  "publishedVersion": "1793704988-b06c",
   "contract": "0.2.96",
   "capabilities": {
     "db": {},
@@ -17,5 +17,5 @@
   "mirror": "tools/monitor/mirror.py (cursor in .bridle/progress/.mirror/); watch: tools/monitor/watch.sh; hook: tools/monitor/trace-hook.sh via .claude/settings.json",
   "localViewer": "python3 tools/monitor/serve.py  ->  http://127.0.0.1:8787/",
   "protocol": "v2 (2026-11-03): marker line MONITOR run= phase= agent= task=; agent.activity events; agents never db_write",
-  "publishedAt": "2026-11-03T09:14:42Z"
+  "publishedAt": "2026-11-03T11:23:09Z"
 }

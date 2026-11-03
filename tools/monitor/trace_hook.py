@@ -12,7 +12,9 @@ reporting command); the identity is read once from the agent's transcript and ca
   search pattern or a description; never the tool response or the full input. mirror.py folds these lines into
   one agent.activity event per mirror pass.
 - SubagentStop: if the agent never wrote agent.done or agent.fail, append an agent.done (data.auto = true) built
-  from its last message, so no agent stays "running" on the monitor.
+  from its last message, so no agent stays "running" on the monitor. Skipped while the payload lists background
+  tasks: the agent's turn ended but it will be resumed when the task finishes (the page also revives an agent
+  whose only done event was automatic as soon as it reports again).
 """
 import glob
 import json
@@ -143,6 +145,9 @@ def main():
     if not ident:
         return 0
     if event == 'SubagentStop':
+        tasks = hook.get('background_tasks')
+        if isinstance(tasks, (list, dict)) and len(tasks) > 0:
+            return 0  # a background task is still running: the agent will be resumed, so it is not done
         auto_done(progress, ident, hook)
     else:
         trace(root, progress, ident, hook, ok=(event == 'PostToolUse'))
