@@ -21,6 +21,10 @@ The `/factory` skill is the foreman: it moves one card one station at a time and
 Open the monitor (`.bridle/monitor.json` has the link) and pick **Factory**:
 the board shows every card at its station; the *Planned progression* strip shows the order cards will run in
 (dependencies first; "next up" is the first unblocked card); select a card to see when it reached each station.
+The "Working now" strip at the top of every view shows the station agent on the card, its step, its progress, how
+long it has been quiet, and its last tool calls; the times tick every second. The artifact lags the files by one
+mirror pass (a few seconds plus one Claude turn); for a sub-second view run `python3 tools/monitor/serve.py` and
+open `http://127.0.0.1:8787/`.
 
 ## Use it
 

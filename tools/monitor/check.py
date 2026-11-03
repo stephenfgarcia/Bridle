@@ -3,7 +3,8 @@
 
   python3 tools/monitor/check.py [--run <runId>] [--summary] [--root <dir>]
 
-Every *.jsonl under the progress root (or under <root>/<runId> with --run) is read; each non-blank
+Every *.jsonl under the progress root (or under <root>/<runId> with --run) is read, except hook trace files
+(*.trace.jsonl) and dot-directories such as .mirror (sync state); each non-blank
 line must be a JSON object carrying the fields log.sh writes. Output, per file: one `path:line: reason`
 line per problem, then `path  lines=N  problems=M`; after all files `total  files=F  lines=N  problems=M`;
 with --summary, one `agent  <runId>/<agentId>  last=<type>  ts=<ts>  progress=<n|->  status=<status|->`
@@ -26,7 +27,7 @@ PROGRESS = os.path.join(ROOT, '.bridle', 'progress')
 
 REQUIRED = ['id', 'ts', 'tsMs', 'runId', 'phase', 'taskId', 'agentId', 'type', 'level', 'message']
 TYPES = {'run.start', 'run.end', 'task.status', 'agent.start', 'agent.progress', 'agent.log',
-         'agent.heartbeat', 'agent.done', 'agent.fail', 'note', 'card.move'}
+         'agent.heartbeat', 'agent.done', 'agent.fail', 'note', 'card.move', 'agent.activity'}
 LEVELS = {'debug', 'info', 'warn', 'error'}
 SKEW_MS = 2000  # how far tsMs may sit from ts (ts is whole seconds; both come from the same clock)
 
@@ -126,8 +127,10 @@ def check_file(path):
 def discover(base):
     """Every *.jsonl under base, recursive, sorted by path."""
     found = []
-    for dirpath, _dirnames, filenames in os.walk(base):
-        found.extend(os.path.join(dirpath, name) for name in filenames if name.endswith('.jsonl'))
+    for dirpath, dirnames, filenames in os.walk(base):
+        dirnames[:] = [d for d in dirnames if not d.startswith('.')]  # .mirror holds sync state, not events
+        found.extend(os.path.join(dirpath, name) for name in filenames
+                     if name.endswith('.jsonl') and not name.endswith('.trace.jsonl'))  # hook traces are not events
     return sorted(found)
 
 

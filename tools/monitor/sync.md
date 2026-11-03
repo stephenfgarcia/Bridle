@@ -1,20 +1,32 @@
-# Syncing local JSONL events into the monitor
+# Replaying and pruning monitor events
 
-Use this when an agent could not reach the artifact database (the monitor shows gaps, or an agent's
-`agent.done` never arrived) or after any workflow ends, as a final consistency pass.
+Live mirroring is automatic: the orchestrator keeps `tools/monitor/watch.sh` armed and runs `mirror.py` passes
+(see `README.md`). This page covers the manual cases. The slug is in `.bridle/monitor.json`; load the database
+tools with ToolSearch (`select:mcp__claude-artifacts__db_query,mcp__claude-artifacts__db_write`).
 
-1. Find the artifact slug in `.bridle/monitor.json`.
-2. List what the database already has for the run (load the tool first with
-   ToolSearch "select:mcp__claude-artifacts__db_query"):
-   `db_query` with `collection: "events"`, `where: {runId: "<runId>"}`, `limit: 1000`
-   (page with `cursor` if needed) and collect the returned ids.
-3. Produce the local ops: `tools/monitor/ops.sh <runId>` prints one JSON array per line, each holding up to
-   50 `{op:"set", path:"events/<id>", data:{...}}` ops. Drop any op whose id is already in the database.
-4. For each remaining line: one `mcp__claude-artifacts__db_write` call with `slug` and `ops` set to that array.
-   Send one call at a time and wait 2 seconds between calls (rate limit). A `set` on a brand-new document
-   needs no `ifVersion`; if the server reports the document exists, skip it (it was already mirrored).
-5. Write a `note` event ("synced N events for run <runId>") so the gap is visible in the log.
+## Replaying history (first use of mirror.py, or a gap you can see on the page)
 
-Pruning (optional, when the database nears 25,000 documents): `db_query` the oldest finished run's events,
-confirm the run's JSONL is intact under `.bridle/progress/<runId>/`, then `db_write` with `op: "delete"`
-for those ids (each needs its `ifVersion` from the query), 50 per call.
+1. Collect the ids already in the database: `db_query` with `collection: "events"`, `limit: 1000` (page with
+   `cursor`), and write the `id` of every returned document, one per line, to a file outside the repo.
+2. `tools/monitor/mirror.py init --from-start`, then `tools/monitor/mirror.py pending --take --skip-ids-file <file>`:
+   it prints one JSON line per batch (`batch`, `idempotencyKey`, `ops`).
+3. For each line: one `db_write` with `slug`, `ops` and `idempotencyKey` from the line; wait 2 s between calls.
+   Then `tools/monitor/mirror.py ack --all`. A refusal naming an existing document:
+   `mirror.py ack <batch> --exists events/<id>` prints the re-queued remainder; write that one and ack it.
+4. Write a `note` event ("replayed N events for run <runId>") so the gap stays visible in the log.
+
+`mirror.py pending` never replays lines before its cursor; the first `pending` or `poll` on a fresh checkout sets the
+cursor to the current end of every file, so nothing already in the database is sent twice.
+
+## Pruning (when `db_usage` passes about 10,000 documents)
+
+1. Pick a finished run. `tools/monitor/mirror.py prune-plan --run <runId> --older-than 7d` prints the ids of its
+   `agent.activity` and `agent.heartbeat` events, 50 per line (the run's JSONL keeps them; confirm it is intact).
+2. For each line: `db_query` with `where: [{"field": "id", "op": "in", "value": [...]}]` (at most 30 per filter)
+   to get each document's `version`, then `db_write` with `op: "delete"` and `ifVersion`, 50 per call, 2 s apart.
+3. Write a `note` event ("pruned N activity events of run <runId>").
+
+## A fresh artifact
+
+`tools/monitor/ops.sh <runId>` prints every event of a run as op batches (50 per line) for a full re-mirror into an
+empty database; `tools/monitor/card.py sync-ops` prints the `tasks/<id>` documents.

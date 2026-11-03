@@ -5,9 +5,10 @@
 # Usage:
 #   tools/monitor/log.sh -r <runId> -p <phase> -a <agentId> -t <taskId> -T <type> -m "<message>" \
 #                        [-P <progress 0-100>] [-l <level>] [-s <step>] [-L "<agent label>"] [-S <status>] [-d '<json data>']
+#                        [-i <stepIndex> -n <stepCount>]   (written as data.stepIndex / data.stepCount: "step 3 of 7")
 #
 # type   : run.start | run.end | task.status | agent.start | agent.progress | agent.log |
-#          agent.heartbeat | agent.done | agent.fail | note
+#          agent.heartbeat | agent.done | agent.fail | note | card.move | agent.activity
 # level  : debug | info | warn | error            (default info; error for agent.fail)
 # status : planned | queued | running | blocked | review | done | failed   (task.status events)
 #
@@ -18,7 +19,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 exec python3 - "$ROOT" "$@" <<'PY'
 import sys, json, os, time, getopt, re
 root = sys.argv[1]
-opts, _ = getopt.getopt(sys.argv[2:], "r:p:a:t:T:m:P:l:s:L:S:d:")
+opts, _ = getopt.getopt(sys.argv[2:], "r:p:a:t:T:m:P:l:s:L:S:d:i:n:")
 o = dict(opts)
 need = ["-r", "-p", "-a", "-t", "-T", "-m"]
 missing = [k for k in need if k not in o]
@@ -55,6 +56,15 @@ if "-d" in o:
         ev["data"] = json.loads(o["-d"])
     except Exception as e:
         ev["data"] = {"raw": o["-d"], "parseError": str(e)}
+if "-i" in o or "-n" in o:
+    if not isinstance(ev.get("data"), dict):
+        ev["data"] = {} if "data" not in ev else {"raw": ev["data"]}
+    for flag, key in (("-i", "stepIndex"), ("-n", "stepCount")):
+        if flag in o:
+            try:
+                ev["data"][key] = int(float(o[flag]))
+            except ValueError:
+                ev["data"][key + "Raw"] = o[flag]
 doc_id = f"{ms}-{agent}-{seq:04d}"
 ev["id"] = doc_id
 with open(path, "a", encoding="utf-8") as f:

@@ -118,17 +118,30 @@ class CheckTests(unittest.TestCase):
                 mk(BASE + 2, 'orchestrator', 3, runId='b', type='note', level='debug'),
                 mk(BASE + 3, 'orchestrator', 4, runId='b', type='card.move', step='test', status='running', progress=60),
                 mk(BASE + 999, 'orchestrator', 5, runId='b', type='agent.heartbeat'),
-                mk(BASE + 1000, 'orchestrator', 6, runId='b', type='run.end'),
+                mk(BASE + 999, 'orchestrator', 6, runId='b', type='agent.activity', level='debug', message='3 tool calls: Read a; Edit b',
+                   data={'calls': 3, 'tools': {'Read': 1, 'Edit': 2}, 'files': ['b'], 'last': {'tool': 'Edit', 'target': 'b', 'tsMs': BASE + 999}}),
+                mk(BASE + 1000, 'orchestrator', 7, runId='b', type='run.end'),
             ],
         }
         p = run(files)
         self.assertEqual(p.stdout.splitlines(), [
             'a/x.jsonl  lines=3  problems=0',
             'a/y.jsonl  lines=2  problems=0',
-            'b/orchestrator.jsonl  lines=6  problems=0',
-            'total  files=3  lines=11  problems=0',
+            'b/orchestrator.jsonl  lines=7  problems=0',
+            'total  files=3  lines=12  problems=0',
         ])
         self.assertEqual(p.stderr, '')
+        self.assertEqual(p.returncode, 0)
+
+    def test_trace_files_and_dot_dirs_are_ignored(self):
+        """Hook traces (*.trace.jsonl) and the mirror state (.mirror/) are not event logs: skipped, exit 0."""
+        files = {
+            'a/x.jsonl': [mk(BASE, 'x', 1, runId='a')],
+            'a/x.trace.jsonl': [{'tsMs': 1, 'tool': 'Read', 'target': 'f', 'ok': True}],
+            '.mirror/outbox/b1.jsonl': [{'op': 'set', 'path': 'events/x'}],
+        }
+        p = run(files)
+        self.assertEqual(p.stdout.splitlines(), ['a/x.jsonl  lines=1  problems=0', 'total  files=1  lines=1  problems=0'])
         self.assertEqual(p.returncode, 0)
 
     def test_each_reason(self):

@@ -1,7 +1,7 @@
 ---
 name: factory
 description: Foreman of the Bridle software factory. Moves one markdown work card along the line (spec, plan, build, test, review, ship) by spawning the station subagents, with live progress on the Bridle Build Monitor. Use for "/factory run <id>", "/factory next", "/factory status", "/factory new".
-argument-hint: run <card-id> | next | status | new <id> "<title>" --phase P1 --order 3 [--deps A,B]
+argument-hint: run <card-id> | next | status | sync [seconds] | new <id> "<title>" --phase P1 --order 3 [--deps A,B]
 ---
 
 # /factory
@@ -12,10 +12,13 @@ shows the board live. Arguments: `$ARGUMENTS`.
 
 ## Commands
 
-- `status`: run `tools/monitor/card.py list`; report cards per station, anything blocked or failed, and next up.
+- `status`: run `tools/monitor/card.py list` and `tools/monitor/mirror.py status`; report cards per station, anything
+  blocked or failed, next up, and whether events are waiting to be mirrored.
 - `new <id> "<title>" --phase <P> --order <n> [--deps A,B]`: run `tools/monitor/card.py new ...`. It prints a
   `tasks/<id>` op; mirror it (ToolSearch `select:mcp__claude-artifacts__db_write`, slug from `.bridle/monitor.json`).
 - `next`: `card.py list` says who is next up; then `run` that card.
+- `sync [seconds]`: be the mirror. Arm the watch (step 0 below, with the interval if given) and keep mirroring until
+  the user stops you; use it from a session that is not running cards while another session does.
 - `run <id>`: the procedure below, one station at a time. Never skip a station, never run two cards at once.
 
 ## Work packages, sub-cards, and manual gates
@@ -35,28 +38,37 @@ install) run with run_in_background, with an agent.heartbeat while they run.
 
 0. Preconditions. The card exists; every card in `dependsOn` has `status: done`; if the card's phase is P1 or
    later, the implementation roadmap (plan file, Part E) has been approved by the user. If a precondition
-   fails, say which and stop.
+   fails, say which and stop. Then arm the mirror so the monitor follows the card live:
+   `Monitor({command: 'tools/monitor/watch.sh', timeout_ms: 1800000, description: 'unmirrored monitor events'})`.
+   Every notification from it is one short turn: `tools/monitor/mirror.py pending --take`, then for each printed
+   line one `mcp__claude-artifacts__db_write` with `slug` (from `.bridle/monitor.json`), `ops` and `idempotencyKey`
+   taken from that line (wait 2 s after a multi-op call), then `tools/monitor/mirror.py ack --all`. Re-arm the
+   watch when it expires. If a write is refused because a document already exists:
+   `tools/monitor/mirror.py ack <batch> --exists events/<id>` prints the remainder; write and ack that.
 1. Spec (you). If `## Spec` is empty, write it with the user: what, why, acceptance criteria (testable),
    files likely touched, out of scope. Then
-   `tools/monitor/card.py move <id> spec --agent orchestrator --note "Spec ready"` and mirror the printed op.
-2. Plan. `card.py move <id> plan --note "Planning"`, mirror, then spawn the Agent tool with
+   `tools/monitor/card.py move <id> spec --agent orchestrator --note "Spec ready"` (the watch mirrors every move).
+2. Plan. `card.py move <id> plan --note "Planning"`, then spawn the Agent tool with
    `subagent_type: "factory-planner"` and the station prompt below. Read `## Plan` when it returns; if a step
    names no file or the plan ignores an acceptance criterion, send it back once via SendMessage, else continue.
-3. Build. `card.py move <id> build --note "Building"`, mirror, spawn `factory-builder`. It fills `## Build`.
-4. Test. `card.py move <id> test --note "Testing"`, mirror, spawn `factory-tester`. It fills `## Test`.
-   Failing tests: `card.py move <id> build --from test --note "<failure summary>"`, mirror, spawn the
+3. Build. `card.py move <id> build --note "Building"`, spawn `factory-builder`. It fills `## Build`.
+4. Test. `card.py move <id> test --note "Testing"`, spawn `factory-tester`. It fills `## Test`.
+   Failing tests: `card.py move <id> build --from test --note "<failure summary>"`, spawn the
    builder again with the failures, then test again. Second failure: `card.py move <id> build --status blocked
-   --note "<why>"`, mirror, stop and tell the user.
-5. Review. `card.py move <id> review --note "Reviewing"`, mirror, spawn `factory-reviewer`. FAIL: back to build
+   --note "<why>"`, stop and tell the user.
+5. Review. `card.py move <id> review --note "Reviewing"`, spawn `factory-reviewer`. FAIL: back to build
    once as in step 4 (then test and review again); second FAIL blocks the card.
 6. Ship (you). Check the exit criteria yourself: tests pass (re-run the command in `## Test`), `## Review` says
    PASS, every section is filled. `git add` the touched files and the card; commit as `<id>: <title>` with the
    attribution line from your instructions; write the hash in `## Ship`; then
-   `card.py move <id> ship --status done --agent orchestrator --note "Shipped in <hash>"` and mirror.
+   `card.py move <id> ship --status done --agent orchestrator --note "Shipped in <hash>"`.
    The card's shipped state is committed with the next card (or as `<id>: card shipped` if nothing else is pending).
-7. Report: what shipped, what the reviewer flagged, what is next up.
+7. Report: what shipped, what the reviewer flagged, what is next up. Run one last mirror pass (`pending --take`,
+   `db_write`, `ack --all`) and stop the watch with `TaskStop` unless another card follows.
 
-Mirror = one `mcp__claude-artifacts__db_write` call with `slug` and `ops: [<printed op>]`; never block on it.
+Mirroring: events (card moves, agent reports, traced tool calls) reach the monitor only through the armed watch
+and `mirror.py` batches; never `db_write` an `events/<id>` document by hand (a second write of the same id refuses
+the whole batch). The only op mirrored by hand is the `tasks/<id>` document printed by `card.py new`.
 
 Spawning a station: `Agent` with `subagent_type` = the station's name (`factory-planner`, `factory-builder`,
 `factory-tester`, `factory-reviewer`). Agent types are registered when a session starts, so in a session older
@@ -71,11 +83,12 @@ You are the <station> station of the Bridle software factory, working card <id>:
 Card file: <absolute path>. Read factory/line.md (your row only matters) and the whole card first.
 Do only your station's job and write the result in the card's "## <Station>" section; leave other sections as they are.
 
+MONITOR run=factory phase=<phase> agent=<id>-<station> task=<id>
 REPORTING (mandatory). Run these from /Users/johnstephenf.garcia/Dev/Dev/Bridle-1:
   tools/monitor/log.sh -r factory -p <phase> -a <id>-<station> -t <id> -T agent.start -m "<what you will do>"
-  tools/monitor/log.sh -r factory -p <phase> -a <id>-<station> -t <id> -T agent.progress -P <0-100> -s "<step>" -m "<done; next>"   (at each step)
+  tools/monitor/log.sh -r factory -p <phase> -a <id>-<station> -t <id> -T agent.progress -P <0-100> -i <step n> -n <steps total> -s "<step name>" -m "<done; next>"   (at each step, at least every 5 minutes)
   tools/monitor/log.sh -r factory -p <phase> -a <id>-<station> -t <id> -T agent.done -m "<3-6 sentence summary>" -d '{"files":[...]}'
-Each call prints a JSON op. Mirror the ops to the monitor: ToolSearch "select:mcp__claude-artifacts__db_write",
-then db_write with slug <slug> and ops = [the printed ops] (batch; one call at a time). If db_write fails, continue.
+Each call prints a JSON op: ignore it. The foreman mirrors everything automatically; never call db_write yourself.
+Your tool calls are traced to the monitor automatically (file paths and command names only).
 Finish with the same summary as your final message.
 ```
