@@ -5,12 +5,13 @@ phase: P0
 order: 1
 dependsOn: [PLAN-05]
 estimate: 1
-station: spec
-status: running
+station: ship
+status: done
 owner: orchestrator
-updated: 2026-11-03T08:33:53Z
+updated: 2026-11-03T10:43:19Z
 history:
   - 2026-11-03T08:33:53Z spec running orchestrator "Row approved by the user: split into P0-06.1 pins+installs+doctor, .2 allowlist, .3 first push; installs and GitHub push authorized"
+  - 2026-11-03T10:43:19Z ship done orchestrator "Work package complete: P0-06.1 (ceba851), P0-06.2 (f637497), P0-06.3 (a898c34)"
 ---
 
 # P0-06 Toolchain and machine bootstrap
