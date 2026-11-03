@@ -37,3 +37,6 @@ After: PLAN-05. Size: 1 engineer-weeks. Split into sub-cards at the spec station
 
 ## Ship
 
+Recorded after the fact (foreman, 2026-11-04, pause check): the work package shipped as its three sub-cards, P0-06.1 `ceba851`,
+P0-06.2 `f637497` (amended by `dd7b40f`) and P0-06.3 `a898c34`, and was closed in `dfd0b72` ("Cards: P0-06.3 shipped; P0-06 work
+package complete"), whose time matches this card's history line of 2026-11-03T10:43:19Z.

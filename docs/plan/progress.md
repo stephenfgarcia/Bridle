@@ -21,7 +21,7 @@ touches a card.
 | P0-07 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P0-05 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P0-09 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
-| P0-11 | P0 | build | running | factory-builder | 2026-11-03T16:46:26Z |
+| P0-11 | P0 | build | blocked | orchestrator | 2026-11-03T17:07:59Z |
 | P0-10 | P0 | ship | done | orchestrator | 2026-11-03T09:15:35Z |
 | P0-06.1 | P0 | ship | done | orchestrator | 2026-11-03T09:35:04Z |
 | P0-06.2 | P0 | ship | done | orchestrator | 2026-11-03T10:05:21Z |
@@ -32,6 +32,7 @@ touches a card.
 | P0-02.4 | P0 | ship | done | orchestrator | 2026-11-03T14:31:10Z |
 | P0-02.5 | P0 | backlog | planned | - | 2026-11-03T10:44:54Z |
 | P0-02.6 | P0 | backlog | planned | - | 2026-11-03T10:44:54Z |
+| P0-12 | P0 | backlog | planned | - | 2026-11-03T17:07:59Z |
 | P1-01 | P1 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P1-02 | P1 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P1-03 | P1 | backlog | planned | - | 2026-11-03T08:29:21Z |
@@ -88,10 +89,11 @@ Next up: P0-02.5 Next.js skeleton and pnpm e2e:smoke
 
 ## In flight / next / only the owner can do
 
-In flight (the state at this card's build, 2026-11-03): P0-11 Resume-ability (this card). P0-02.4 shipped in `d8d8b7e` before
-the build started; no other card is running.
+Paused 2026-11-04 by the owner. P0-11 Resume-ability is parked at build after review loop 1 (status blocked): its files are on
+`main` in `8e1f6dd`, pushed before the second test and review stations by the owner's instruction; resume with `/factory run P0-11`
+at the test station. No other card is running; the last shipped card is P0-02.4 (`d8d8b7e`).
 
-Next: P0-02.5 Next.js skeleton and pnpm e2e:smoke, then P0-02.6 Externalized UI strings (the last P0-02 sub-card), then P0-08
+Next, after P0-11 ships: P0-02.5 Next.js skeleton and pnpm e2e:smoke, then P0-02.6 Externalized UI strings (the last P0-02 sub-card), then P0-08
 Factory lanes (parallel mode): the owner's decision 3 at approval, lanes right after P0-02 (`docs/plan/roadmap.md`, the
 approval section and E3; the orders P0-08 3, P0-07 4, P0-05 5 set in `0ef5e8c`). P0-07 External dependencies and legal
 register and the plan-only sub-cards of P0-05 OpenTofu run whenever the line is idle; P0-05's apply sub-card waits for the AWS
@@ -112,12 +114,12 @@ means no card or document says either way.
 | E4.7 Self-hosted M1 Mac mini and Tiger Lake runners | P2-04 R14 evidence only (never blocks ship) | | open |
 | E4.8 AISC Shapes license (requested at P0-07, executed by M4), ASCE and ACI consent requests, counsel, SME framework agreements and signed verification records, DMCA agent, pentest booking, insurance, pilot agreement | P0-07 requests; gates on P2-11, the P2-08 clause attestation, P7-04 and P7-05 | M0 2026-11-16 for counsel, the AISC and ACI requests and the SME agreements; M4 2027-03-12 for the executed AISC license | open: P0-07 is at backlog |
 | E4.9 Design-partner instructors and two SME reviewers named; spring-2028 term confirmed | P1-05 | M0 2026-11-16 | open: plan-approval decision 1, default in force, not yet answered |
-| M0 Counsel engaged | P0-07 requests (E4.8); M3 determinations for register items 1-3 and 5-8 | 2026-11-16 | unknown |
-| M0 AISC Shapes license and ACI consent requests sent | P0-07 sends them; P2-11 and the ACI pack (E4.8) | 2026-11-16 | open: P0-07 is at backlog |
-| M0 SME framework agreements signed | P0-07 requests; gates on P2-11, the P2-08 clause attestation, P7-04 (templates SME-signed) and P7-05 (E4.8) | 2026-11-16 | open: the reviewers are not named (E4.9) |
-| M0 Design partners named | P1-05 (E4.9) | 2026-11-16 | open (E4.9) |
-| M0 Spring-2028 term confirmed | P1-05 (E4.9) | 2026-11-16 | open (E4.9) |
-| M0 Contractor R2 starts | the pack and conformance work (build-sequence step 5, overlapping step 3; P2-06 to P2-08) | 2026-11-16 | unknown |
+| M0 Counsel engaged | P0-07 requests (E4.8); M3 determinations for register items 1-3 and 5-8 | 2026-11-16 | open: not started (owner, 2026-11-04) |
+| M0 AISC Shapes license and ACI consent requests sent | P0-07 sends them; P2-11 and the ACI pack (E4.8) | 2026-11-16 | open: not started (owner, 2026-11-04); P0-07 is at backlog |
+| M0 SME framework agreements signed | P0-07 requests; gates on P2-11, the P2-08 clause attestation, P7-04 (templates SME-signed) and P7-05 (E4.8) | 2026-11-16 | open: not started (owner, 2026-11-04); the reviewers are not named (E4.9) |
+| M0 Design partners named | P1-05 (E4.9) | 2026-11-16 | open: not started (owner, 2026-11-04) |
+| M0 Spring-2028 term confirmed | P1-05 (E4.9) | 2026-11-16 | open: not started (owner, 2026-11-04) |
+| M0 Contractor R2 starts | the pack and conformance work (build-sequence step 5, overlapping step 3; P2-06 to P2-08) | 2026-11-16 | open: not started (owner, 2026-11-04) |
 
 ## Log
 
@@ -127,7 +129,7 @@ subject. For a card the hash is the one in its `## Ship` section (where that sec
 hash comes from); every hash is verified against `git log --oneline`, and the date and time are the commit's, on the local
 clock (UTC+8). Cards shipped before `0e2e2cf` (P0-02.3, the Actions workflow) predate CI and carry no Actions run URL.
 
-- 2026-11-03 04:11, P0-01, commit 9b95026 (and ecc7870 at 04:15, the backfill tool): Build and publish this monitor; seed tasks; first commit; the Bridle Build Monitor page, `tools/monitor/log.sh`, the seed tasks, the repository's first commit. Both hashes come from the card's history line "Monitor published and committed (9b95026, ecc7870)"; its `## Ship` was empty until P0-11's ship.
+- 2026-11-03 04:11, P0-01, commit 9b95026 (and ecc7870 at 04:15, the backfill tool): Build and publish this monitor; seed tasks; first commit; the Bridle Build Monitor page, `tools/monitor/log.sh`, the seed tasks, the repository's first commit. Both hashes come from the card's history line "Monitor published and committed (9b95026, ecc7870)"; its `## Ship` was empty until the pause check of 2026-11-04.
 - 2026-11-03 04:31, P0-03, commit ee9afdc: Software factory: skill, station agents, cards, Factory view; the `/factory` skill, four station agents, `tools/monitor/card.py`, the first cards, the monitor's Factory view.
 - 2026-11-03 04:51, PLAN-01, commit 2ffea1e: Requirements discovery; 517 requirements in 14 documents under `docs/requirements`, ADR 0001.
 - 2026-11-03 05:14, P0-04, commit cf6276b: Monitor JSONL validator; `tools/monitor/check.py`, the first card through every station of the line.
@@ -139,7 +141,7 @@ clock (UTC+8). Cards shipped before `0e2e2cf` (P0-02.3, the Actions workflow) pr
 - 2026-11-03 17:35, P0-06.1, commit ceba851: Toolchain pins, installs, and tools/doctor.sh; `tools/toolchain.json`, the installs, `docs/ops/toolchain.md`.
 - 2026-11-03 18:05, P0-06.2, commit f637497 (amended by dd7b40f at 22:01: the `gh pr merge` rule): Claude Code command allowlist for the factory; `.claude/settings.json`, `docs/ops/permissions.md`.
 - 2026-11-03 18:43, P0-06.3, commit a898c34: First push to GitHub and the GitHub checklist; `main` pushed, `docs/ops/github.md`.
-- 2026-11-03 18:43, P0-06, commit dfd0b72: Toolchain and machine bootstrap; the work package closed, its deliverables being the three sub-cards' commits (ceba851, f637497, a898c34). The hash comes from the card's history line 2026-11-03T10:43:19Z ("Work package complete: P0-06.1 (ceba851), P0-06.2 (f637497), P0-06.3 (a898c34)"), whose time is that of dfd0b72 ("Cards: P0-06.3 shipped; P0-06 work package complete"); its `## Ship` was empty until P0-11's ship, when the foreman names dfd0b72 there.
+- 2026-11-03 18:43, P0-06, commit dfd0b72: Toolchain and machine bootstrap; the work package closed, its deliverables being the three sub-cards' commits (ceba851, f637497, a898c34). The hash comes from the card's history line 2026-11-03T10:43:19Z ("Work package complete: P0-06.1 (ceba851), P0-06.2 (f637497), P0-06.3 (a898c34)"), whose time is that of dfd0b72 ("Cards: P0-06.3 shipped; P0-06 work package complete"); its `## Ship` was empty until the pause check of 2026-11-04, when the foreman names dfd0b72 there.
 - 2026-11-03 19:33, P0-02.1, commit bd758ed (chore 049b0fd at 20:27: `tools/agent-hq` excluded from root Biome): Workspace skeleton and the first pnpm check; pnpm, Turborepo, Biome, Cargo, `packages/units`, `crates/bridle-canon`, `tools/check.sh`.
 - 2026-11-03 20:27, P0-02.2, commit 1890d99: Docker compose stack and pnpm dev smoke; `compose.yaml` (Postgres on host port 55432, RustFS as the `minio` service, mailpit), `tools/dev.sh`, `docs/ops/local-dev.md`.
 - 2026-11-03 21:53, P0-02.3, commit 0e2e2cf: Actions PR workflow proven on a pushed branch; `.github/workflows/check.yml`, the required check `check` on `main`, pull request #1, P0-06.3's gates ticked; run https://github.com/stephenfgarcia/Bridle/actions/runs/41648493356.
@@ -147,3 +149,10 @@ clock (UTC+8). Cards shipped before `0e2e2cf` (P0-02.3, the Actions workflow) pr
 - 2026-11-03 22:32, no card, commit 8e0e550: the verbatim copies of the approved plan and the monitor v4 plan committed as `docs/plan/roadmap.md` and `docs/plan/monitor-v4.md` (the header blocks come with P0-11).
 - 2026-11-03 22:38, no card, commit 0ef5e8c: P0-08 ordered right after P0-02 (owner decision 3); the P0-11 card committed with its Spec and Plan.
 - 2026-11-03 22:43, no card, commit aac9cca: Agent HQ: neon office dashboard (2D, 3D, iso, live data); the other session's standalone app under `tools/agent-hq` (78 files), outside the pnpm workspace and the factory.
+- Paused 2026-11-04 01:07 (foreman, at the owner's instruction): last shipped card P0-02.4 (`d8d8b7e`); parked card P0-11 at build after review
+  loop 1, its files on `main` in `8e1f6dd` without the second test and review (resume with `/factory run P0-11` at the test station);
+  next up after P0-11: P0-02.5 Next.js skeleton and pnpm e2e:smoke; open owner items: the six M0 items due 2026-11-16, none
+  started (owner, 2026-11-04), and the E4 rows marked open above; `pnpm check` 7/7 ok at `8e1f6dd`, Actions run https://github.com/stephenfgarcia/Bridle/actions/runs/41680833335 green;
+  sessions open on this checkout at the pause: the foreman (bridle-1-3f), the monitor owner (bridle-1-64), Agent HQ
+  (bridle-1-fb), two idle sessions that did nothing here (bridle-1-d3, bridle-1-aa) and a Remote Control bridge, all closed
+  at the pause (owner, 2026-11-04).

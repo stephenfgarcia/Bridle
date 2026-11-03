@@ -44,3 +44,5 @@ VERDICT: PASS: approved by the user via ExitPlanMode on 2026-11-03 (second appro
 
 Approved 2026-11-03; no repository commit (the plan file lives outside the repo). Implementation begins with P0-06 and P0-02.
 
+Recorded after the fact (foreman, 2026-11-04, pause check): the approval was committed in `ce7b2dc` ("PLAN-05 approved: ADR 0002
+adopted; card.py gains --estimate"), and the plan itself in `8e0e550` as `docs/plan/roadmap.md`.

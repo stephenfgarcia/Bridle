@@ -494,7 +494,7 @@ while IFS= read -r id; do
   for f in "$ROOT/factory/cards/$id"-*.md; do [ -f "$f" ] && n=$((n + 1)); done
   [ "$n" -eq 1 ] || fail "E2 id $id has $n card files factory/cards/$id-*.md, expected exactly 1"
 done < "$tmp/e2ids"
-EXEMPT=" P0-01 P0-03 P0-04 P0-10 P0-11 PLAN-01 PLAN-02 PLAN-03 PLAN-04 PLAN-05 "
+EXEMPT=" P0-01 P0-03 P0-04 P0-10 P0-11 P0-12 PLAN-01 PLAN-02 PLAN-03 PLAN-04 PLAN-05 "
 ncards=0
 for f in "$ROOT"/factory/cards/*.md; do
   [ -f "$f" ] || continue

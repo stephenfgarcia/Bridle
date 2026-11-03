@@ -29,3 +29,16 @@ Where every secret lives, by name. No secret value appears in this file, in `.en
 | `SES_*` | outbound email | mailpit (no secret) | no | none: SES through the task role | P0-05.2: SES production access |
 
 Non-secrets committed in `.env.example`: `BRIDLE_ENV`, `NEXT_PUBLIC_*`, artifact and pack digests, feature flags, the compose defaults above.
+
+## Agent HQ (standalone tool, not the product)
+
+`tools/agent-hq` (committed in `aac9cca`) is another session's standalone dashboard with its own `.env`, ignored by
+`tools/agent-hq/.gitignore`; `tools/agent-hq/.env.example` names its variables. Names only here, never values:
+
+| Name | Purpose | Secret |
+|---|---|---|
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | the browser's Supabase project and anon key; the database policies make it read-only | no: public by design |
+| `VITE_PROJECT_ID` | optional: which project row the office shows | no |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | the API server's Supabase access, never shipped to the browser | yes: the service role key |
+| `AGENT_HQ_API_KEY` | the secret agents send as `x-api-key` to the API server | yes |
+| `PORT`, `HOST` | the API server's listen address (port 8787 by default) | no |

@@ -6,9 +6,9 @@ order: 7
 dependsOn: [P0-03]
 estimate: 0.5
 station: build
-status: running
-owner: factory-builder
-updated: 2026-11-03T16:46:26Z
+status: blocked
+owner: orchestrator
+updated: 2026-11-03T17:07:59Z
 history:
   - 2026-11-03T14:17:53Z spec running orchestrator "Spec ready (6 acceptance criteria; owner prioritized: runs alongside P0-02.4 at test, no shared files)"
   - 2026-11-03T14:17:53Z plan running factory-planner "Planning: factory-planner spawned"
@@ -16,6 +16,7 @@ history:
   - 2026-11-03T15:57:00Z test running factory-tester "Build verified by the foreman (card.test.py OK, docs.test.sh 6/6 with 0 roadmap warnings, pnpm check 7/7); factory-tester spawned"
   - 2026-11-03T16:25:44Z review running factory-reviewer "Tests pass (docs.test.sh 9/9, card.test.py 11 OK, pnpm check 7/7, workspace.test.sh ok; 38 negative proofs); factory-reviewer spawned"
   - 2026-11-03T16:46:26Z build running factory-builder "Review FAIL (loop 1 of 1): secrets.md names bd758ed, git shows 89bed6d (foreman's addendum was wrong); owner-table SME row cites P5-08, roadmap E4 row 8 says P2-11, P2-08 attestation, P7-04, P7-05; plus P0-06 hash source, Build deviation 9, ship order, four wording fixes"
+  - 2026-11-03T17:07:59Z build blocked orchestrator "Paused by the owner 2026-11-04 after review loop 1; files pushed unreviewed in 8e1f6dd; resume at the test station"
 ---
 
 # P0-11 Resume-ability: the plan, a root README, progress and decisions logs in the repository
@@ -54,6 +55,15 @@ Audit addendum (foreman, 2026-11-03 14:55Z, from the independent resume-ability 
 - Files added to the list: `docs/ops/secrets.md`, `docs/architecture/build-sequence.md`, `docs/requirements/00-index.md`, `docs/requirements/08-product-definition-personas-mvp-scope.md`, `docs/decisions/0002-architecture-amendments.md`, `docs/ux/README.md`, `.claude/agents/factory-planner.md`, `.claude/agents/factory-tester.md`.
 
 Correction and decision (foreman, 2026-11-04, after the review FAIL): (1) the audit addendum's wording for `docs/ops/secrets.md` ("present in `.gitignore` since P0-02.1 (`bd758ed`)") was wrong and came from the foreman: `git log -S'.env.local' -- .gitignore` shows the two patterns arrived in `89bed6d` (PLAN-04: Adversarial polish follow-ups), the same commit that wrote the old "not there yet" sentence; `bd758ed` added only the build-output block. The line reads "present in `.gitignore` since `89bed6d` (PLAN-04 follow-ups)". (2) The reviewer's advisory on the ship order is adopted: in SKILL.md step 6 the ship commit carries the code and the card through `## Review`; then `## Ship` gets the hash and the run URL, `card.py move <id> ship --status done`, `card.py status --write docs/plan/progress.md`, and the log entry with its hash and time, all in the `Cards: <id> shipped` commit, pushed at once. So no commit ever holds a log entry without a hash, and every commit passes `pnpm check` in a full clone.
+
+Pause note (foreman, 2026-11-04): the owner paused development and told the foreman to push now. Station reached: build,
+review loop 1 done (the nine findings of the first review fixed; `docs.test.sh` 9/9, `card.test.py` 11 OK, `pnpm check` 7/7,
+`workspace.test.sh` 4/4). Not done: the second test and review stations (the line's one loop), then the ship steps (`## Ship`,
+the move to done, the board, the log entry, `Cards: P0-11 shipped`). By the owner's instruction the card's files were committed to
+`main` unreviewed as `8e1f6dd` ("P0-11 work in progress: resume-ability docs, pushed unreviewed at the owner's pause"; Actions run
+https://github.com/stephenfgarcia/Bridle/actions/runs/41680833335 green), so nothing is uncommitted. An independent fact-check of the three new documents was still running at the
+pause; its result is not recorded, and the second test and review cover the same ground. Resume: `/factory run P0-11` starting at
+the test station (the card is at build with status blocked; do not re-run plan or build), then `/factory next` (P0-02.5).
 
 ## Plan
 

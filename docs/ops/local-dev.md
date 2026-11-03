@@ -123,6 +123,23 @@ itself, so the stack is three images. The documented fallback, should RustFS fai
 linguistic ordering matching between local and staging; where order matters, sort with an explicit
 `COLLATE "C"` or an ICU collation in the query or the column definition, which behaves the same everywhere.
 
+## Other local ports
+
+Everything that listens on this machine during development, so two tools never collide:
+
+| Port | What | Where it is set |
+|---|---|---|
+| 55432 | Postgres (compose `postgres`) | `compose.yaml` |
+| 9000, 9001 | RustFS S3 API and console (compose `minio`) | `compose.yaml` |
+| 1025, 8025 | mailpit SMTP and web UI | `compose.yaml` |
+| 3000 | the application image's `--serve` stub (`PORT`) | `Dockerfile`, `tools/entrypoint.sh` |
+| 8787 | the monitor's local viewer, `python3 tools/monitor/serve.py` | `tools/monitor/serve.py` (`--port`) |
+| 5180, 5181 | Agent HQ's Vite dev server and preview | `tools/agent-hq/vite.config.ts` |
+| 8787 | Agent HQ's API server (`pnpm api`), the target of both Vite proxies | `tools/agent-hq/server/index.ts` (`PORT`), `tools/agent-hq/vite.config.ts` |
+
+The monitor viewer and Agent HQ's API both default to 8787, and Agent HQ's proxy target is fixed at that port: run one at a
+time, or start the viewer elsewhere with `python3 tools/monitor/serve.py --port 8788`. Card P0-12 removes the clash.
+
 ## Application image
 
 The deployment unit of the architecture (sections 3, 15, 16): one container image, four entrypoints. The root

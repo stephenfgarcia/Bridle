@@ -31,3 +31,6 @@ history:
 
 ## Ship
 
+Recorded after the fact (foreman, 2026-11-04, pause check): the monitor was published and committed in `9b95026`, with the
+backfill tool in `ecc7870`, before the factory existed, so neither subject carries the card id; the source is this card's
+history line "Monitor published and committed (9b95026, ecc7870)".
