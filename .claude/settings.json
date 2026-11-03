@@ -23,5 +23,41 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(cargo *)",
+      "Bash(rustup *)",
+      "Bash(pnpm *)",
+      "Bash(corepack *)",
+      "Bash(node *)",
+      "Bash(npx playwright *)",
+      "Bash(docker *)",
+      "Bash(docker compose *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git rebase *)",
+      "Bash(git worktree *)",
+      "Bash(git switch *)",
+      "Bash(gh pr *)",
+      "Bash(tofu fmt *)",
+      "Bash(tofu validate *)",
+      "Bash(tofu plan *)",
+      "Bash(tools/monitor/*)",
+      "Bash(python3 tools/monitor/*)",
+      "Bash(bash tools/doctor.sh)"
+    ],
+    "deny": [
+      "Bash(tofu apply *)",
+      "Bash(tofu destroy *)",
+      "Bash(aws *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Read(.env.local)",
+      "Read(.env.*.local)"
+    ]
   }
 }
