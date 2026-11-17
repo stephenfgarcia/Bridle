@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Tests for the Next.js skeleton and pnpm e2e:smoke (card P0-02.5): one case per acceptance criterion.
+# Tests for the Next.js application and pnpm e2e:smoke (card P0-02.5): one case per acceptance criterion. Card
+# PX-02.1 (the app shell) replaced the case `plain`, which held that apps/web had no stylesheet, component or shell,
+# with the case `shell`, and moved fixture F, the count of smoke tests (3) and the case list with it.
 #   app    AC1  the files of apps/web a clone holds are exactly fixture F; next is 15.x and react, react-dom 19.x in
 #               apps/web/package.json and as installed (`pnpm ls --filter web --depth 0 --json`); src/app exists and
 #               there is no `pages` directory (the App Router); tsconfig.json extends the base, the base is strict
@@ -18,29 +20,32 @@
 #   smoke  AC2  playwright.config.ts (at the root, the only one) and e2e/smoke.spec.ts exist; the `e2e:smoke` script
 #               is `playwright test`; devDependencies["@playwright/test"] equals tools.playwright.version of
 #               tools/toolchain.json and `pnpm exec playwright --version` prints it; `playwright test --list` ends
-#               `Total: 2 tests in 1 file` with two test lines, each `[chromium]`; the config names no firefox or
-#               webkit and one project; the spec requests /api/v1/health and navigates to / (ruling 7); it reads
+#               `Total: 3 tests in 1 file` with three test lines, each `[chromium]`; the config names no firefox or
+#               webkit and one project; the spec requests /api/v1/health and navigates to / (ruling 7) and to /workspace; it reads
 #               its strings from packages/i18n/messages by NEXT_PUBLIC_LOCALE and holds no copy of fixture N, and
 #               `home.notice` of packages/i18n/messages/en.json equals fixture N (card P0-02.6). Against
 #               the running dev server, screenshot removed: `PORT=<its port> pnpm e2e:smoke` exits 0 with
-#               `2 passed`, the same pid still listens (the reuse path), the PNG exists (signature 89 50 4e 47,
+#               `3 passed`, the same pid still listens (the reuse path), the PNG exists (signature 89 50 4e 47,
 #               over 1,000 bytes), `git check-ignore` accepts it and .bridle/playwright/. Server stopped,
-#               screenshot removed: `PORT=<another free port> pnpm e2e:smoke` exits 0 with `2 passed` (the start
+#               screenshot removed: `PORT=<another free port> pnpm e2e:smoke` exits 0 with `3 passed` (the start
 #               path), the PNG exists, nothing listens on that port afterwards. A dev server started with
 #               GIT_SHA=feedbee answers `{"ok":true,"sha":"feedbee"}`, and the smoke run without that variable
 #               exits non-zero against it, naming feedbee (the sha is asserted, not echoed). The tree is as it was
-#   plain  AC3  apps/web holds no .css, .scss, .sass, .less or .module.* file and no `components` directory; its
-#               dependencies are exactly @bridle/i18n, next, react, react-dom; packages/ui does not exist; the
-#               HTML of `/` has
-#               no rel="stylesheet", no <style, none of <nav, <header, <aside, <footer, <button, <form, <a, and
-#               its one <main> is the h1 and the two paragraphs, byte for byte
+#   shell  PX-02.1  every dependency of apps/web is an exact version or `workspace:*`, and three,
+#               @react-three/fiber, @react-three/drei and zustand are among them; apps/web/src/styles/tokens.css is
+#               byte for byte docs/ux/tokens.css and `pnpm --filter web test` exits 0; apps/web/src/components
+#               exists; the HTML of `/` links a stylesheet and has one <header, one <nav with links to /workspace
+#               and /tasks, and one <main> that starts with the h1 and the two paragraphs, byte for byte, and
+#               holds a link to /workspace; `/workspace` is 200 with the <nav, its /workspace link marked
+#               aria-current="page", the viewport area and the side panel area; `/tasks` is 200 with the <nav, its
+#               /tasks link marked aria-current="page", and the coming-soon state
 #   docs   AC4  docs/ops/local-dev.md has `## Web application and the smoke test` before "Other local ports", naming
 #               the commands, routes, variables, files and pins of the plan's list; the port table has a 3000 row
 #               naming playwright.config.ts; the file no longer says "P0-02.5 puts the Next.js server behind"
 # Fixtures (literal, from the card's Plan): N the notice, H the health body, F the files of apps/web.
 #
 # Run:  bash tools/test/web.test.sh            (from any directory; the script finds the repository from its own path)
-#       bash tools/test/web.test.sh docs plain  (only the named cases, in the order app, smoke, plain, docs)
+#       bash tools/test/web.test.sh docs shell  (only the named cases, in the order app, smoke, shell, docs)
 # In a shell that predates the toolchain:
 #   . "$HOME/.cargo/env"; . "$HOME/.nvm/nvm.sh"; nvm use 22 >/dev/null; bash tools/test/web.test.sh
 # Never wire this file into `pnpm test`: it starts servers and a browser, builds apps/web and runs `pnpm check` in a
@@ -72,14 +77,29 @@ CASE=setup
 # Fixture N, the notice (literal).
 NOTICE='Educational use only. Not for construction, permitting, or professional engineering use. Results are not a substitute for analysis and design by a licensed engineer.'
 # Fixture F, the files of apps/web a clone holds (literal; sorted as `LC_ALL=C sort` sorts them).
-FIXTURE_F='apps/web/i18n-allowlist.json
+FIXTURE_F='apps/web/biome.json
+apps/web/i18n-allowlist.json
 apps/web/next.config.mjs
 apps/web/package.json
 apps/web/src/app/api/v1/health/route.ts
 apps/web/src/app/layout.tsx
+apps/web/src/app/page.module.css
 apps/web/src/app/page.tsx
+apps/web/src/app/tasks/page.module.css
+apps/web/src/app/tasks/page.tsx
+apps/web/src/app/workspace/page.module.css
+apps/web/src/app/workspace/page.tsx
+apps/web/src/components/shell/NavLinks.tsx
+apps/web/src/components/shell/TopBar.module.css
+apps/web/src/components/shell/TopBar.tsx
+apps/web/src/components/viewport/StaticGrid.tsx
+apps/web/src/components/viewport/StaticGridCanvas.tsx
+apps/web/src/css.d.ts
 apps/web/src/i18n.ts
 apps/web/src/sha.ts
+apps/web/src/styles/global.css
+apps/web/src/styles/tokens.css
+apps/web/src/styles/tokens.test.mjs
 apps/web/tsconfig.json'
 
 tmp=""
@@ -128,17 +148,17 @@ fail() {  # $1 = why; $2 = output to show (optional). Prints `not ok` and exits 
 }
 
 # ---- which cases ------------------------------------------------------------------------------------------------
-RUN_app=0; RUN_smoke=0; RUN_plain=0; RUN_docs=0
+RUN_app=0; RUN_smoke=0; RUN_shell=0; RUN_docs=0
 if [ "$#" -eq 0 ]; then
-  RUN_app=1; RUN_smoke=1; RUN_plain=1; RUN_docs=1
+  RUN_app=1; RUN_smoke=1; RUN_shell=1; RUN_docs=1
 else
   for a in "$@"; do
     case "$a" in
       app) RUN_app=1 ;;
       smoke) RUN_smoke=1 ;;
-      plain) RUN_plain=1 ;;
+      shell) RUN_shell=1 ;;
       docs) RUN_docs=1 ;;
-      *) echo "usage: web.test.sh [app] [smoke] [plain] [docs]" >&2; exit 2 ;;
+      *) echo "usage: web.test.sh [app] [smoke] [shell] [docs]" >&2; exit 2 ;;
     esac
   done
 fi
@@ -293,7 +313,7 @@ run_in "$ROOT" pnpm --filter web exec tsc --showConfig -p tsconfig.json
 printf '%s\n' "$OUT" > "$tmp/tsconfig.json"
 [ "$(json "$tmp/tsconfig.json" 'j.compilerOptions.strict')" = "true" ] \
   || fail "apps/web's resolved TypeScript configuration is not strict (tsc --showConfig)" "$OUT"
-echo "# apps/web: fixture F (9 files); installed:$INSTALLED; src/app, no pages directory; tsconfig extends the base, strict = true resolved"
+echo "# apps/web: fixture F ($(printf '%s\n' "$FIXTURE_F" | grep -c .) files); installed:$INSTALLED; src/app, no pages directory; tsconfig extends the base, strict = true resolved"
 
 run_in "$ROOT" pnpm --filter web typecheck
 [ "$RC" -eq 0 ] || fail "pnpm --filter web typecheck: exit $RC" "$OUT"
@@ -390,11 +410,11 @@ run_in "$ROOT" pnpm exec playwright --version
 run_in "$ROOT" pnpm exec playwright test --list
 [ "$RC" -eq 0 ] || fail "pnpm exec playwright test --list: exit $RC" "$OUT"
 last="$(printf '%s\n' "$OUT" | grep -v '^ *$' | tail -n 1)"
-[ "$last" = "Total: 2 tests in 1 file" ] || fail "playwright test --list ends '$last', expected 'Total: 2 tests in 1 file'" "$OUT"
+[ "$last" = "Total: 3 tests in 1 file" ] || fail "playwright test --list ends '$last', expected 'Total: 3 tests in 1 file'" "$OUT"
 ntests="$(printf '%s\n' "$OUT" | grep -c ' › ' || true)"
 nchromium="$(printf '%s\n' "$OUT" | grep -c -E '^ *\[chromium\] › ' || true)"
-[ "$ntests" -eq 2 ] && [ "$nchromium" -eq 2 ] \
-  || fail "playwright test --list: $ntests test lines, $nchromium of them [chromium]; expected 2 and 2" "$OUT"
+[ "$ntests" -eq 3 ] && [ "$nchromium" -eq 3 ] \
+  || fail "playwright test --list: $ntests test lines, $nchromium of them [chromium]; expected 3 and 3" "$OUT"
 grep -i -E 'firefox|webkit' "$CFG" > "$tmp/browsers" && fail "playwright.config.ts names firefox or webkit; the Chromium project only" "$(cat "$tmp/browsers")"
 nproj="$(grep -o -E 'name: *["'"'"'][^"'"'"']*["'"'"']' "$CFG" | grep -c . || true)"
 [ "$nproj" -eq 1 ] || fail "playwright.config.ts names $nproj projects, expected one (chromium)"
@@ -402,6 +422,8 @@ grep -q -E 'name: *["'"'"']chromium["'"'"']' "$CFG" || fail "playwright.config.t
 # Ruling 7: the spec requests the health route and navigates to the page.
 grep -q -E '\.get\( *["'"'"'`]/api/v1/health["'"'"'`] *\)' "$SPEC" || fail "e2e/smoke.spec.ts does not request /api/v1/health"
 grep -q -E '\.goto\( *["'"'"'`]/["'"'"'`] *\)' "$SPEC" || fail "e2e/smoke.spec.ts does not navigate to /"
+# Card PX-02.1: the spec also opens the workspace route, where it looks for the navigation.
+grep -q -E '\.goto\( *["'"'"'`]/workspace["'"'"'`] *\)' "$SPEC" || fail "e2e/smoke.spec.ts does not navigate to /workspace"
 # Card P0-02.6: the spec reads the strings it asserts from the catalog of the locale, and the catalog holds fixture N.
 for needle in packages i18n messages NEXT_PUBLIC_LOCALE; do
   grep -q -F -- "$needle" "$SPEC" || fail "e2e/smoke.spec.ts does not name '$needle': it must read its strings from packages/i18n/messages by NEXT_PUBLIC_LOCALE"
@@ -410,7 +432,7 @@ grep -q -F -- "$NOTICE" "$SPEC" && fail "e2e/smoke.spec.ts holds a copy of the n
 CATALOG="$ROOT/packages/i18n/messages/en.json"
 [ -f "$CATALOG" ] || fail "packages/i18n/messages/en.json does not exist"
 [ "$(json "$CATALOG" 'j["home.notice"]')" = "$NOTICE" ] || fail "home.notice of packages/i18n/messages/en.json is not fixture N"
-echo "# playwright.config.ts at the root, e2e/smoke.spec.ts; @playwright/test $pw_dep = the pin, 'Version $PW_PIN'; --list: 2 tests, both [chromium], '$last'; one project; the spec gets /api/v1/health and goes to /, reads its strings from packages/i18n/messages; home.notice of en.json = fixture N"
+echo "# playwright.config.ts at the root, e2e/smoke.spec.ts; @playwright/test $pw_dep = the pin, 'Version $PW_PIN'; --list: 3 tests, all [chromium], '$last'; one project; the spec gets /api/v1/health and goes to / and /workspace, reads its strings from packages/i18n/messages; home.notice of en.json = fixture N"
 
 STATE="$(tree_state)" || fail "cannot read the state of the tree"
 # The reuse path: against the dev server that is already running.
@@ -420,13 +442,13 @@ t0="$(date +%s)"
 run_in "$ROOT" env PORT="$DEV_PORT" pnpm e2e:smoke
 t1="$(date +%s)"
 [ "$RC" -eq 0 ] || fail "PORT=$DEV_PORT pnpm e2e:smoke against the running dev server: exit $RC" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +2 passed' || fail "the smoke against the running dev server did not print '2 passed'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +3 passed' || fail "the smoke against the running dev server did not print '3 passed'" "$OUT"
 [ "$(listeners "$DEV_PORT" | sed -n '1p')" = "$DEV_LISTENER" ] \
   || fail "after the smoke, pid $DEV_LISTENER no longer listens on $DEV_PORT: the running server was not reused, or was stopped" "$OUT"
 png_ok "the reuse path"
 (cd "$ROOT" && git check-ignore -q .bridle/screenshots/smoke-home.png) || fail ".bridle/screenshots/smoke-home.png is not gitignored"
 (cd "$ROOT" && git check-ignore -q .bridle/playwright/) || fail ".bridle/playwright/ is not gitignored"
-echo "# reuse path: PORT=$DEV_PORT pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +2 passed' | sed 's/^ *//')', pid $DEV_LISTENER still listening; PNG $PNG_BYTES bytes, gitignored with .bridle/playwright/"
+echo "# reuse path: PORT=$DEV_PORT pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +3 passed' | sed 's/^ *//')', pid $DEV_LISTENER still listening; PNG $PNG_BYTES bytes, gitignored with .bridle/playwright/"
 stop_dev
 
 # The start path: Playwright starts the server itself and stops it.
@@ -437,7 +459,7 @@ t0="$(date +%s)"
 run_in "$ROOT" env PORT="$P2" pnpm e2e:smoke
 t1="$(date +%s)"
 [ "$RC" -eq 0 ] || fail "PORT=$P2 pnpm e2e:smoke with no server running: exit $RC" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +2 passed' || fail "the smoke that starts its own server did not print '2 passed'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +3 passed' || fail "the smoke that starts its own server did not print '3 passed'" "$OUT"
 png_ok "the start path"
 i=0
 while [ -n "$(listeners "$P2")" ]; do
@@ -445,7 +467,7 @@ while [ -n "$(listeners "$P2")" ]; do
   [ "$i" -lt 10 ] || fail "5 s after the smoke, something still listens on port $P2 (pid $(listeners "$P2" | tr '\n' ' ')): Playwright left its server running" "$OUT"
   sleep 0.5
 done
-echo "# start path: PORT=$P2 pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +2 passed' | sed 's/^ *//')'; PNG $PNG_BYTES bytes; nothing listens on $P2 afterwards"
+echo "# start path: PORT=$P2 pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +3 passed' | sed 's/^ *//')'; PNG $PNG_BYTES bytes; nothing listens on $P2 afterwards"
 
 # The sha is asserted, not echoed: a server that reports another sha fails the smoke.
 P3="$(free_port)" || fail "node gave no free loopback port"
@@ -455,7 +477,7 @@ body="$(cat "$tmp/b")"
 [ "$body" = '{"ok":true,"sha":"feedbee"}' ] || fail "a dev server started with GIT_SHA=feedbee answers '$body', fixture H says {\"ok\":true,\"sha\":\"feedbee\"}"
 run_in "$ROOT" env PORT="$P3" pnpm e2e:smoke
 [ "$RC" -ne 0 ] || fail "PORT=$P3 pnpm e2e:smoke exits 0 against a server that reports sha feedbee: the sha is echoed, not asserted" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +2 passed' && fail "the smoke printed '2 passed' against a server that reports sha feedbee" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +3 passed' && fail "the smoke printed '3 passed' against a server that reports sha feedbee" "$OUT"
 printf '%s\n' "$OUT" | grep -q -F 'feedbee' || fail "the failed smoke does not name the sha it received (feedbee): it failed for another reason" "$OUT"
 NEG_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +[0-9]+ failed' | sed -n '1p' | sed 's/^ *//')"
 stop_dev
@@ -464,36 +486,73 @@ echo "# GIT_SHA=feedbee server on $P3: health {\"ok\":true,\"sha\":\"feedbee\"};
 echo "ok - smoke"
 fi
 
-# ---- plain (AC3) ------------------------------------------------------------------------------------------------
-if [ "$RUN_plain" -eq 1 ]; then
-CASE=plain
-styled="$(cd "$ROOT" && { git ls-files --cached --others --exclude-standard -- apps/web
-  find apps/web \( -name node_modules -o -name .next \) -prune -o -type f -print; } \
-  | grep -i -E '\.(css|scss|sass|less)$|\.module\.[a-z]+$' | LC_ALL=C sort -u || true)"
-[ -z "$styled" ] || fail "apps/web holds a stylesheet or a .module.* file; the page is deliberately plain" "$styled"
-comp="$(cd "$ROOT" && find apps/web \( -name node_modules -o -name .next \) -prune -o -type d -name components -print)"
-[ -z "$comp" ] || fail "apps/web holds a components directory; no design-system work and no shell in this card" "$comp"
-deps="$(json "$WEB/package.json" 'Object.keys(j.dependencies).sort().join(" ")')"
-[ "$deps" = "@bridle/i18n next react react-dom" ] || fail "apps/web's dependencies are '$deps', expected exactly '@bridle/i18n next react react-dom'"
-[ ! -e "$ROOT/packages/ui" ] || fail "packages/ui exists; the design system is P4-06"
+# ---- shell (PX-02.1) --------------------------------------------------------------------------------------------
+if [ "$RUN_shell" -eq 1 ]; then
+CASE=shell
+PKG="$WEB/package.json"
+loose="$(node -e 'const j = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+for (const k of ["dependencies", "devDependencies"])
+  for (const [n, v] of Object.entries(j[k] || {}))
+    if (v !== "workspace:*" && !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(v)) console.log(k + "." + n + " = " + v);' "$PKG")" \
+  || fail "cannot read the dependencies of apps/web/package.json"
+[ -z "$loose" ] || fail "apps/web/package.json has a dependency that is not an exact version" "$loose"
+VERSIONS=""
+for name in three @react-three/fiber @react-three/drei zustand; do
+  v="$(json "$PKG" "j.dependencies['$name'] || 'missing'")"
+  [ "$v" != "missing" ] || fail "apps/web/package.json: dependencies.$name is missing"
+  VERSIONS="$VERSIONS $name $v"
+done
+[ -f "$WEB/src/styles/tokens.css" ] || fail "apps/web/src/styles/tokens.css does not exist"
+cmp -s "$ROOT/docs/ux/tokens.css" "$WEB/src/styles/tokens.css" \
+  || fail "apps/web/src/styles/tokens.css differs from docs/ux/tokens.css (cp docs/ux/tokens.css apps/web/src/styles/tokens.css)"
+run_in "$ROOT" pnpm --filter web test
+[ "$RC" -eq 0 ] || fail "pnpm --filter web test (the token copy test): exit $RC" "$OUT"
+[ -d "$WEB/src/components" ] || fail "apps/web/src/components does not exist"
+echo "# apps/web: exact pins;$VERSIONS; src/styles/tokens.css = docs/ux/tokens.css, pnpm --filter web test exit 0; src/components exists"
+
+count_of() {  # $1 = fixed string, $2 = file: how many times the file holds it
+  grep -o -F -- "$1" "$2" | grep -c . || true
+}
+shell_of() {  # $1 = route: the HTML in $tmp/b has a stylesheet link, one <header and one <nav with the two links
+  grep -q -i -E 'rel=.?stylesheet' "$tmp/b" || fail "the HTML of $1 links no stylesheet"
+  [ "$(count_of '<header' "$tmp/b")" -eq 1 ] || fail "the HTML of $1 has $(count_of '<header' "$tmp/b") <header elements, expected one"
+  [ "$(count_of '<nav' "$tmp/b")" -eq 1 ] || fail "the HTML of $1 has $(count_of '<nav' "$tmp/b") <nav elements, expected one"
+  node -e 'const h = require("fs").readFileSync(process.argv[1], "utf8");
+const nav = /<nav[\s\S]*?<\/nav>/.exec(h);
+const links = nav ? nav[0].match(/<a [^>]*>/g) || [] : [];
+const hrefs = links.map((a) => (/href="([^"]*)"/.exec(a) || [])[1]);
+const current = links.filter((a) => a.includes("aria-current=\"page\"")).map((a) => (/href="([^"]*)"/.exec(a) || [])[1]);
+if (hrefs.join(" ") !== "/workspace /tasks") { console.log("links: " + hrefs.join(" ")); process.exit(1); }
+if (current.join(" ") !== process.argv[2]) { console.log("aria-current: " + current.join(" ")); process.exit(1); }' "$tmp/b" "$2" > "$tmp/nav.out" \
+    || fail "the <nav> of $1 is not the links /workspace and /tasks with aria-current=\"page\" on '$2'" "$(cat "$tmp/nav.out")"
+  [ "$(count_of '<main' "$tmp/b")" -eq 1 ] || fail "the HTML of $1 has $(count_of '<main' "$tmp/b") <main elements, expected one"
+}
 ensure_dev
 http_get "http://127.0.0.1:$DEV_PORT/"
 [ "$CODE" = "200" ] || fail "GET /: $CODE" "$(cat "$tmp/b")"
-HTML_BYTES="$(wc -c < "$tmp/b" | tr -d ' ')"
-grep -q -i -E 'rel=.?stylesheet' "$tmp/b" && fail "the HTML of / links a stylesheet" "$(grep -i -o -E '<link[^>]*stylesheet[^>]*>' "$tmp/b")"
-for tag in '<style' '<nav' '<header' '<aside' '<footer' '<button' '<form' '<a '; do
-  grep -q -i -F -- "$tag" "$tmp/b" && fail "the HTML of / holds '$tag'; the page is deliberately plain, with no shell" "$(grep -i -o -F -- "$tag" "$tmp/b" | sed -n '1p')"
-done
-nmain="$(grep -o -F '<main' "$tmp/b" | grep -c . || true)"
-[ "$nmain" -eq 1 ] || fail "the HTML of / has $nmain <main elements, expected one"
+shell_of / ""
 main="$(node -e 'const h = require("fs").readFileSync(process.argv[1], "utf8");
-const m = /<main>([\s\S]*?)<\/main>/.exec(h);
+const m = /<main[^>]*>([\s\S]*?)<\/main>/.exec(h);
 process.stdout.write(m ? m[1] : "");' "$tmp/b")"
-[ "$main" = "$MAIN_HTML" ] || fail "the <main> of / is not the h1 and the two paragraphs (the sha, fixture N)" "$main"
+case "$main" in
+  "$MAIN_HTML"*) ;;
+  *) fail "the <main> of / does not start with the h1 and the two paragraphs (the sha, fixture N)" "$main" ;;
+esac
+printf '%s\n' "${main#"$MAIN_HTML"}" | grep -q -E '<a [^>]*href="/workspace"' \
+  || fail "the <main> of / holds no link to /workspace after the notice" "$main"
+http_get "http://127.0.0.1:$DEV_PORT/workspace"
+[ "$CODE" = "200" ] || fail "GET /workspace: $CODE" "$(cat "$tmp/b")"
+shell_of /workspace /workspace
+grep -q -F -- 'data-testid="viewport"' "$tmp/b" || fail "the HTML of /workspace has no viewport area (data-testid=\"viewport\")"
+grep -q -E '<aside [^>]*data-testid="side-panel"' "$tmp/b" || fail "the HTML of /workspace has no side panel area (<aside data-testid=\"side-panel\">)"
+http_get "http://127.0.0.1:$DEV_PORT/tasks"
+[ "$CODE" = "200" ] || fail "GET /tasks: $CODE" "$(cat "$tmp/b")"
+shell_of /tasks /tasks
+grep -q -F -- 'data-testid="coming-soon"' "$tmp/b" || fail "the HTML of /tasks has no coming-soon state (data-testid=\"coming-soon\")"
+grep -q -F -- 'Coming soon' "$tmp/b" || fail "the HTML of /tasks does not say 'Coming soon' (tasks.comingSoon.title of en.json)"
 stop_dev
-echo "# apps/web: no stylesheet, no .module.* file, no components directory; dependencies: $deps; no packages/ui"
-echo "# GET / ($HTML_BYTES bytes of development markup): no stylesheet link, no <style, <nav, <header, <aside, <footer, <button, <form or <a; <main> = h1, sha paragraph, notice paragraph (exact)"
-echo "ok - plain"
+echo "# GET /, /workspace, /tasks: 200, a stylesheet link, one <header, one <nav (links /workspace, /tasks; aria-current on the route's own), one <main>; / starts with the h1, sha and notice and links to /workspace; /workspace has the viewport and side panel areas; /tasks the coming-soon state"
+echo "ok - shell"
 fi
 stop_dev
 

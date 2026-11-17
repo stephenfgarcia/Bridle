@@ -1,4 +1,16 @@
 {
   "app.name": "Bridle",
-  "home.notice": "Educational use only. Not for construction, permitting, or professional engineering use. Results are not a substitute for analysis and design by a licensed engineer."
+  "home.notice": "Educational use only. Not for construction, permitting, or professional engineering use. Results are not a substitute for analysis and design by a licensed engineer.",
+  "home.openWorkspace": "Open the workspace",
+  "nav.label": "Main",
+  "nav.tasks": "Tasks",
+  "nav.workspace": "Workspace",
+  "shell.skipToContent": "Skip to content",
+  "tasks.comingSoon.body": "Tasks with a brief and a rubric will be listed here.",
+  "tasks.comingSoon.title": "Coming soon",
+  "tasks.title": "Tasks",
+  "workspace.panel.empty": "Nothing is selected.",
+  "workspace.panel.title": "Properties",
+  "workspace.title": "Workspace",
+  "workspace.viewport.label": "Model viewport"
 }

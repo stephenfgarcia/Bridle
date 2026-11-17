@@ -1,0 +1,37 @@
+/* Laid out for 1280 by 720 and larger: the viewport takes what the side panel leaves, and the two fill the
+   height under the top bar. No narrower layout in this card. */
+.workspace {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) var(--layout-panel-w);
+  height: calc(100vh - var(--shell-topbar-h));
+  min-height: 0;
+}
+
+.viewport {
+  position: relative;
+  overflow: hidden;
+  background: var(--canvas-bg);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  overflow-y: auto;
+  border-left: var(--border-1) solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.panelTitle {
+  color: var(--fg-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.panelEmpty {
+  color: var(--fg-muted);
+}

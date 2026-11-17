@@ -1,0 +1,66 @@
+.bar {
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  gap: var(--space-8);
+  height: var(--shell-topbar-h);
+  padding: 0 var(--layout-gutter);
+  border-bottom: var(--border-1) solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-heading);
+  text-decoration: none;
+}
+
+.mark {
+  width: var(--size-icon-md);
+  height: var(--size-icon-md);
+  border-radius: var(--radius-sm);
+  background: var(--accent-bg);
+}
+
+.nav {
+  display: flex;
+}
+
+.list {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list li {
+  display: flex;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border-bottom: var(--border-2) solid transparent;
+  /* The top border keeps the text centred against the bottom one. */
+  border-top: var(--border-2) solid transparent;
+  color: var(--fg-secondary);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+
+.link:hover {
+  color: var(--fg-primary);
+}
+
+.link[aria-current="page"] {
+  border-bottom-color: var(--accent-bg);
+  color: var(--accent-fg);
+}
