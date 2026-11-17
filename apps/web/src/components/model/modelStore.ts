@@ -49,6 +49,8 @@ export interface ModelState {
   addMember: Add<commands.AddMemberArgs>;
   deleteMember: Change<commands.DeleteMemberArgs>;
   updateMember: Change<commands.UpdateMemberArgs>;
+  updateMembers: Change<commands.UpdateMembersArgs>;
+  deleteItems: Change<commands.DeleteItemsArgs>;
   setSupport: Change<commands.SetSupportArgs>;
   removeSupport: Change<commands.RemoveSupportArgs>;
   addNodalLoad: Add<commands.AddNodalLoadArgs>;
@@ -62,6 +64,8 @@ export interface ModelState {
   removeMemberPointLoad: Change<commands.RemoveLoadArgs>;
   addSection: Add<commands.AddSectionArgs>;
   addMaterial: Add<commands.AddMaterialArgs>;
+  removeSection: Change<commands.RemoveSectionArgs>;
+  removeMaterial: Change<commands.RemoveMaterialArgs>;
   addLoadCase: Add<commands.AddLoadCaseArgs>;
 }
 
@@ -126,6 +130,8 @@ export function createModelState(
       addMember: add(commands.addMember, commands.nextMemberId),
       deleteMember: change(commands.deleteMember),
       updateMember: change(commands.updateMember),
+      updateMembers: change(commands.updateMembers),
+      deleteItems: change(commands.deleteItems),
       setSupport: change(commands.setSupport),
       removeSupport: change(commands.removeSupport),
       addNodalLoad: add(commands.addNodalLoad, commands.nextNodalLoadId),
@@ -139,6 +145,8 @@ export function createModelState(
       removeMemberPointLoad: change(commands.removeMemberPointLoad),
       addSection: add(commands.addSection, commands.nextSectionId),
       addMaterial: add(commands.addMaterial, commands.nextMaterialId),
+      removeSection: change(commands.removeSection),
+      removeMaterial: change(commands.removeMaterial),
       addLoadCase: add(commands.addLoadCase, commands.nextLoadCaseId),
     };
   };

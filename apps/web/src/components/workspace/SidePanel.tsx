@@ -1,6 +1,12 @@
 "use client";
 
-import { distance, type Model, type ModelIssue, type Node as ModelNode } from "@bridle/model";
+import {
+  distance,
+  type Member,
+  type Model,
+  type ModelIssue,
+  type Node as ModelNode,
+} from "@bridle/model";
 import { type ReactNode, useId } from "react";
 import { t } from "../../i18n";
 import { AnalysisStatus } from "../analysis/AnalysisStatus";
@@ -8,9 +14,12 @@ import { ResultsPanel } from "../analysis/ResultsPanel";
 import { ISSUE_MESSAGE } from "../model/issueMessages";
 import { NumberField } from "../tools/NumberField";
 import { deleteSelection, moveNodeAction } from "../tools/toolActions";
-import { formatCoordinate } from "../tools/workPlane";
-import { type ItemRef, useViewportStore } from "../viewport/viewportStore";
+import { selectedItems } from "../viewport/selection";
+import { useViewportStore } from "../viewport/viewportStore";
+import { LibraryDialog } from "./LibraryDialog";
 import { LoadCases, MemberLoads, NodeLoads } from "./LoadPanels";
+import { MemberProperties } from "./MemberProperties";
+import panelStyles from "./Panels.module.css";
 import { NodeSupport, PlanarHelper } from "./SupportPanels";
 import styles from "./WorkspaceView.module.css";
 
@@ -23,44 +32,37 @@ function memberLength(model: Model, memberId: string): number | undefined {
 }
 
 /**
- * The read-only rows of the selected item, as label and value; `undefined` when the model does not hold it.
- * A node's coordinates are not among them: they are the fields of `NodeCoordinates`. A member's rows include
- * its length when both of its nodes are in the model.
+ * The read-only rows of the one selected item, as label and value: its kind and its id, and for a member its
+ * two nodes. A node's coordinates are the fields of `NodeCoordinates`; a member's section, material, roll
+ * angle, length, type and releases are the rows of `MemberProperties`.
  */
-function selectionRows(model: Model, selection: ItemRef | null): [string, string][] | undefined {
-  if (selection?.kind === "node") {
-    const node = model.nodes.find((candidate) => candidate.id === selection.id);
-    return (
-      node && [
-        [t("workspace.selection.kind"), t("workspace.selection.kindNode")],
-        [t("workspace.selection.id"), node.id],
-      ]
-    );
+function identityRows(node: ModelNode | undefined, member: Member | undefined): [string, string][] {
+  if (node) {
+    return [
+      [t("workspace.selection.kind"), t("workspace.selection.kindNode")],
+      [t("workspace.selection.id"), node.id],
+    ];
   }
-  if (selection?.kind === "member") {
-    const member = model.members.find((candidate) => candidate.id === selection.id);
-    if (!member) {
-      return undefined;
-    }
-    const named = (list: { id: string; name: string }[], id: string) => {
-      const found = list.find((candidate) => candidate.id === id);
-      return found ? t("workspace.selection.named", { name: found.name, id }) : id;
-    };
-    const length = memberLength(model, member.id);
-    const rows: [string, string][] = [
+  if (member) {
+    return [
       [t("workspace.selection.kind"), t("workspace.selection.kindMember")],
       [t("workspace.selection.id"), member.id],
       [t("workspace.selection.start"), member.startNodeId],
       [t("workspace.selection.end"), member.endNodeId],
-      [t("workspace.selection.section"), named(model.sections, member.sectionId)],
-      [t("workspace.selection.material"), named(model.materials, member.materialId)],
     ];
-    if (length !== undefined) {
-      rows.splice(4, 0, [t("workspace.selection.length"), formatCoordinate(length)]);
-    }
-    return rows;
   }
-  return undefined;
+  return [];
+}
+
+/** How many nodes and members are selected, as text: "2 members", "1 node, 2 members". */
+function selectionCount(nodes: number, members: number): string {
+  if (members === 0) {
+    return t("workspace.selection.countNodes", { nodes });
+  }
+  if (nodes === 0) {
+    return t("workspace.selection.countMembers", { members });
+  }
+  return t("workspace.selection.countBoth", { nodes, members });
 }
 
 const AXES = [
@@ -149,10 +151,17 @@ function Issues({ issues }: { issues: ModelIssue[] }) {
  *   reactions of the active load case, the displacement of the selected node, the end forces of the selected
  *   member;
  * - Issues: what `validateModel` reports;
- * - Properties: the item selected in the viewport. Its read-only rows; for a node the fields of its X, Y and
- *   Z, the six checkboxes of its support and its nodal loads; for a member its loads and the two buttons that
- *   open the forms of a new uniform or point load; and a Delete button that removes the node or the member
- *   with what depends on it as one undo step. The lists show the loads of the active load case.
+ * - Properties: what is selected in the viewport (card PX-02.6: one item or several, `selectedItems`).
+ *   - One node: its kind and id, the fields of its X, Y and Z, the six checkboxes of its support and its nodal
+ *     loads.
+ *   - One member: its kind, id and nodes, the member fields (./MemberProperties.tsx), its loads and the two
+ *     buttons that open the forms of a new uniform or point load.
+ *   - Several items: how many nodes and members, the member fields for the selected members together when
+ *     there is at least one, and a line that says what a single selection shows. No coordinates, support or
+ *     loads.
+ *   In each case a Delete button removes everything selected, with what depends on it, as one undo step. The
+ *   lists show the loads of the active load case.
+ * The Model section also has the "Sections and materials" button (./LibraryDialog.tsx).
  */
 export function SidePanel({
   model,
@@ -164,15 +173,12 @@ export function SidePanel({
   fixtureSwitch: ReactNode;
 }) {
   const selection = useViewportStore((state) => state.selection);
-  const rows = selectionRows(model, selection);
-  const selectedNode =
-    selection?.kind === "node"
-      ? model.nodes.find((candidate) => candidate.id === selection.id)
-      : undefined;
-  const selectedMember =
-    selection?.kind === "member"
-      ? model.members.find((candidate) => candidate.id === selection.id)
-      : undefined;
+  const selected = selectedItems(model, selection);
+  const total = selected.nodes.length + selected.members.length;
+  // The fields of a single item are shown when exactly one item is selected.
+  const selectedNode = total === 1 ? selected.nodes[0] : undefined;
+  const selectedMember = total === 1 ? selected.members[0] : undefined;
+  const rows = identityRows(selectedNode, selectedMember);
   const counts: [string, string, number][] = [
     ["count-nodes", t("workspace.counts.nodes"), model.nodes.length],
     ["count-members", t("workspace.counts.members"), model.members.length],
@@ -199,6 +205,7 @@ export function SidePanel({
           ))}
         </dl>
         <PlanarHelper model={model} />
+        <LibraryDialog model={model} />
       </section>
       <section
         aria-labelledby="workspace-loads-title"
@@ -221,16 +228,39 @@ export function SidePanel({
         <h2 className={styles.blockTitle} id="workspace-panel-title">
           {t("workspace.panel.title")}
         </h2>
-        {rows ? (
+        {total > 0 ? (
           <>
-            <dl className={styles.rows} data-testid="selection">
-              {rows.map(([label, value]) => (
-                <div className={styles.row} key={label}>
-                  <dt>{label}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
+            <div
+              className={panelStyles.loads}
+              data-members={selected.members.length}
+              data-nodes={selected.nodes.length}
+              data-testid="selection"
+            >
+              <dl className={styles.rows}>
+                {total > 1 ? (
+                  <div className={styles.row}>
+                    <dt>{t("workspace.selection.selected")}</dt>
+                    <dd data-testid="selection-count">
+                      {selectionCount(selected.nodes.length, selected.members.length)}
+                    </dd>
+                  </div>
+                ) : null}
+                {rows.map(([label, value]) => (
+                  <div className={styles.row} key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {selected.members.length > 0 ? (
+                <MemberProperties members={selected.members} model={model} />
+              ) : null}
+              {total > 1 ? (
+                <p className={panelStyles.help} data-testid="selection-multi-hint">
+                  {t("workspace.selection.multiHint")}
+                </p>
+              ) : null}
+            </div>
             {selectedNode ? (
               <>
                 <NodeCoordinates node={selectedNode} />
@@ -252,7 +282,9 @@ export function SidePanel({
               onClick={() => deleteSelection()}
               type="button"
             >
-              {t("workspace.selection.delete")}
+              {total > 1
+                ? t("workspace.selection.deleteMany", { count: total })
+                : t("workspace.selection.delete")}
             </button>
           </>
         ) : (

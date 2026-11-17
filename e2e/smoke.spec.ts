@@ -6,7 +6,9 @@
 // the Node and the Member tool, then a nodal load placed with the Load tool and a uniform load added to the
 // beam of the portal frame from the side panel, then the live analysis of the portal frame (its reactions, the
 // removal of its supports, the unstable frame on two pinned bases, the truss the solver does not take yet), then
-// a solver worker that cannot be made and the Retry button.
+// a solver worker that cannot be made and the Retry button, then the property panel (card PX-02.6): a section
+// added in "Sections and materials", the two columns of the portal frame selected with Shift-click and given
+// that section, "Colour by section", and Delete on several items.
 // The health test is first: when a foreign process holds the port, its failure names the cause.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -715,4 +717,210 @@ test("/workspace says that the analysis failed when the solver worker cannot be 
   await retry.click();
   await expectStatus(page, "analysed");
   await expect(results.getByTestId("reaction")).toHaveCount(2);
+});
+
+test("/workspace gives the two columns selected with Shift-click another section, and deletes them as one step", async ({
+  page,
+}, testInfo) => {
+  const problems: string[] = [];
+  page.on("pageerror", (error) => problems.push(`page error: ${error.message}`));
+  await openViewport(page);
+  const viewport = page.getByTestId("viewport");
+  const panel = page.getByTestId("side-panel");
+  const reactionMy = panel
+    .getByTestId("results")
+    .locator('[data-testid="reaction"][data-node="n1"] [data-component="my"]');
+  const history = (id: string) =>
+    viewport.getByRole("button", { name: message(`workspace.history.${id}`), exact: true });
+  await expectStatus(page, "analysed");
+  const before = (await reactionMy.textContent()) ?? "";
+  expect(before).not.toBe("");
+
+  // "Sections and materials": the fixture's section in cm², cm⁴ and mm, which axis is which, and a generic
+  // I-section added to the model. A section in use cannot be removed; an unused material can.
+  await panel.getByTestId("library-open").click();
+  const library = page.getByTestId("library");
+  await expect(library).toBeVisible();
+  const sections = library.getByTestId("library-sections");
+  for (const id of ["area", "iy", "iz", "j", "depthZ", "depthY"]) {
+    await expect(sections.locator("thead")).toContainText(message(`workspace.library.${id}`));
+  }
+  const cell = (table: string, row: string, column: string) =>
+    library.locator(`[data-testid="${table}"] tr[data-id="${row}"] td[data-column="${column}"]`);
+  // 8.4e-5 m⁴ is 8 400 cm⁴, 5.4e-3 m² is 54 cm², 0.3 m is 300 mm.
+  await expect(cell("library-sections", "s1", "Iy")).toHaveText(/^8\s400$/);
+  await expect(cell("library-sections", "s1", "A")).toHaveText("54");
+  await expect(cell("library-sections", "s1", "depthZ")).toHaveText("300");
+  await expect(cell("library-sections", "s1", "members")).toHaveText("3");
+  await expect(cell("library-materials", "mat1", "E")).toHaveText("210");
+  await expect(cell("library-materials", "mat1", "fy")).toHaveText("355");
+  await expect(cell("library-materials", "mat1", "density")).toHaveText(/^7\s850$/);
+  await expect(library.getByTestId("library-axes")).toContainText(
+    message("workspace.library.axesIy"),
+  );
+  await expect(library.getByTestId("library-axes")).toContainText(
+    message("workspace.library.axesIz"),
+  );
+  const removeIn = (table: string, row: string) =>
+    library.locator(`[data-testid="${table}"] tr[data-id="${row}"]`).getByTestId("library-remove");
+  await expect(removeIn("library-sections", "s1")).toBeDisabled();
+  await library.getByTestId("library-section-choice").selectOption("I 400x180");
+  await library.getByTestId("library-section-add").click();
+  // I 400x180 from its dimensions: Iy = 22 640 cm⁴ (four significant digits).
+  await expect(cell("library-sections", "s2", "Iy")).toHaveText(/^22\s640$/);
+  await expect(cell("library-sections", "s2", "members")).toHaveText("0");
+  await expect(removeIn("library-sections", "s2")).toBeEnabled();
+  await library.getByTestId("library-material-choice").selectOption("S275");
+  await library.getByTestId("library-material-add").click();
+  await expect(cell("library-materials", "mat2", "fy")).toHaveText("275");
+  await library.screenshot({ path: screenshotPath(testInfo, "smoke-sections") });
+  await removeIn("library-materials", "mat2").click();
+  await expect(library.locator('[data-testid="library-materials"] tbody tr')).toHaveCount(1);
+  await library.getByTestId("library-close").click();
+  await expect(library).toHaveCount(0);
+  // Nothing in the model uses the new section yet: the analysis has the same answer.
+  await expectStatus(page, "analysed");
+  await expect(reactionMy).toHaveText(before);
+
+  // Where the middles of the two columns and of the beam are on screen, in the Front view. A drawing tool
+  // reports the snapped point under the pointer, which places the pointer near each member; with the Select
+  // tool the pointer then moves across the member until the viewport says it is over it.
+  await viewport
+    .getByRole("button", { name: message("workspace.viewport.viewFront"), exact: true })
+    .click();
+  await viewport
+    .getByRole("button", { name: message("workspace.tools.node"), exact: true })
+    .click();
+  const nearC1 = await movePointerTo(page, 0, 2);
+  const nearC2 = await movePointerTo(page, 6, 2);
+  const nearB1 = await movePointerTo(page, 3, 4);
+  const inside = await movePointerTo(page, 3, 2);
+  await viewport
+    .getByRole("button", { name: message("workspace.tools.select"), exact: true })
+    .click();
+  const surface = page.getByTestId("viewport-surface");
+  const over = async (member: string, near: { x: number; y: number }, across: "x" | "y") => {
+    for (let offset = 0; offset <= 60; offset += 2) {
+      for (const sign of offset === 0 ? [1] : [1, -1]) {
+        const at = {
+          x: near.x + (across === "x" ? sign * offset : 0),
+          y: near.y + (across === "y" ? sign * offset : 0),
+        };
+        await page.mouse.move(at.x, at.y);
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+        if ((await surface.getAttribute("data-hover")) === `member:${member}`) {
+          return at;
+        }
+      }
+    }
+    throw new Error(`the pointer did not find member ${member} near ${near.x}, ${near.y}`);
+  };
+  const c1 = await over("c1", nearC1, "x");
+  const c2 = await over("c2", nearC2, "x");
+  const b1 = await over("b1", nearB1, "y");
+  const shiftClick = async (at: { x: number; y: number }) => {
+    await page.keyboard.down("Shift");
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.up("Shift");
+  };
+
+  // A click selects the first column; a Shift-click adds the second.
+  const selection = panel.getByTestId("selection");
+  const section = panel.getByTestId("member-section");
+  await page.mouse.click(c1.x, c1.y);
+  await expect(selection).toHaveAttribute("data-members", "1");
+  await expect(selection).toContainText("c1");
+  await expect(section).toHaveValue("s1");
+  await shiftClick(c2);
+  await expect(selection).toHaveAttribute("data-members", "2");
+  await expect(selection).toHaveAttribute("data-nodes", "0");
+  await expect(panel.getByTestId("selection-count")).toBeVisible();
+  await expect(section).toHaveValue("s1");
+  await expect(section).toHaveAttribute("data-mixed", "false");
+  await expect(panel.getByTestId("member-material")).toHaveValue("mat1");
+  await expect(panel.getByTestId("member-roll")).toHaveValue("0");
+  await expect(panel.getByTestId("member-length")).toHaveText("4");
+  await expect(panel.getByTestId("member-kind")).toHaveText(message("workspace.member.kindFrame"));
+  await expect(panel.getByTestId("member-releases")).toHaveText(
+    message("workspace.member.releasesNone"),
+  );
+  await expect(panel.getByTestId("member-unsupported")).toHaveText(
+    message("workspace.member.unsupported"),
+  );
+  // The fields of a single item are not shown for two.
+  await expect(panel.getByTestId("member-loads")).toHaveCount(0);
+
+  // The two columns get the new section in one step: the model is analysed again, and the moment at the
+  // foot of the first column is another.
+  await section.selectOption("s2");
+  await expect(section).toHaveValue("s2");
+  await expectStatus(page, "analysed");
+  await expect(reactionMy).not.toHaveText(before);
+  const stiffer = (await reactionMy.textContent()) ?? "";
+  expect(numberIn(stiffer, "workspace.loads.valueKNm")).not.toBe(
+    numberIn(before, "workspace.loads.valueKNm"),
+  );
+
+  // "Colour by section" is off on opening; on, the legend names the two sections in use.
+  const colors = viewport.getByTestId("section-colors");
+  await expect(colors).toHaveAttribute("data-on", "false");
+  await expect(colors.getByTestId("section-legend")).toHaveCount(0);
+  await colors.getByTestId("color-by-section").check();
+  await expect(colors).toHaveAttribute("data-on", "true");
+  const entries = colors.getByTestId("section-legend").locator("li");
+  await expect(entries).toHaveCount(2);
+  await expect(entries.nth(0)).toHaveAttribute("data-section", "s1");
+  await expect(entries.nth(1)).toHaveAttribute("data-section", "s2");
+  await expect(entries.nth(1)).toContainText("I 400x180");
+  expect(await entries.nth(0).getAttribute("data-color")).not.toBe(
+    await entries.nth(1).getAttribute("data-color"),
+  );
+  // The picture: the two columns selected, with their fields in the Properties section.
+  await panel.getByTestId("delete-selection").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: screenshotPath(testInfo, "smoke-multi-select") });
+
+  // With the beam added, the sections differ: the field says mixed. A second Shift-click takes it out.
+  await shiftClick(b1);
+  await expect(selection).toHaveAttribute("data-members", "3");
+  await expect(section).toHaveAttribute("data-mixed", "true");
+  await expect(section).toHaveValue("");
+  await expect(section.locator("option:checked")).toHaveText(message("workspace.member.mixed"));
+  await shiftClick(b1);
+  await expect(selection).toHaveAttribute("data-members", "2");
+  await expect(section).toHaveValue("s2");
+
+  // One undo takes the section back from both columns; a redo gives it to both again.
+  await history("undo").click();
+  await expect(section).toHaveValue("s1");
+  await expect(section).toHaveAttribute("data-mixed", "false");
+  await expectStatus(page, "analysed");
+  await expect(reactionMy).toHaveText(before);
+  await history("redo").click();
+  await expect(section).toHaveValue("s2");
+  await expect(reactionMy).toHaveText(stiffer);
+
+  // Delete removes both columns as one undo step.
+  await page.keyboard.press("Delete");
+  await expectCounts(page, 4, 1, 2);
+  await expect(panel.getByTestId("selection-empty")).toBeVisible();
+  await history("undo").click();
+  await expectCounts(page, 4, 3, 2);
+  await expectStatus(page, "analysed");
+
+  // A click on nothing clears a selection of several items.
+  await page.mouse.click(c1.x, c1.y);
+  await shiftClick(c2);
+  await expect(selection).toHaveAttribute("data-members", "2");
+  // While the dialog is open, Delete does not reach the selection behind it, and Escape closes the dialog.
+  await panel.getByTestId("library-open").click();
+  await expect(library).toBeVisible();
+  await library.getByTestId("library-close").focus();
+  await page.keyboard.press("Delete");
+  await expectCounts(page, 4, 3, 2);
+  await page.keyboard.press("Escape");
+  await expect(library).toHaveCount(0);
+  await expect(selection).toHaveAttribute("data-members", "2");
+  await page.mouse.click(inside.x, inside.y);
+  await expect(panel.getByTestId("selection-empty")).toBeVisible();
+  expect(problems).toEqual([]);
 });

@@ -187,6 +187,9 @@ importers:
       '@bridle/solver':
         specifier: workspace:*
         version: link:../../packages/solver
+      '@bridle/tasks':
+        specifier: workspace:*
+        version: link:../../packages/tasks
       '@react-three/drei':
         specifier: 10.7.9
         version: 10.7.9(@react-three/fiber@9.8.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0))(@types/react@19.3.0)(@types/three@0.187.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0)

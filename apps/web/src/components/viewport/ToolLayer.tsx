@@ -29,6 +29,7 @@ import {
 } from "../tools/workPlane";
 import { type CanvasColors, CLICK_SLOP_PX, metresPerPixel, noRaycast } from "./ModelScene";
 import type { Point3 } from "./scene";
+import { singleItem } from "./selection";
 import { useViewportStore } from "./viewportStore";
 
 // Sizes on screen, in CSS pixels.
@@ -80,7 +81,8 @@ function setSegments(line: LineSegments2, positions: number[]) {
  * - Every tool but Select (Node, Member, Support, Load): the cursor follows the pointer (a node within
  *   reach of the pointer, else the snapped point of the work plane); a press and release at most `CLICK_SLOP_PX` apart is a click of the tool, and
  *   a longer one is left to the orbit controls.
- * - Select tool: a press on the selected node (without Shift, Ctrl or the Command key) switches the orbit
+ * - Select tool: a press on the selected node, while nothing else is selected (without Shift, Ctrl or the
+ *   Command key), switches the orbit
  *   controls off until the release; once the pointer has moved more than `CLICK_SLOP_PX`, the node follows
  *   it on the work plane through the node's place, snapped, and the release moves it as one undo step.
  *
@@ -252,7 +254,8 @@ export function ToolLayer({ colors }: { colors: CanvasColors }) {
       }
       press = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, drag: null };
       const tools = useToolStore.getState();
-      const { selection } = useViewportStore.getState();
+      // A node is dragged only while it is the one selected item (card PX-02.6: the selection is a set).
+      const selection = singleItem(useViewportStore.getState().selection);
       if (
         tools.tool !== "select" ||
         selection?.kind !== "node" ||

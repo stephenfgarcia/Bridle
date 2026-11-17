@@ -4,9 +4,11 @@ import { useState } from "react";
 import { formatCoordinate, parseCoordinate } from "./workPlane";
 
 /**
- * A text field for one number (a coordinate in m). It shows `value` until the person types; what was typed is
- * applied on Enter and on leaving the field, through `onCommit`, when it is a finite number other than
- * `value`; otherwise the field goes back to `value`. Escape drops what was typed.
+ * A text field for one number (a coordinate in m, a load value, an angle). It shows `value` until the person
+ * types; what was typed is applied on Enter and on leaving the field, through `onCommit`, when it is a finite
+ * number other than `value`; otherwise the field goes back to `value`. Escape drops what was typed. With
+ * `value` `null` (several members with different values, card PX-02.6) the field is empty and shows
+ * `placeholder`; a number typed in it is applied.
  */
 export function NumberField({
   value,
@@ -14,14 +16,17 @@ export function NumberField({
   id,
   className,
   label,
+  placeholder,
   testId,
 }: {
-  value: number;
+  value: number | null;
   onCommit: (value: number) => void;
   id?: string;
   className?: string;
   /** The accessible name, for a field without a `<label>`. */
   label?: string;
+  /** What the empty field shows. */
+  placeholder?: string;
   testId?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -54,8 +59,9 @@ export function NumberField({
           setDraft(null);
         }
       }}
+      placeholder={placeholder}
       type="text"
-      value={draft ?? formatCoordinate(value)}
+      value={draft ?? (value === null ? "" : formatCoordinate(value))}
     />
   );
 }

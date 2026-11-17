@@ -5,6 +5,7 @@ import type { Model } from "@bridle/model";
 import { t } from "../../i18n";
 import { useToolStore } from "../tools/toolStore";
 import { activeLoadCaseId } from "../viewport/loads";
+import { singleItem } from "../viewport/selection";
 import { useViewportStore } from "../viewport/viewportStore";
 import panelStyles from "../workspace/Panels.module.css";
 import workspaceStyles from "../workspace/WorkspaceView.module.css";
@@ -65,14 +66,17 @@ function Cells({ cells }: { cells: ResultCell<Component>[] }) {
 /**
  * The Results section of the side panel (card PX-02.8), for the active load case: the reactions at every
  * support with the sums of their forces, the displacement of the selected node, and the end forces of the
- * selected member. It renders nothing while there is no result to show beside `model` (`shownResults`:
+ * selected member (when exactly one item is selected; else a line that says what to select). It renders nothing while there is no result to show beside `model` (`shownResults`:
  * results of an earlier model are shown only while the answer for `model` is awaited, and then marked as
  * stale).
  */
 export function ResultsPanel({ model }: { model: Model }) {
   const analysis = useAnalysisStore((state) => state.analysis);
   const chosenLoadCase = useToolStore((state) => state.loadCaseId);
-  const selection = useViewportStore((state) => state.selection);
+  const selected = useViewportStore((state) => state.selection);
+  // The displacement and the end forces are those of the one selected item; with several items selected the
+  // section shows the reactions and says to select one (card PX-02.6).
+  const selection = singleItem(selected);
   const shown = shownResults(analysis, model);
   if (shown === null) {
     return null;
@@ -182,7 +186,11 @@ export function ResultsPanel({ model }: { model: Model }) {
             </div>
           ) : null}
           {nodeId === null && memberId === null ? (
-            <p className={panelStyles.help}>{t("workspace.results.selectHint")}</p>
+            <p className={panelStyles.help} data-testid="results-hint">
+              {selected.length > 1
+                ? t("workspace.results.selectOne")
+                : t("workspace.results.selectHint")}
+            </p>
           ) : null}
         </div>
       )}

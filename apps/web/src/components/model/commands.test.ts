@@ -18,6 +18,7 @@ import {
   addNodalLoad,
   addNode,
   addSection,
+  deleteItems,
   deleteMember,
   deleteNode,
   moveNode,
@@ -30,14 +31,17 @@ import {
   nextNodalLoadId,
   nextNodeId,
   nextSectionId,
+  removeMaterial,
   removeMemberPointLoad,
   removeMemberUniformLoad,
   removeNodalLoad,
+  removeSection,
   removeSupport,
   replaceModel,
   setSupport,
   updateMember,
   updateMemberPointLoad,
+  updateMembers,
   updateMemberUniformLoad,
   updateNodalLoad,
 } from "./commands";
@@ -719,5 +723,108 @@ describe("the whole model", () => {
     expect(model.memberUniformLoads[0]?.id).toBe("ul1");
     expect(model.memberPointLoads[0]?.id).toBe("pl1");
     expect(model.nodalLoads[0]).toMatchObject({ id: "nl1", loadCaseId: "lc1" });
+  });
+});
+
+// Card PX-02.6: several members or items at once, and the removal of a section or a material.
+describe("several members at once", () => {
+  it("updateMembers changes every member named, as one model", () => {
+    const before = frozen(addSection(portalFrame(), SECTION));
+    const after = updateMembers(before, { ids: ["c1", "c2"], sectionId: "s2", rollAngleDeg: 90 });
+    expectChanged(before, after, ["members"]);
+    expect(
+      after.members.map((member) => [member.id, member.sectionId, member.rollAngleDeg]),
+    ).toEqual([
+      ["c1", "s2", 90],
+      ["b1", "s1", 0],
+      ["c2", "s2", 90],
+    ]);
+    // The member that was not named is the same object.
+    expect(after.members[1]).toBe(before.members[1]);
+  });
+
+  it("updateMembers skips an id that is not a member and returns the model when nothing changes", () => {
+    const before = frozen(addSection(portalFrame(), SECTION));
+    const after = updateMembers(before, { ids: ["gone", "b1"], sectionId: "s2" });
+    expect(after.members.map((member) => member.sectionId)).toEqual(["s1", "s2", "s1"]);
+    expect(updateMembers(before, { ids: ["c1", "c2"], sectionId: "s1" })).toBe(before);
+    expect(updateMembers(before, { ids: [], sectionId: "s2" })).toBe(before);
+    expect(updateMembers(before, { ids: ["gone"], sectionId: "s2" })).toBe(before);
+  });
+
+  it("updateMembers refuses a value updateMember refuses, for every member", () => {
+    const before = frozen(portalFrame());
+    expect(updateMembers(before, { ids: ["c1", "c2"], sectionId: "s9" })).toBe(before);
+    expect(updateMembers(before, { ids: ["c1", "c2"], materialId: "mat9" })).toBe(before);
+    expect(updateMembers(before, { ids: ["c1"], rollAngleDeg: Number.NaN })).toBe(before);
+    // A valid part beside an invalid one is not applied either.
+    expect(updateMembers(before, { ids: ["c1"], rollAngleDeg: 30, sectionId: "s9" })).toBe(before);
+  });
+
+  it("deleteItems removes the members and the nodes named, with what depends on them", () => {
+    const before = frozen(portalFrame());
+    const after = deleteItems(before, { nodeIds: ["n4"], memberIds: ["b1"] });
+    expect(after.members.map((member) => member.id)).toEqual(["c1"]);
+    expect(after.nodes.map((node) => node.id)).toEqual(["n1", "n2", "n3"]);
+    expect(after.supports.map((support) => support.nodeId)).toEqual(["n1"]);
+    // The load on n2 stays; nothing is left that names a deleted item.
+    expect(after.nodalLoads).toBe(before.nodalLoads);
+    expect(validateModel(after)).toEqual([]);
+  });
+
+  it("deleteItems skips what the model does not hold, also a member its node took with it", () => {
+    const before = frozen(portalFrame());
+    // c1 goes with n1: deleting both is the same as deleting n1.
+    expect(deleteItems(before, { nodeIds: ["n1"], memberIds: ["c1"] })).toEqual(
+      deleteNode(before, { id: "n1" }),
+    );
+    expect(deleteItems(before, { nodeIds: ["gone"], memberIds: ["gone"] })).toBe(before);
+    expect(deleteItems(before, { nodeIds: [], memberIds: [] })).toBe(before);
+  });
+});
+
+describe("removing a section or a material", () => {
+  it("removeSection removes a section no member uses", () => {
+    const before = frozen(addSection(portalFrame(), SECTION));
+    const after = removeSection(before, { id: "s2" });
+    expectChanged(before, after, ["sections"]);
+    expect(after.sections.map((section) => section.id)).toEqual(["s1"]);
+  });
+
+  it("removeSection refuses a section a member uses and an id that is not a section", () => {
+    const before = frozen(addSection(portalFrame(), SECTION));
+    expect(removeSection(before, { id: "s1" })).toBe(before);
+    expect(removeSection(before, { id: "s9" })).toBe(before);
+    // Once no member uses it, it can go.
+    const moved = updateMembers(before, { ids: ["c1", "b1", "c2"], sectionId: "s2" });
+    expect(removeSection(moved, { id: "s1" }).sections.map((section) => section.id)).toEqual([
+      "s2",
+    ]);
+    // One member that still uses it is enough to refuse.
+    const partly = updateMembers(before, { ids: ["c1", "b1"], sectionId: "s2" });
+    expect(removeSection(partly, { id: "s1" })).toBe(partly);
+  });
+
+  it("removeMaterial removes a material no member uses", () => {
+    const before = frozen(addMaterial(portalFrame(), MATERIAL));
+    const after = removeMaterial(before, { id: "mat2" });
+    expectChanged(before, after, ["materials"]);
+    expect(after.materials.map((material) => material.id)).toEqual(["mat1"]);
+  });
+
+  it("removeMaterial refuses a material a member uses and an id that is not a material", () => {
+    const before = frozen(addMaterial(portalFrame(), MATERIAL));
+    expect(removeMaterial(before, { id: "mat1" })).toBe(before);
+    expect(removeMaterial(before, { id: "mat9" })).toBe(before);
+    const moved = updateMembers(before, { ids: ["c1", "b1", "c2"], materialId: "mat2" });
+    expect(removeMaterial(moved, { id: "mat1" }).materials.map((material) => material.id)).toEqual([
+      "mat2",
+    ]);
+  });
+
+  it("the only section of a model without members can be removed", () => {
+    const before = frozen({ ...portalFrame(), members: [] });
+    expect(removeSection(before, { id: "s1" }).sections).toEqual([]);
+    expect(removeMaterial(before, { id: "mat1" }).materials).toEqual([]);
   });
 });

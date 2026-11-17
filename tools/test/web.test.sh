@@ -8,6 +8,8 @@
 # Card PX-02.4 (the node and member tools) moved fixture F again and the count of smoke tests to 6.
 # Card PX-02.5 (the support and load tools) moved fixture F again and the count of smoke tests to 7.
 # Card PX-02.8 (the live analysis) moved fixture F again and the count of smoke tests to 9.
+# Card PX-02.6 (the property panel) moved fixture F again and the count of smoke tests to 10, and added the
+# dependency on @bridle/tasks, which the case `shell` accepts as `workspace:*`.
 #   app    AC1  the files of apps/web a clone holds are exactly fixture F; next is 15.x and react, react-dom 19.x in
 #               apps/web/package.json and as installed (`pnpm ls --filter web --depth 0 --json`); src/app exists and
 #               there is no `pages` directory (the App Router); tsconfig.json extends the base, the base is strict
@@ -26,14 +28,14 @@
 #   smoke  AC2  playwright.config.ts (at the root, the only one) and e2e/smoke.spec.ts exist; the `e2e:smoke` script
 #               is `playwright test`; devDependencies["@playwright/test"] equals tools.playwright.version of
 #               tools/toolchain.json and `pnpm exec playwright --version` prints it; `playwright test --list` ends
-#               `Total: 9 tests in 1 file` with nine test lines, each `[chromium]`; the config names no firefox or
+#               `Total: 10 tests in 1 file` with ten test lines, each `[chromium]`; the config names no firefox or
 #               webkit and one project; the spec requests /api/v1/health and navigates to / (ruling 7) and to /workspace; it reads
 #               its strings from packages/i18n/messages by NEXT_PUBLIC_LOCALE and holds no copy of fixture N, and
 #               `home.notice` of packages/i18n/messages/en.json equals fixture N (card P0-02.6). Against
 #               the running dev server, screenshot removed: `PORT=<its port> pnpm e2e:smoke` exits 0 with
-#               `9 passed`, the same pid still listens (the reuse path), the PNG exists (signature 89 50 4e 47,
+#               `10 passed`, the same pid still listens (the reuse path), the PNG exists (signature 89 50 4e 47,
 #               over 1,000 bytes), `git check-ignore` accepts it and .bridle/playwright/. Server stopped,
-#               screenshot removed: `PORT=<another free port> pnpm e2e:smoke` exits 0 with `9 passed` (the start
+#               screenshot removed: `PORT=<another free port> pnpm e2e:smoke` exits 0 with `10 passed` (the start
 #               path), the PNG exists, nothing listens on that port afterwards. A dev server started with
 #               GIT_SHA=feedbee answers `{"ok":true,"sha":"feedbee"}`, and the smoke run without that variable
 #               exits non-zero against it, naming feedbee (the sha is asserted, not echoed). The tree is as it was
@@ -121,6 +123,8 @@ apps/web/src/components/model/modelStore.test.ts
 apps/web/src/components/model/modelStore.ts
 apps/web/src/components/model/shortcuts.test.ts
 apps/web/src/components/model/shortcuts.ts
+apps/web/src/components/model/units.test.ts
+apps/web/src/components/model/units.ts
 apps/web/src/components/shell/NavLinks.tsx
 apps/web/src/components/shell/TopBar.module.css
 apps/web/src/components/shell/TopBar.tsx
@@ -142,6 +146,7 @@ apps/web/src/components/tools/workPlane.test.ts
 apps/web/src/components/tools/workPlane.ts
 apps/web/src/components/viewport/LoadGlyphs.tsx
 apps/web/src/components/viewport/ModelScene.tsx
+apps/web/src/components/viewport/SectionLegend.tsx
 apps/web/src/components/viewport/ToolLayer.tsx
 apps/web/src/components/viewport/Viewport.module.css
 apps/web/src/components/viewport/Viewport.tsx
@@ -151,14 +156,25 @@ apps/web/src/components/viewport/loads.test.ts
 apps/web/src/components/viewport/loads.ts
 apps/web/src/components/viewport/scene.test.ts
 apps/web/src/components/viewport/scene.ts
+apps/web/src/components/viewport/sectionColors.test.ts
+apps/web/src/components/viewport/sectionColors.ts
+apps/web/src/components/viewport/selection.test.ts
+apps/web/src/components/viewport/selection.ts
 apps/web/src/components/viewport/viewportStore.ts
 apps/web/src/components/workspace/HistoryControls.tsx
+apps/web/src/components/workspace/Library.module.css
+apps/web/src/components/workspace/LibraryDialog.tsx
 apps/web/src/components/workspace/LoadPanels.tsx
+apps/web/src/components/workspace/MemberProperties.tsx
 apps/web/src/components/workspace/Panels.module.css
 apps/web/src/components/workspace/SidePanel.tsx
 apps/web/src/components/workspace/SupportPanels.tsx
 apps/web/src/components/workspace/WorkspaceView.module.css
 apps/web/src/components/workspace/WorkspaceView.tsx
+apps/web/src/components/workspace/library.test.ts
+apps/web/src/components/workspace/library.ts
+apps/web/src/components/workspace/memberSummary.test.ts
+apps/web/src/components/workspace/memberSummary.ts
 apps/web/src/css.d.ts
 apps/web/src/i18n.ts
 apps/web/src/sha.ts
@@ -480,10 +496,10 @@ run_in "$ROOT" pnpm exec playwright --version
 run_in "$ROOT" pnpm exec playwright test --list
 [ "$RC" -eq 0 ] || fail "pnpm exec playwright test --list: exit $RC" "$OUT"
 last="$(printf '%s\n' "$OUT" | grep -v '^ *$' | tail -n 1)"
-[ "$last" = "Total: 9 tests in 1 file" ] || fail "playwright test --list ends '$last', expected 'Total: 9 tests in 1 file'" "$OUT"
+[ "$last" = "Total: 10 tests in 1 file" ] || fail "playwright test --list ends '$last', expected 'Total: 10 tests in 1 file'" "$OUT"
 ntests="$(printf '%s\n' "$OUT" | grep -c ' › ' || true)"
 nchromium="$(printf '%s\n' "$OUT" | grep -c -E '^ *\[chromium\] › ' || true)"
-[ "$ntests" -eq 9 ] && [ "$nchromium" -eq 9 ] \
+[ "$ntests" -eq 10 ] && [ "$nchromium" -eq 10 ] \
   || fail "playwright test --list: $ntests test lines, $nchromium of them [chromium]; expected 7 and 7" "$OUT"
 grep -i -E 'firefox|webkit' "$CFG" > "$tmp/browsers" && fail "playwright.config.ts names firefox or webkit; the Chromium project only" "$(cat "$tmp/browsers")"
 nproj="$(grep -o -E 'name: *["'"'"'][^"'"'"']*["'"'"']' "$CFG" | grep -c . || true)"
@@ -502,7 +518,7 @@ grep -q -F -- "$NOTICE" "$SPEC" && fail "e2e/smoke.spec.ts holds a copy of the n
 CATALOG="$ROOT/packages/i18n/messages/en.json"
 [ -f "$CATALOG" ] || fail "packages/i18n/messages/en.json does not exist"
 [ "$(json "$CATALOG" 'j["home.notice"]')" = "$NOTICE" ] || fail "home.notice of packages/i18n/messages/en.json is not fixture N"
-echo "# playwright.config.ts at the root, e2e/smoke.spec.ts; @playwright/test $pw_dep = the pin, 'Version $PW_PIN'; --list: 9 tests, all [chromium], '$last'; one project; the spec gets /api/v1/health and goes to / and /workspace, reads its strings from packages/i18n/messages; home.notice of en.json = fixture N"
+echo "# playwright.config.ts at the root, e2e/smoke.spec.ts; @playwright/test $pw_dep = the pin, 'Version $PW_PIN'; --list: 10 tests, all [chromium], '$last'; one project; the spec gets /api/v1/health and goes to / and /workspace, reads its strings from packages/i18n/messages; home.notice of en.json = fixture N"
 
 STATE="$(tree_state)" || fail "cannot read the state of the tree"
 # The reuse path: against the dev server that is already running.
@@ -512,13 +528,13 @@ t0="$(date +%s)"
 run_in "$ROOT" env PORT="$DEV_PORT" pnpm e2e:smoke
 t1="$(date +%s)"
 [ "$RC" -eq 0 ] || fail "PORT=$DEV_PORT pnpm e2e:smoke against the running dev server: exit $RC" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +9 passed' || fail "the smoke against the running dev server did not print '9 passed'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +10 passed' || fail "the smoke against the running dev server did not print '10 passed'" "$OUT"
 [ "$(listeners "$DEV_PORT" | sed -n '1p')" = "$DEV_LISTENER" ] \
   || fail "after the smoke, pid $DEV_LISTENER no longer listens on $DEV_PORT: the running server was not reused, or was stopped" "$OUT"
 png_ok "the reuse path"
 (cd "$ROOT" && git check-ignore -q .bridle/screenshots/smoke-home.png) || fail ".bridle/screenshots/smoke-home.png is not gitignored"
 (cd "$ROOT" && git check-ignore -q .bridle/playwright/) || fail ".bridle/playwright/ is not gitignored"
-echo "# reuse path: PORT=$DEV_PORT pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +9 passed' | sed 's/^ *//')', pid $DEV_LISTENER still listening; PNG $PNG_BYTES bytes, gitignored with .bridle/playwright/"
+echo "# reuse path: PORT=$DEV_PORT pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +10 passed' | sed 's/^ *//')', pid $DEV_LISTENER still listening; PNG $PNG_BYTES bytes, gitignored with .bridle/playwright/"
 stop_dev
 
 # The start path: Playwright starts the server itself and stops it.
@@ -529,7 +545,7 @@ t0="$(date +%s)"
 run_in "$ROOT" env PORT="$P2" pnpm e2e:smoke
 t1="$(date +%s)"
 [ "$RC" -eq 0 ] || fail "PORT=$P2 pnpm e2e:smoke with no server running: exit $RC" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +9 passed' || fail "the smoke that starts its own server did not print '9 passed'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +10 passed' || fail "the smoke that starts its own server did not print '10 passed'" "$OUT"
 png_ok "the start path"
 i=0
 while [ -n "$(listeners "$P2")" ]; do
@@ -537,7 +553,7 @@ while [ -n "$(listeners "$P2")" ]; do
   [ "$i" -lt 10 ] || fail "5 s after the smoke, something still listens on port $P2 (pid $(listeners "$P2" | tr '\n' ' ')): Playwright left its server running" "$OUT"
   sleep 0.5
 done
-echo "# start path: PORT=$P2 pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +9 passed' | sed 's/^ *//')'; PNG $PNG_BYTES bytes; nothing listens on $P2 afterwards"
+echo "# start path: PORT=$P2 pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +10 passed' | sed 's/^ *//')'; PNG $PNG_BYTES bytes; nothing listens on $P2 afterwards"
 
 # The sha is asserted, not echoed: a server that reports another sha fails the smoke.
 P3="$(free_port)" || fail "node gave no free loopback port"
@@ -547,7 +563,7 @@ body="$(cat "$tmp/b")"
 [ "$body" = '{"ok":true,"sha":"feedbee"}' ] || fail "a dev server started with GIT_SHA=feedbee answers '$body', fixture H says {\"ok\":true,\"sha\":\"feedbee\"}"
 run_in "$ROOT" env PORT="$P3" pnpm e2e:smoke
 [ "$RC" -ne 0 ] || fail "PORT=$P3 pnpm e2e:smoke exits 0 against a server that reports sha feedbee: the sha is echoed, not asserted" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +9 passed' && fail "the smoke printed '9 passed' against a server that reports sha feedbee" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +10 passed' && fail "the smoke printed '10 passed' against a server that reports sha feedbee" "$OUT"
 printf '%s\n' "$OUT" | grep -q -F 'feedbee' || fail "the failed smoke does not name the sha it received (feedbee): it failed for another reason" "$OUT"
 NEG_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +[0-9]+ failed' | sed -n '1p' | sed 's/^ *//')"
 stop_dev

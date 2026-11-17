@@ -4,6 +4,7 @@
 import { portalFrame } from "@bridle/model";
 import { beforeEach, describe, expect, it } from "vitest";
 import { selectCanRedo, selectCanUndo, selectModel, useModelStore } from "../model/modelStore";
+import { singleItem } from "../viewport/selection";
 import { useViewportStore } from "../viewport/viewportStore";
 import { NEW_MODEL_SOURCE, newModel } from "./newModel";
 import { DEFAULT_LOAD_FORM, DEFAULT_SUPPORT_CHOICE } from "./supportLoadTools";
@@ -12,6 +13,7 @@ import {
   chooseTool,
   deleteSelection,
   editLoad,
+  editProperties,
   escapeTool,
   hasChanges,
   loadModel,
@@ -32,14 +34,15 @@ const at = (x: number, y: number, z: number, nodeId: string | null = null): Tool
 });
 const model = () => selectModel(useModelStore.getState());
 const tools = () => useToolStore.getState();
-const selection = () => useViewportStore.getState().selection;
+// The one selected item, as these tests select one at a time (`null` for none or several).
+const selection = () => singleItem(useViewportStore.getState().selection);
 const counts = () => [model().nodes.length, model().members.length];
 /** How many undo steps the model store holds. */
 const steps = () => useModelStore.getState().history.past.length;
 
 beforeEach(() => {
   useModelStore.getState().replaceModel(portalFrame(), "portal");
-  useViewportStore.setState({ hover: null, selection: null });
+  useViewportStore.setState({ hover: null, selection: [] });
   useToolStore.setState({
     tool: DEFAULT_TOOL,
     plane: DEFAULT_WORK_PLANE,
@@ -245,6 +248,62 @@ describe("deleteSelection", () => {
     expect(deleteSelection()).toBe(false);
     expect(counts()).toEqual([4, 3]);
     expect(steps()).toBe(0);
+  });
+
+  it("removes every selected node and member as one undo step (card PX-02.6)", () => {
+    const viewport = useViewportStore.getState();
+    viewport.select({ kind: "member", id: "b1" });
+    viewport.toggle({ kind: "node", id: "n4" });
+    viewport.toggle({ kind: "member", id: "c2" });
+    expect(useViewportStore.getState().selection).toHaveLength(3);
+    expect(deleteSelection()).toBe(true);
+    // b1 and c2 are gone, and n4 with its support; c1 and the other three nodes stay.
+    expect(counts()).toEqual([3, 1]);
+    expect(model().supports.map((support) => support.nodeId)).toEqual(["n1"]);
+    expect(useViewportStore.getState().selection).toEqual([]);
+    expect(steps()).toBe(1);
+    useModelStore.getState().undo();
+    expect(model()).toEqual(portalFrame());
+  });
+
+  it("keeps the selection when none of the selected items is in the model", () => {
+    const viewport = useViewportStore.getState();
+    viewport.select({ kind: "node", id: "gone" });
+    viewport.toggle({ kind: "member", id: "gone" });
+    expect(deleteSelection()).toBe(false);
+    expect(useViewportStore.getState().selection).toHaveLength(2);
+    expect(steps()).toBe(0);
+  });
+});
+
+describe("editProperties (card PX-02.6)", () => {
+  const BOX = { name: "Box", A: 1e-2, Iy: 1e-4, Iz: 1e-4, J: 1e-4, depthY: 0.2, depthZ: 0.2 };
+
+  it("changes the section of several members as one undo step", () => {
+    expect(editProperties((store) => store.addSection(BOX))).toBe(true);
+    expect(
+      editProperties((store) => store.updateMembers({ ids: ["c1", "c2"], sectionId: "s2" })),
+    ).toBe(true);
+    expect(model().members.map((member) => member.sectionId)).toEqual(["s2", "s1", "s2"]);
+    expect(tools().notice).toBeNull();
+    expect(steps()).toBe(2);
+    useModelStore.getState().undo();
+    expect(model().members.map((member) => member.sectionId)).toEqual(["s1", "s1", "s1"]);
+  });
+
+  it("leaves the notice `refused` when the store refuses, and clears it on the next change", () => {
+    expect(editProperties((store) => store.removeSection({ id: "s1" }))).toBe(false);
+    expect(tools().notice).toBe("refused");
+    expect(steps()).toBe(0);
+    expect(editProperties((store) => store.removeMaterial({ id: "mat1" }))).toBe(false);
+    expect(editProperties((store) => store.updateMembers({ ids: ["c1"], sectionId: "s9" }))).toBe(
+      false,
+    );
+    expect(tools().notice).toBe("refused");
+    expect(editProperties((store) => store.addSection(BOX))).toBe(true);
+    expect(tools().notice).toBeNull();
+    expect(editProperties((store) => store.removeSection({ id: "s2" }))).toBe(true);
+    expect(model().sections.map((section) => section.id)).toEqual(["s1"]);
   });
 });
 

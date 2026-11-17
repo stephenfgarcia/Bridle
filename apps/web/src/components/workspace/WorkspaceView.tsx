@@ -35,7 +35,8 @@ function isFixtureId(value: string): value is FixtureId {
  * The two areas of the workspace: the viewport of the model in the model store, with the Undo and Redo buttons,
  * and the side panel about it. While it is mounted, the undo and redo shortcuts act on the store (Ctrl or Cmd
  * with Z; Ctrl or Cmd with Shift and Z, or Ctrl with Y), except when the key is pressed in a text field, and so
- * do the keys of the tools (../tools/toolKeys.ts: V, N, M, Escape, Delete and Backspace). While it is mounted
+ * do the keys of the tools (../tools/toolKeys.ts: V, N, M, S, L, Escape, Delete and Backspace), except while
+ * a dialog is open. While it is mounted
  * the model is analysed as it changes (../analysis/LiveAnalysis.tsx, card PX-02.8); the side panel shows the
  * status of that analysis and its results.
  */
@@ -47,6 +48,11 @@ export function WorkspaceView() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (handleHistoryKey(event, useModelStore.getState())) {
+        return;
+      }
+      // While a dialog is open over the workspace ("Sections and materials"), the keys of the tools are its
+      // own: Delete does not delete the selection behind it, and Escape closes it.
+      if (document.querySelector("dialog[open]") !== null) {
         return;
       }
       const action = toolKeyAction(event);

@@ -7,6 +7,7 @@ import {
   BoxGeometry,
   BufferGeometry,
   type Camera,
+  Color,
   ConeGeometry,
   CylinderGeometry,
   DoubleSide,
@@ -33,6 +34,7 @@ import {
   type SceneDescription,
   type SupportGlyph,
 } from "./scene";
+import { type ItemRef, selectedIds } from "./selection";
 import { useViewportStore } from "./viewportStore";
 
 /** The colours of the canvas, read from the `--canvas-*` custom properties (ViewportCanvas.tsx). */
@@ -49,11 +51,15 @@ export interface CanvasColors {
   hover: string;
   /** The arrows of the loads (./LoadGlyphs.tsx). */
   load: string;
+  /** The colours of "Colour by section", in the order of `SECTION_COLOR_TOKENS` (./sectionColors.ts). */
+  sections: string[];
 }
 
 // Sizes on screen, in CSS pixels. Members are drawn as lines of a fixed width; node markers and support glyphs
 // are rescaled on every drawn frame so that they keep these sizes at any zoom.
 const MEMBER_PX = 2.5;
+// Members coloured by section are drawn a little wider, so that the colour of a thin line can be told.
+const MEMBER_COLORED_PX = 3.5;
 const MEMBER_HIGHLIGHT_PX = 5;
 const NODE_PX = 10;
 const NODE_HIGHLIGHT_PX = 15;
@@ -96,6 +102,16 @@ export function metresPerPixel(camera: Camera, viewportHeight: number, point: Po
 /** The pointer handlers of the nodes and the members select and highlight with the Select tool only. */
 function selecting(): boolean {
   return useToolStore.getState().tool === "select";
+}
+
+/** A click on a node or a member: with Shift it is added to or taken out of the selection, else it replaces it. */
+function clickItem(item: ItemRef, shift: boolean) {
+  const { select, toggle } = useViewportStore.getState();
+  if (shift) {
+    toggle(item);
+  } else {
+    select(item);
+  }
 }
 
 function clearHover(kind: "node" | "member") {
@@ -195,13 +211,35 @@ function MemberHighlight({ member, color }: { member: DrawnMember; color: string
   );
 }
 
-/** Every member in one set of line segments (one draw call); the hovered and the selected one are drawn over it. */
-function Members({ members, colors }: { members: DrawnMember[]; colors: CanvasColors }) {
+/**
+ * Every member in one set of line segments (one draw call); the hovered and the selected ones are drawn over
+ * it. `memberColors`, when given, holds the colour of each member in the order of `members` ("Colour by
+ * section"); without it every member has the colour `colors.member`.
+ */
+function Members({
+  members,
+  colors,
+  memberColors,
+}: {
+  members: DrawnMember[];
+  colors: CanvasColors;
+  memberColors: string[] | null;
+}) {
   const hover = useViewportStore((state) => state.hover);
   const selection = useViewportStore((state) => state.selection);
   const points = useMemo(
     () => members.flatMap((member) => [mutable(member.start), mutable(member.end)]),
     [members],
+  );
+  // One colour per end of a segment; `undefined` draws every segment in the material's colour.
+  const vertexColors = useMemo(
+    () =>
+      memberColors?.flatMap((hex) => {
+        const [r, g, b] = new Color(hex).toArray();
+        const rgb: [number, number, number] = [r ?? 0, g ?? 0, b ?? 0];
+        return [rgb, rgb];
+      }),
+    [memberColors],
   );
   if (members.length === 0) {
     return null;
@@ -209,22 +247,26 @@ function Members({ members, colors }: { members: DrawnMember[]; colors: CanvasCo
   // The index of the segment under the pointer is the index of its member.
   const memberAt = (event: ThreeEvent<MouseEvent>) =>
     typeof event.faceIndex === "number" ? members[event.faceIndex] : undefined;
-  const find = (id: string | undefined) => members.find((member) => member.id === id);
-  const selected = selection?.kind === "member" ? find(selection.id) : undefined;
+  const selectedMemberIds = new Set(selectedIds(selection, "member"));
+  const selected = members.filter((member) => selectedMemberIds.has(member.id));
   const hovered =
-    hover?.kind === "member" && hover.id !== selected?.id ? find(hover.id) : undefined;
+    hover?.kind === "member" && !selectedMemberIds.has(hover.id)
+      ? members.find((member) => member.id === hover.id)
+      : undefined;
   return (
     <>
       <Line
-        color={colors.member}
-        lineWidth={MEMBER_PX}
+        color={vertexColors ? "#ffffff" : colors.member}
+        // A line with a colour per vertex is another material program: the two are separate objects.
+        key={vertexColors ? "by-section" : "plain"}
+        lineWidth={vertexColors ? MEMBER_COLORED_PX : MEMBER_PX}
         onClick={(event) => {
           const member = memberAt(event);
           if (member === undefined || event.delta > CLICK_SLOP_PX || !selecting()) {
             return;
           }
           event.stopPropagation();
-          useViewportStore.getState().select({ kind: "member", id: member.id });
+          clickItem({ kind: "member", id: member.id }, event.shiftKey);
         }}
         onPointerMove={(event) => {
           const member = memberAt(event);
@@ -237,9 +279,12 @@ function Members({ members, colors }: { members: DrawnMember[]; colors: CanvasCo
         onPointerOut={() => clearHover("member")}
         points={points}
         segments
+        vertexColors={vertexColors}
       />
       {hovered ? <MemberHighlight color={colors.hover} member={hovered} /> : null}
-      {selected ? <MemberHighlight color={colors.selection} member={selected} /> : null}
+      {selected.map((member) => (
+        <MemberHighlight color={colors.selection} key={member.id} member={member} />
+      ))}
     </>
   );
 }
@@ -287,9 +332,12 @@ function Nodes({ nodes, colors }: { nodes: DrawnNode[]; colors: CanvasColors }) 
   }
   const nodeAt = (event: ThreeEvent<MouseEvent>) =>
     typeof event.instanceId === "number" ? nodes[event.instanceId] : undefined;
-  const find = (id: string | undefined) => nodes.find((node) => node.id === id);
-  const selected = selection?.kind === "node" ? find(selection.id) : undefined;
-  const hovered = hover?.kind === "node" && hover.id !== selected?.id ? find(hover.id) : undefined;
+  const selectedNodeIds = new Set(selectedIds(selection, "node"));
+  const selected = nodes.filter((node) => selectedNodeIds.has(node.id));
+  const hovered =
+    hover?.kind === "node" && !selectedNodeIds.has(hover.id)
+      ? nodes.find((node) => node.id === hover.id)
+      : undefined;
   return (
     <>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: a three.js object in the canvas, not an HTML element */}
@@ -302,7 +350,7 @@ function Nodes({ nodes, colors }: { nodes: DrawnNode[]; colors: CanvasColors }) 
             return;
           }
           event.stopPropagation();
-          useViewportStore.getState().select({ kind: "node", id: node.id });
+          clickItem({ kind: "node", id: node.id }, event.shiftKey);
         }}
         onPointerMove={(event) => {
           const node = nodeAt(event);
@@ -320,7 +368,9 @@ function Nodes({ nodes, colors }: { nodes: DrawnNode[]; colors: CanvasColors }) 
         <meshBasicMaterial color={colors.node} />
       </instancedMesh>
       {hovered ? <NodeHighlight color={colors.hover} node={hovered} /> : null}
-      {selected ? <NodeHighlight color={colors.selection} node={selected} /> : null}
+      {selected.map((node) => (
+        <NodeHighlight color={colors.selection} key={node.id} node={node} />
+      ))}
     </>
   );
 }
@@ -504,23 +554,26 @@ function Supports({ supports, colors }: { supports: DrawnSupport[]; colors: Canv
 
 /**
  * The ground grid, the work plane, the members, the nodes and the supports of one scene description. Rendered
- * inside the canvas.
+ * inside the canvas. `memberColors` is the colour of each member of `scene.members`, in that order, or `null`
+ * for the plain member colour.
  */
 export function ModelScene({
   scene,
   workPlane,
   colors,
+  memberColors = null,
 }: {
   scene: SceneDescription;
   workPlane: WorkPlaneGrid;
   colors: CanvasColors;
+  memberColors?: string[] | null;
 }) {
   return (
     <>
       <Grid colors={colors} grid={scene.grid} />
       <WorkPlane color={colors.selection} grid={workPlane} />
       <Supports colors={colors} supports={scene.supports} />
-      <Members colors={colors} members={scene.members} />
+      <Members colors={colors} memberColors={memberColors} members={scene.members} />
       <Nodes colors={colors} nodes={scene.nodes} />
     </>
   );

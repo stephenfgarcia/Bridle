@@ -141,3 +141,78 @@
 .loadLabelLifted .loadLabelText {
   transform: translateY(calc(-1 * var(--space-5)));
 }
+
+/* "Colour by section" and its legend (SectionLegend.tsx), under the Undo and Redo buttons. */
+.legend {
+  position: absolute;
+  top: calc(var(--space-3) + var(--density-control-h) + var(--space-2));
+  right: var(--space-3);
+  z-index: var(--z-hud);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: calc(var(--space-16) * 3 + var(--space-8));
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-1) solid var(--canvas-hud-border);
+  border-radius: var(--radius-md);
+  background: var(--canvas-hud-bg);
+  color: var(--fg-primary);
+  font-size: var(--text-xs);
+}
+
+.legendToggle {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--size-target-min);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.legendToggle input {
+  margin: 0;
+  accent-color: var(--accent-bg);
+}
+
+.legendList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0 0 var(--space-1);
+  list-style: none;
+}
+
+.legendEntry {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* The colour of a section as a short piece of line; without a colour of its own, the plain member colour. */
+.legendSwatch {
+  flex: none;
+  width: var(--space-5);
+  height: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--canvas-member);
+}
+
+.legendName {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.legendCount {
+  color: var(--fg-secondary);
+  font-feature-settings: var(--numeric-features);
+  white-space: nowrap;
+}
+
+.legendEmpty {
+  margin: 0;
+  padding-bottom: var(--space-1);
+  color: var(--fg-muted);
+}

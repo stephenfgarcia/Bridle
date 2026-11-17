@@ -249,3 +249,19 @@
 .remove:hover {
   background: var(--status-fail-bg);
 }
+
+/* A row of the Properties section whose value is a field (MemberProperties.tsx, card PX-02.6). */
+.fieldRow {
+  align-items: center;
+  padding: var(--space-1) 0;
+}
+
+.fieldRow dd {
+  font-family: inherit;
+}
+
+/* A control that takes the width of its cell. */
+.fill {
+  width: 100%;
+  min-width: 0;
+}

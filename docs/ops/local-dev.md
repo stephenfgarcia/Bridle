@@ -136,8 +136,10 @@ three pages and one route handler:
   `packages/model`; a select in the side panel loads another, and the side panel lists the issues
   `validateModel` finds in the model. The viewport draws the nodes, the members and the supports with Z up, on a ground
   grid, with orbit, pan and zoom, a Fit button and three views (3D, Front, Top). A click selects a node or a
-  member and the side panel shows its data: read-only, but for the X, Y and Z of a node, which are fields, and
-  with a Delete button. The viewport has a tool palette (card PX-02.4): Select, Node and Member (keys V, N
+  member, a Shift-click adds one to the selection or takes it out (card PX-02.6), and the side panel shows what
+  is selected: for a node its X, Y and Z as fields; for one or several members the section and the material
+  (selects of the model's own), the roll angle, and read-only the length, the member type and the end
+  releases ("mixed" where the selected members differ); with a Delete button for everything selected. The viewport has a tool palette (card PX-02.4): Select, Node and Member (keys V, N
   and M; Escape returns to Select), a work plane (X-Z at a chosen Y, or X-Y at a chosen Z) and a snap step
   (0.1, 0.25, 0.5 or 1 m). The Node tool places a node at the snapped point of the work plane under the
   pointer, the Member tool draws members from click to click, and the Select tool drags the selected node;
@@ -153,7 +155,11 @@ three pages and one route handler:
   in a Web Worker (`apps/web/src/components/analysis/solverWorker.ts`). The top of the side panel shows the
   status (Analysing, Analysed with the time in ms, "Fix the issues first", Unstable, "Not supported yet",
   "Analysis failed" with a Retry button), and a Results section shows, for the active load case, the
-  reactions, the displacement of the selected node and the end forces of the selected member.
+  reactions, the displacement of the selected node and the end forces of the selected member. Sections and
+  materials (card PX-02.6): a button of the Model section opens a dialog that lists the model's sections (cm²,
+  cm⁴, mm) and materials (GPa, MPa, kg/m³), adds a generic I-section of `packages/tasks` or one of two built-in
+  steels, and removes an entry no member uses; "Colour by section" in the viewport draws the members in the
+  colour of their section, with a legend.
 - `/tasks` is a "Coming soon" state.
 - `GET /api/v1/health` answers 200 `application/json` `{"ok":true,"sha":"<sha>"}`.
 
@@ -180,7 +186,7 @@ Where the sha comes from (`apps/web/src/sha.ts`, read at every request and never
 HEAD): `GIT_SHA` when it is set and not empty (the application image sets it), else `git rev-parse --short HEAD`
 (where git and the repository exist: development and the smoke test), else `unknown`.
 
-`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the nine
+`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the ten
 tests of `e2e/smoke.spec.ts`. It starts `pnpm --filter web dev --hostname 127.0.0.1 --port $PORT` (`PORT`, default
 3000) and stops it when the tests end, or reuses the server that already answers
 `http://127.0.0.1:$PORT/api/v1/health`. The first test asserts the health route: 200, `application/json`, a body
@@ -209,14 +215,19 @@ Support tool (analysed on one support; "Fix the issues first" without any), undo
 (Unstable; `.bridle/screenshots/smoke-unstable.png`), presses "Restrain out of plane" (analysed again), and
 loads the truss ("Not supported yet") and the beam. The ninth makes every `new Worker(...)` of the page throw,
 checks that the status says "Analysis failed", and that Retry analyses once workers can be made again. The
+tenth opens "Sections and materials", reads the fixture's section and material in the interface's units, adds
+the generic section I 400x180 (`.bridle/screenshots/smoke-sections.png`), selects the two columns of the portal
+frame with a click and a Shift-click, gives them that section and checks that the frame is analysed again with
+another moment at the foot of the first column, switches "Colour by section" on
+(`.bridle/screenshots/smoke-multi-select.png`), checks "mixed" with the beam added to the selection, that one
+undo takes the section back from both columns, and that Delete removes both as one undo step. The
 locale is `NEXT_PUBLIC_LOCALE` of
-the shell that runs the smoke, `en` when unset, so against a running server of another locale the eight tests that
+the shell that runs the smoke, `en` when unset, so against a running server of another locale the nine tests that
 open a page fail at `lang`: run it with the server's locale, or on another `PORT`.
 Failure output goes to `.bridle/playwright/`; both
 directories are gitignored. The sha the tests expect is `GIT_SHA` when the shell that runs the smoke has it, else
 `git rev-parse --short HEAD`, so a server started with another `GIT_SHA` fails the smoke: the sha is asserted, not
-echoed. With its nine tests it took 22 to 25 s here when Playwright started the server (card PX-02.8,
-2026-11-18). The smoke runs against `next dev`; to run it against the production build, build first
+echoed. With its ten tests it took 23 to 30 s here (card PX-02.6, 2026-11-18). The smoke runs against `next dev`; to run it against the production build, build first
 (`pnpm --filter web build`), start it on a free port (`pnpm --filter web start --hostname 127.0.0.1 --port 3217`)
 and run `PORT=3217 pnpm e2e:smoke`, which then reuses that server.
 

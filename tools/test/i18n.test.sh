@@ -3,7 +3,7 @@
 # `catalog` case from "the catalog is exactly the two messages of card P0-02.6" to "the catalog holds them" (the
 # catalog has grown with the application), the count of smoke tests to 5, and made the file lists leave out a file
 # that is deleted in the tree but still in git's index.
-# Card PX-02.4 moved the count of smoke tests to 6, card PX-02.5 to 7, card PX-02.8 to 9.
+# Card PX-02.4 moved the count of smoke tests to 6, card PX-02.5 to 7, card PX-02.8 to 9, card PX-02.6 to 10.
 #   catalog AC1  packages/i18n/messages/en.json and en-XA.json hold fixtures C1 and C2 (`app.name` and
 #                `home.notice`, accented, no ASCII letter left) and the same keys in the same order, at least
 #                two; every pseudo message is in brackets and longer than its source; `pnpm i18n:pseudo` exits 0
@@ -31,7 +31,7 @@
 #   pseudo  AC3  `NEXT_PUBLIC_LOCALE=en-XA pnpm --filter web build` exits 0; `pnpm --filter web start` without the
 #                variable serves <html lang="en-XA">, the h1 and the notice of fixture C2 and no English; the
 #                health route answers fixture H byte for byte (the locale does not reach the API); the smoke
-#                with the variable passes against it (9 passed, the same pid listening, smoke-home-en-XA.png a
+#                with the variable passes against it (10 passed, the same pid listening, smoke-home-en-XA.png a
 #                gitignored PNG) and fails without it, naming en-XA; with no server running the smoke starts its
 #                own in the pseudo-locale and leaves none; `NEXT_PUBLIC_LOCALE=fr` fails the build, naming fr
 #   docs    AC4  docs/ux/ux-spec.md is fixture U and docs/ux is as 50a9e25 left it; docs/ops/i18n.md names the
@@ -640,8 +640,8 @@ echo "# NEXT_PUBLIC_LOCALE=en-XA pnpm --filter web build: exit 0 in $((t1 - t0))
 rm -f "$PNG"
 run_in "$ROOT" env NEXT_PUBLIC_LOCALE=en-XA PORT="$P1" pnpm e2e:smoke
 [ "$RC" -eq 0 ] || fail "NEXT_PUBLIC_LOCALE=en-XA PORT=$P1 pnpm e2e:smoke against the en-XA server: exit $RC" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +9 passed' || fail "the pseudo-locale smoke against the en-XA server did not print '9 passed'" "$OUT"
-PASS_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +9 passed' | sed 's/^ *//')"
+printf '%s\n' "$OUT" | grep -q -E '^ +10 passed' || fail "the pseudo-locale smoke against the en-XA server did not print '10 passed'" "$OUT"
+PASS_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +10 passed' | sed 's/^ *//')"
 [ "$(listeners "$P1" | sed -n '1p')" = "$SRV_LISTENER" ] || fail "after the smoke, pid $SRV_LISTENER no longer listens on $P1: the en-XA server was not the one tested" "$OUT"
 [ -f "$PNG" ] || fail "the pseudo-locale smoke wrote no .bridle/screenshots/smoke-home-en-XA.png"
 sig="$(od -An -tx1 -N4 "$PNG" | tr -d ' \n')"
@@ -650,7 +650,7 @@ PNG_BYTES="$(wc -c < "$PNG" | tr -d ' ')"
 (cd "$ROOT" && git check-ignore -q .bridle/screenshots/smoke-home-en-XA.png) || fail ".bridle/screenshots/smoke-home-en-XA.png is not gitignored"
 run_in "$ROOT" env PORT="$P1" pnpm e2e:smoke
 [ "$RC" -ne 0 ] || fail "PORT=$P1 pnpm e2e:smoke without NEXT_PUBLIC_LOCALE exits 0 against the en-XA server: the smoke does not assert the strings of its locale" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +9 passed' && fail "the smoke printed '9 passed' in en against the en-XA server" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +10 passed' && fail "the smoke printed '10 passed' in en against the en-XA server" "$OUT"
 printf '%s\n' "$OUT" | grep -q -F 'en-XA' || fail "the failed en smoke does not name the locale it received (en-XA): it failed for another reason" "$OUT"
 NEG_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +[0-9]+ failed' | sed -n '1p' | sed 's/^ *//')"
 NEG_RC="$RC"
@@ -662,9 +662,9 @@ PORTS="$PORTS $P2"
 rm -f "$PNG"
 run_in "$ROOT" env NEXT_PUBLIC_LOCALE=en-XA PORT="$P2" pnpm e2e:smoke
 [ "$RC" -eq 0 ] || fail "NEXT_PUBLIC_LOCALE=en-XA PORT=$P2 pnpm e2e:smoke with no server running: exit $RC (the server Playwright starts must inherit the variable)" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +9 passed' || fail "the pseudo-locale smoke that starts its own server did not print '9 passed'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +10 passed' || fail "the pseudo-locale smoke that starts its own server did not print '10 passed'" "$OUT"
 [ -f "$PNG" ] || fail "the start path wrote no .bridle/screenshots/smoke-home-en-XA.png"
-START_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +9 passed' | sed 's/^ *//')"
+START_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +10 passed' | sed 's/^ *//')"
 i=0
 while [ -n "$(listeners "$P2")" ]; do
   i=$((i + 1))

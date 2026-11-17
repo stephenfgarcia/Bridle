@@ -391,6 +391,35 @@ export function updateMember(model: Model, args: UpdateMemberArgs): Model {
   return members === model.members ? model : { ...model, members };
 }
 
+export interface UpdateMembersArgs extends Omit<UpdateMemberArgs, "id"> {
+  /** The members to change. An id that is not a member is skipped. */
+  ids: readonly string[];
+}
+
+/**
+ * Changes the section, material, kind, roll angle and end releases of several members at once
+ * (`updateMember` for each id); what is left out keeps its value.
+ * Refuses (the whole update, for every member): what `updateMember` refuses in the values given.
+ */
+export function updateMembers(model: Model, { ids, ...patch }: UpdateMembersArgs): Model {
+  return ids.reduce((next, id) => updateMember(next, { ...patch, id }), model);
+}
+
+export interface DeleteItemsArgs {
+  nodeIds: readonly string[];
+  memberIds: readonly string[];
+}
+
+/**
+ * Deletes several members and nodes at once: `deleteMember` for each member id, then `deleteNode` for each
+ * node id (with the members at the node, its support and its loads). An id the model does not hold, or no
+ * longer holds once a node took its members with it, is skipped.
+ */
+export function deleteItems(model: Model, { nodeIds, memberIds }: DeleteItemsArgs): Model {
+  const withoutMembers = memberIds.reduce((next, id) => deleteMember(next, { id }), model);
+  return nodeIds.reduce((next, id) => deleteNode(next, { id }), withoutMembers);
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Supports
 // ---------------------------------------------------------------------------------------------------------
@@ -731,6 +760,38 @@ export function addMaterial(model: Model, args: AddMaterialArgs): Model {
   }
   const material: Material = { id: nextMaterialId(model), name, E, G, fy, density };
   return { ...model, materials: [...model.materials, material] };
+}
+
+export interface RemoveSectionArgs {
+  id: string;
+}
+
+/**
+ * Removes a section.
+ * Refuses: an id that is not a section; a section that a member uses.
+ */
+export function removeSection(model: Model, { id }: RemoveSectionArgs): Model {
+  if (model.members.some((member) => member.sectionId === id)) {
+    return model;
+  }
+  const sections = without(model.sections, (section) => section.id === id);
+  return sections === model.sections ? model : { ...model, sections };
+}
+
+export interface RemoveMaterialArgs {
+  id: string;
+}
+
+/**
+ * Removes a material.
+ * Refuses: an id that is not a material; a material that a member uses.
+ */
+export function removeMaterial(model: Model, { id }: RemoveMaterialArgs): Model {
+  if (model.members.some((member) => member.materialId === id)) {
+    return model;
+  }
+  const materials = without(model.materials, (material) => material.id === id);
+  return materials === model.materials ? model : { ...model, materials };
 }
 
 export type AddLoadCaseArgs = Omit<LoadCase, "id">;

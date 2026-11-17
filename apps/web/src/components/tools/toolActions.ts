@@ -7,6 +7,7 @@ import type * as commands from "../model/commands";
 import { type ModelState, selectCanUndo, selectModel, useModelStore } from "../model/modelStore";
 import { activeLoadCaseId } from "../viewport/loads";
 import type { Point3 } from "../viewport/scene";
+import { selectedIds } from "../viewport/selection";
 import { useViewportStore } from "../viewport/viewportStore";
 import {
   type MemberToolEvent,
@@ -169,25 +170,43 @@ export function escapeTool(): void {
 }
 
 /**
- * Deletes the selected node (with its members, their loads, its support and its loads) or the selected member
- * (with its loads) as one undo step, and clears the selection. `false` when nothing was deleted.
+ * Deletes every selected node (with its members, their loads, its support and its loads) and every selected
+ * member (with its loads) as one undo step (`deleteItems`), and clears the selection. `false`, with the
+ * selection kept, when nothing was deleted.
  */
 export function deleteSelection(): boolean {
   const { selection, select } = useViewportStore.getState();
-  if (selection === null) {
+  if (selection.length === 0) {
     return false;
   }
-  const store = useModelStore.getState();
-  const deleted =
-    selection.kind === "node"
-      ? store.deleteNode({ id: selection.id })
-      : store.deleteMember({ id: selection.id });
+  const deleted = useModelStore.getState().deleteItems({
+    nodeIds: selectedIds(selection, "node"),
+    memberIds: selectedIds(selection, "member"),
+  });
   if (deleted) {
     select(null);
     useViewportStore.getState().setHover(null);
     useToolStore.getState().setNotice(null);
   }
   return deleted;
+}
+
+/** The model store's actions that the member fields and the "Sections and materials" dialog run. */
+type PropertyEdits = Pick<
+  ModelState,
+  "updateMembers" | "addSection" | "addMaterial" | "removeSection" | "removeMaterial"
+>;
+
+/**
+ * Runs one of those actions from the side panel (one undo step), as `editLoad` does for the loads: when the
+ * store refuses, the model is unchanged and the viewport shows the notice `refused`; when it does not, the
+ * notice is cleared. Returns whether the model changed.
+ */
+export function editProperties(edit: (store: PropertyEdits) => boolean | string | null): boolean {
+  const result = edit(useModelStore.getState());
+  const changed = result !== false && result !== null;
+  useToolStore.getState().setNotice(changed ? null : "refused");
+  return changed;
 }
 
 /**

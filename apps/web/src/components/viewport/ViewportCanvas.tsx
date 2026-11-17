@@ -22,7 +22,9 @@ import { drawingBounds, emptyModelBounds, pointText, workPlaneGrid } from "../to
 import { placeCamera, SCENE_UP, VIEW_DIRECTIONS, VIEW_FOV_DEG, type ViewPreset } from "./camera";
 import { createLabelLinks, LoadLabels, Loads } from "./LoadGlyphs";
 import { type CanvasColors, ModelScene } from "./ModelScene";
+import { SectionLegend } from "./SectionLegend";
 import { buildScene, gridFor, type Point3, roomForLoads, type SceneBounds } from "./scene";
+import { SECTION_COLOR_TOKENS, sectionColors } from "./sectionColors";
 import { ToolLayer } from "./ToolLayer";
 import styles from "./Viewport.module.css";
 import { useViewportStore } from "./viewportStore";
@@ -50,6 +52,7 @@ function readPalette(): Palette {
     hover: token("--canvas-hover"),
     // A colour of the data palette that neither the members, the supports nor the selection use.
     load: token("--viz-case-E"),
+    sections: SECTION_COLOR_TOKENS.map(token),
     axes: [token("--viz-axis-x"), token("--viz-axis-y"), token("--viz-axis-z")],
   };
 }
@@ -200,7 +203,8 @@ const PRESETS: { preset: ViewPreset; label: string }[] = [
 ];
 
 /**
- * The 3D canvas of the viewport (the model and the loads of the active load case) and its toolbar (the tool
+ * The 3D canvas of the viewport (the model and the loads of the active load case), the "Colour by section"
+ * control with its legend (./SectionLegend.tsx) and its toolbar (the tool
  * palette with the active tool's options, the work plane and the snap step, Fit and the three view presets), with the tools' status lines in the bottom left corner. Only ever rendered in the
  * browser (Viewport.tsx). The canvas draws a frame when something changed (`frameloop="demand"`): the camera
  * moved, or React committed a change to the scene.
@@ -226,6 +230,19 @@ export default function ViewportCanvas({ model, frameKey }: { model: Model; fram
     };
   }, [built, plane]);
   const [palette] = useState(readPalette);
+  // "Colour by section": the colour of each drawn member, or `null` while the control is off.
+  const colorBySection = useViewportStore((state) => state.colorBySection);
+  const bySection = useMemo(() => sectionColors(model), [model]);
+  const memberColors = useMemo(
+    () =>
+      colorBySection
+        ? scene.members.map((member) => {
+            const index = bySection.byMember.get(member.id);
+            return (index == null ? undefined : palette.sections[index]) ?? palette.member;
+          })
+        : null,
+    [colorBySection, scene.members, bySection, palette],
+  );
   const rig = useRef<CameraRigHandle>(null);
   const [labelLinks] = useState(createLabelLinks);
   return (
@@ -239,9 +256,10 @@ export default function ViewportCanvas({ model, frameKey }: { model: Model; fram
           onCreated={({ raycaster }) => {
             raycaster.params.Line2 = { threshold: MEMBER_PICK_PX };
           }}
-          // A click on nothing clears the selection with the Select tool; the other tools act on it (ToolLayer).
-          onPointerMissed={() => {
-            if (useToolStore.getState().tool === "select") {
+          // A click on nothing clears the selection with the Select tool, unless Shift is held (a Shift-click
+          // that misses a member keeps the selection); the other tools act on it (ToolLayer).
+          onPointerMissed={(event) => {
+            if (useToolStore.getState().tool === "select" && !event.shiftKey) {
               useViewportStore.getState().select(null);
             }
           }}
@@ -250,7 +268,12 @@ export default function ViewportCanvas({ model, frameKey }: { model: Model; fram
           <ambientLight intensity={1.4} />
           <directionalLight intensity={2.2} position={[6, -10, 14]} />
           <CameraRig bounds={frameBounds} frameKey={frameKey} ref={rig} />
-          <ModelScene colors={palette} scene={scene} workPlane={planeGrid} />
+          <ModelScene
+            colors={palette}
+            memberColors={memberColors}
+            scene={scene}
+            workPlane={planeGrid}
+          />
           <Loads color={palette.load} links={labelLinks} loads={scene.loads} />
           <ToolLayer colors={palette} />
           <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
@@ -285,6 +308,7 @@ export default function ViewportCanvas({ model, frameKey }: { model: Model; fram
           </div>
         </div>
       </div>
+      <SectionLegend legend={bySection.legend} />
       <ToolStatus />
     </>
   );

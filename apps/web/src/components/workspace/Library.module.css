@@ -1,0 +1,195 @@
+/* The "Sections and materials" button of the Model section and its dialog (LibraryDialog.tsx, card PX-02.6). */
+
+.entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+}
+
+.entry > button {
+  margin-bottom: 0;
+}
+
+.dialog {
+  width: min(calc(var(--layout-page-max) * 0.6), calc(100vw - var(--space-8)));
+  max-height: calc(100vh - var(--space-12));
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: var(--border-1) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  color: var(--fg-primary);
+  box-shadow: var(--shadow-2);
+}
+
+.dialog::backdrop {
+  background: var(--bg-overlay);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5);
+}
+
+.head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.partTitle {
+  margin: 0;
+  color: var(--fg-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+/* A table wider than the dialog (a narrow window) scrolls sideways inside it. */
+.scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th,
+.table td {
+  height: var(--density-control-h);
+  padding: 0 var(--space-2);
+  border-bottom: var(--border-1) solid var(--border-subtle);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table thead th {
+  color: var(--fg-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.table tbody th {
+  font-weight: var(--weight-medium);
+}
+
+.table th.numeric,
+.table td.numeric {
+  text-align: right;
+}
+
+.table td.numeric {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--numeric-features);
+}
+
+.table th:first-child {
+  padding-left: 0;
+}
+
+.id {
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+}
+
+.table td.action {
+  width: var(--space-16);
+  padding-right: 0;
+  text-align: right;
+}
+
+.action button:disabled {
+  color: var(--fg-disabled);
+  cursor: default;
+}
+
+.action button:disabled:hover {
+  background: transparent;
+}
+
+/* Which axis is which: the picture of an I-section beside the two sentences. */
+.axes {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+  font-size: var(--text-sm);
+}
+
+.axesText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.axesText p {
+  margin: 0;
+}
+
+.diagram {
+  flex: none;
+  width: calc(var(--space-16) + var(--space-6));
+  height: calc(var(--space-16) + var(--space-6));
+}
+
+.shape {
+  fill: var(--bg-surface);
+  stroke: var(--fg-secondary);
+  stroke-width: 1.5;
+}
+
+.axis {
+  fill: none;
+  stroke: var(--accent-fg);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.axisName {
+  fill: var(--accent-fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-style: italic;
+  font-weight: var(--weight-semibold);
+}
+
+.add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.add button {
+  align-self: center;
+}
+
+.add button:disabled {
+  color: var(--fg-disabled);
+  cursor: default;
+}
