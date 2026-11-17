@@ -109,7 +109,8 @@ which closes the row. `card.py list` names P0-07 as next up meanwhile, because i
 34): the owner's order of 2026-11-17 puts the P0-08 sub-cards first. After P0-08.4 ships the owner approves the acceptance criteria
 and splits of P1-01, P2-01 and P4-06 in one sitting. P0-07 External dependencies and legal register and the plan-only sub-cards of
 P0-05 OpenTofu run whenever the line is idle; P0-05's apply sub-card waits for the AWS items below. P0-12 Local ports is in the
-backlog for the session that owns the tool. The `## Ship` sections of cards P0-02.6, P0-02.5 and P0-11 list what each leaves for
+backlog for the session that owns the tool. The owner's five measures of 2026-11-17 for faster production (`docs/decisions/log.md`) are carried by card
+P0-08.4, which also creates the two cards they add (Next.js behind the `web` entrypoint; Actions runs the web build and the smoke). The `## Ship` sections of cards P0-02.6, P0-02.5 and P0-11 list what each leaves for
 later cards and the open questions for the owner (which card puts Next.js behind the `web` entrypoint, needed before P0-05's ECS
 service; Next.js 15 with a TypeScript 6 pin against Next.js 16; whether Actions runs the smoke; whether "Bridle" stays untranslated).
 
