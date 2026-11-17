@@ -92,7 +92,7 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | PX-01.3 | PX | ship | done | orchestrator | 2026-11-17T17:49:02Z |
 | PX-01.4 | PX | ship | done | orchestrator | 2026-11-17T18:17:04Z |
 | PX-01.5 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
-| PX-01.6 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
+| PX-01.6 | PX | ship | done | orchestrator | 2026-11-17T19:12:41Z |
 | PX-01.7 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
 | PX-01.8 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
 | PX-01.9 | PX | ship | done | orchestrator | 2026-11-17T18:31:42Z |
@@ -137,7 +137,7 @@ Next up: P0-07 External dependencies and legal register
 
 Resumed 2026-11-17 by the owner after the pause of 2026-11-04 (the `- Paused` entry of the Log below). Since 2026-11-18 the work
 follows the pitch plan (`docs/plan/pitch-plan.md`), with cards PX-01.1 to PX-04.8 running in the lanes core and web; `card.py list`
-and the board above say which are in flight, and the last shipped card is PX-02.8 (`b4dc79f`). The cards shipped on 2026-11-17,
+and the board above say which are in flight, and the last shipped card is PX-01.6 (`faed282`). The cards shipped on 2026-11-17,
 before the pitch plan: P0-08.2 Lane tooling (`09c0851`), P0-08.1 Card tooling (`99168d5`), P0-02.6 Externalized UI strings
 (`c005a7c`, which closed the P0-02 Repository bootstrap row; the row's card, `## Ship`, lists the three deliverables that wait for
 later rows), P0-02.5 Next.js skeleton (`ee5d288`) and P0-11 Resume-ability (`6078dcd`); before those, P0-02.4 (`d8d8b7e`).
@@ -237,3 +237,4 @@ the sessions open on the checkout.
 - 2026-11-18 02:33, PX-02.5, commit c992680: Support and load tools; supports and loads in the workspace: a Support tool (fixed, pinned, roller) with per-direction checkboxes, "Restrain out of plane" for a frame drawn in elevation, a Load tool for nodal forces and moments, uniform and point loads on a selected member, load cases with one active case, arrows with their head at the loaded point and labelled values; 83 new unit tests and a seventh browser test; built and tested by one agent under the pitch process.
 - 2026-11-18 02:46, PX-03.2, commit 675d268: Task format and three seeded tasks; the package `packages/tasks` (`@bridle/tasks`): the task format with required answers, tolerances, design requirements and a rubric, `validateTask`, three seeded tasks (a simply supported beam, a portal frame under wind and gravity, a choice of beam section against a deflection limit) with reference answers computed by the solver, and the generated document `docs/content/tasks.md` for the owner; 55 tests; built and tested by one agent under the pitch process.
 - 2026-11-18 02:59, PX-02.8, commit b4dc79f: Live analysis in the workspace; live analysis in the workspace: the solver runs in a Web Worker in the browser (in `next dev` and in the production build), the model is analysed whenever it changes, a result is never shown against another model, a status area says Analysed, Analysing, Fix the issues first, Unstable (with the node and direction where the check stopped, and the offer to restrain out of plane), Not supported yet or Analysis failed, and a Results section shows the reactions, a selected node displacement and a selected member end forces; 67 new unit tests and two more browser tests; built and tested by one agent under the pitch process.
+- 2026-11-18 03:12, PX-01.6, commit faed282: Values along a member; `memberValues` and `deflectedShape` in `packages/solver`: axial force, shears, torque, bending moments and deflections at stations along a member by statics and the element shape plus the fixed-end part, exact positions of the extreme moments, and the deflected shape of the structure for drawing, in a convention that puts every diagram on the tension side; 251 solver tests. The first review confirmed 248 independent values and failed three small items (a deflection extreme missed next to a fixed end, a title, a count); one rework loop fixed them and the second review passed it.
