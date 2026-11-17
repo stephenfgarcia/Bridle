@@ -54,8 +54,11 @@ Each call prints a JSON op: ignore it, the orchestrator mirrors automatically; n
 Never block on reporting; never log secrets; keep messages specific (what you did, what is next, what blocks you).
 ```
 
-Agents in isolated worktrees must call the script by absolute path from the main checkout:
-`/Users/johnstephenf.garcia/Dev/Dev/Bridle-1/tools/monitor/log.sh`.
+Agents in a linked git worktree call the script by absolute path, either their worktree's copy or the main checkout's
+(`/Users/johnstephenf.garcia/Dev/Dev/Bridle-1/tools/monitor/log.sh`): both write to `.bridle/progress` of the main
+checkout. The main checkout is the directory in `BRIDLE_MAIN_ROOT` when that is set; otherwise, when the checkout
+holding the script is a linked git worktree whose common git directory is `<dir>/.git`, it is `<dir>`; in every other
+case it is the checkout holding the script. `tools/monitor/log.sh --main-root` prints it.
 
 Agent types: any subagent type is traced (the hook keys on the marker line, not on the type), so `Plan` and `Explore`
 subagents, which cannot load the artifact database tool, now appear live as well. Agents launched by the `Workflow`

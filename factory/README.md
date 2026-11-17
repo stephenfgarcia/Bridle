@@ -15,6 +15,11 @@ The `/factory` skill is the foreman: it moves one card one station at a time and
 - A card's frontmatter holds its state (`station`, `status`, `history`); its body holds one section per station.
 - Moving a card (`tools/monitor/card.py move <id> <station>`) rewrites the frontmatter and emits a `card.move`
   event, so the monitor's **Factory** view shows the board, each card's station track, and the planned order.
+- A lane calls its own worktree's `card.py` and `log.sh` by absolute path: cards are read and written in the checkout
+  that holds the script, events and traces go to `.bridle/progress` of the main checkout. The main checkout is the
+  directory in `BRIDLE_MAIN_ROOT` when that is set; otherwise, when the checkout holding the script is a linked git
+  worktree whose common git directory is `<dir>/.git`, it is `<dir>`; in every other case it is the checkout holding
+  the script.
 
 ## Watch it
 

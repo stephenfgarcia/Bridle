@@ -12,11 +12,48 @@
 # level  : debug | info | warn | error            (default info; error for agent.fail)
 # status : planned | queued | running | blocked | review | done | failed   (task.status events)
 #
-# The line is appended to  <repo>/.bridle/progress/<runId>/<agentId>.jsonl
+# The line is appended to  <main checkout>/.bridle/progress/<runId>/<agentId>.jsonl
 # and the op is printed to stdout as one JSON object:  {"op":"set","path":"events/<id>","data":{...}}
+#
+# The main checkout is the directory in BRIDLE_MAIN_ROOT when that is set; otherwise, when the checkout holding the
+# script is a linked git worktree whose common git directory is <dir>/.git, it is <dir>; in every other case it is the
+# checkout holding the script. (Cases run by tools/monitor/test/card.test.py: the main checkout, a linked worktree, a
+# copy outside git, the override, a worktree reached through a path in another letter case. A BRIDLE_MAIN_ROOT that is
+# not an absolute path to a directory is an error: exit 1, nothing written.)
+#
+#   tools/monitor/log.sh --main-root     print the main checkout and exit (trace-hook.sh asks this way)
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-exec python3 - "$ROOT" "$@" <<'PY'
+
+main_root() {
+  if [ -n "${BRIDLE_MAIN_ROOT:-}" ]; then
+    if [ "${BRIDLE_MAIN_ROOT#/}" = "$BRIDLE_MAIN_ROOT" ] || [ ! -d "$BRIDLE_MAIN_ROOT" ]; then
+      echo "log.sh: BRIDLE_MAIN_ROOT is not an absolute path to a directory: $BRIDLE_MAIN_ROOT" >&2
+      return 1
+    fi
+    (cd "$BRIDLE_MAIN_ROOT" && pwd)
+    return
+  fi
+  local out git_dir common_dir top
+  # git 2.31 or later for --path-format; without git, outside a repository or with an older git the call fails and
+  # the answer is the checkout holding the script.
+  if out="$(env -u GIT_DIR -u GIT_WORK_TREE git -C "$ROOT" rev-parse --path-format=absolute --git-dir --git-common-dir --show-toplevel 2>/dev/null </dev/null)"; then
+    { IFS= read -r git_dir; IFS= read -r common_dir; IFS= read -r top; } <<<"$out" || true
+    if [ -n "$common_dir" ] && [ "$git_dir" != "$common_dir" ] && [ "$(basename "$common_dir")" = ".git" ] \
+       && [ "$top" -ef "$ROOT" ]; then  # the same directory, not the same string: a path may differ in letter case
+      dirname "$common_dir"
+      return
+    fi
+  fi
+  printf '%s\n' "$ROOT"
+}
+
+if [ "$#" -eq 1 ] && [ "$1" = "--main-root" ]; then
+  main_root
+  exit
+fi
+MAIN="$(main_root)"
+exec python3 - "$MAIN" "$@" <<'PY'
 import sys, json, os, time, getopt, re
 root = sys.argv[1]
 opts, _ = getopt.getopt(sys.argv[2:], "r:p:a:t:T:m:P:l:s:L:S:d:i:n:")
