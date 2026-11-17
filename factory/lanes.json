@@ -42,6 +42,7 @@
     {"pattern": "apps/worker/", "lane": "platform", "comment": "E1 names apps/worker for platform."},
     {"pattern": "apps/judge/", "lane": "platform", "comment": "E1 names judge for platform."},
     {"pattern": "apps/system/", "lane": "platform", "comment": "E1 names system for platform."},
+    {"pattern": "packages/tasks/", "lane": "platform", "comment": "Not named by E1; assigned for the pitch plan (docs/plan/pitch-plan.md): the task format, the seeded tasks and their rubrics, beside the grader."},
     {"pattern": "packages/grader/", "lane": "platform", "comment": "E1 names packages/grader for platform."},
     {"pattern": "infra/", "lane": "platform", "comment": "E1 names infra for platform."},
     {"pattern": ".github/", "lane": "platform", "comment": "E1 names .github for platform."},

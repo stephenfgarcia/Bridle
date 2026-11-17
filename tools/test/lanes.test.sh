@@ -240,7 +240,7 @@ WANT = {
              'CLAUDE.md', 'README.md', 'packages/units/', 'packages/model/', 'packages/solver/', 'docs/'],
     'web': ['apps/web/', 'packages/ui/', 'packages/api-core/', 'packages/api-client/', 'packages/engine-protocol/',
             'packages/i18n/', 'e2e/'],
-    'platform': ['apps/worker/', 'apps/judge/', 'apps/system/', 'packages/grader/', 'infra/', '.github/',
+    'platform': ['apps/worker/', 'apps/judge/', 'apps/system/', 'packages/grader/', 'packages/tasks/', 'infra/', '.github/',
                  'tools/check.sh', 'tools/doctor.sh', 'tools/dev.sh', 'tools/entrypoint.sh', 'tools/test/',
                  'tools/monitor/', 'tools/factory/', 'factory/', '.claude/', '.bridle/', 'tools/agent-hq/'],
 }

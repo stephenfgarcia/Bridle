@@ -144,8 +144,8 @@ later rows), P0-02.5 Next.js skeleton (`ee5d288`) and P0-11 Resume-ability (`607
 
 Parked on 2026-11-17 by the owner's decision of that day (`docs/decisions/log.md`): the P0-08 Factory lanes row stops after
 P0-08.2. P0-08.3 PR-based ship is built and passing but not tested, reviewed or shipped: its work is the local commit `WIP P0-08.3`
-on branch `lane/platform` in the worktree `../Bridle-1.lanes/platform` (not pushed; the card's copy there is at build with status
-parked, and the pause note at the end of the Spec of the card on `main` says how to resume). P0-08.4 Factory rules is not started.
+on the local branch `parked/P0-08.3` (not pushed; the platform lane was freed for pitch cards on 2026-11-18; the card's copy on
+that branch is at build with status parked, and the pause note at the end of the Spec of the card on `main` says how to resume). P0-08.4 Factory rules is not started.
 The P0-08 row card stays at spec with status running until the owner closes or resumes it.
 
 Next: the January pitch plan. The owner presents the project on 2027-01-01 to a university and a competition panel and wants a
