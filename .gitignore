@@ -28,3 +28,6 @@ next-env.d.ts
 # Playwright (pnpm e2e:smoke, P0-02.5): the smoke screenshot and the failure output
 .bridle/screenshots/
 .bridle/playwright/
+
+# Test-runner report files written by an editor or a hand-run reporter (PX-02.5); never committed
+.vitest/
