@@ -101,23 +101,21 @@ per lane. The cards shipped before it on 2026-11-17 are P0-08.1 Card tooling (`9
 (`c005a7c`, which closed the P0-02 Repository bootstrap row; the row's card, `## Ship`, lists the three deliverables that wait for
 later rows), P0-02.5 Next.js skeleton (`ee5d288`) and P0-11 Resume-ability (`6078dcd`); before those, P0-02.4 (`d8d8b7e`).
 
-In flight as a row: P0-08 Factory lanes (parallel mode) stands at spec with status running since 2026-11-17: it is the
-work-package row whose sub-cards run, not a card to resume. Its split into P0-08.1 to P0-08.4 and the row's acceptance criteria are
-in its card's Spec and in `docs/decisions/log.md` (the owner's decision 3 at approval, lanes right after P0-02, `docs/plan/roadmap.md`
-E1 and E2; the owner's decision of 2026-11-17 on faster production). P0-08.1 and P0-08.2 are done; two sub-cards remain.
+Parked on 2026-11-17 by the owner's decision of that day (`docs/decisions/log.md`): the P0-08 Factory lanes row stops after
+P0-08.2. P0-08.3 PR-based ship is built and passing but not tested, reviewed or shipped: its work is the local commit `WIP P0-08.3`
+on branch `lane/platform` in the worktree `../Bridle-1.lanes/platform` (not pushed; the card's copy there is at build with status
+parked, and the pause note at the end of the Spec of the card on `main` says how to resume). P0-08.4 Factory rules is not started.
+The P0-08 row card stays at spec with status running until the owner closes or resumes it.
 
-Next: P0-08.3 PR-based ship (`/factory run P0-08.3`), then P0-08.4 Factory rules, which closes the row. `card.py list` names P0-07
-as next up meanwhile, because its order (4) is lower than the sub-cards' (33 and 34): the owner's order of 2026-11-17 puts the
-P0-08 sub-cards first. After P0-08.4 ships the foreman checks the drafts of P1-01, P2-01 and P4-06 against the roadmap and creates
-their sub-cards: the owner answered the drafts' six main questions on 2026-11-17 (`docs/decisions/log.md`; the section "Owner's
-decisions on the draft" in each of the three cards), and a recommendation that would change the architecture goes back to the
-owner. P0-07 External dependencies and legal register and the plan-only sub-cards of
-P0-05 OpenTofu run whenever the line is idle; P0-05's apply sub-card waits for the AWS items below. P0-12 Local ports is in the
-backlog for the session that owns the tool. The owner's five measures of 2026-11-17 for faster production (`docs/decisions/log.md`) are carried by card
-P0-08.4, which also creates the two cards they add (Next.js behind the `web` entrypoint; Actions runs the web build and the smoke). The `## Ship` sections of cards P0-08.2, P0-08.1, P0-02.6, P0-02.5 and P0-11 list what each leaves for
-later cards and the open questions for the owner (which card puts Next.js behind the `web` entrypoint, needed before P0-05's ECS
-service; whether Actions runs the smoke; whether "Bridle" stays untranslated; the Next.js 15 with a TypeScript 6 pin question was
-answered on 2026-11-17: it stays).
+Next: the January pitch plan. The owner presents the project on 2027-01-01 to a university and a competition panel and wants a
+working showcase by mid-December 2026, so `docs/plan/roadmap.md` becomes the plan for after the pitch and the foreman drafts a
+short plan for the owner's approval: first a frame solver with a 3D workspace and live results, then tasks, submission, AI
+feedback against a rubric and a simple instructor view, built in that order so that the first part stands alone if the second
+slips. Nothing of it is built until the owner approves the plan. Until then the roadmap order no longer applies: P0-07, P0-05
+OpenTofu (its apply sub-card waits for the AWS items below), P0-12 and the drafts of P1-01, P2-01 and P4-06 (answered by the
+owner on 2026-11-17) wait for the pitch plan to say which of them it uses. The owner's five measures of 2026-11-17 for faster
+production were to be written into the factory documents by P0-08.4; they stay in force from `docs/decisions/log.md`. The `## Ship`
+sections of cards P0-08.2, P0-08.1, P0-02.6, P0-02.5 and P0-11 list what each leaves for later cards.
 
 Only the owner can do (the nine E4 rows of `docs/plan/roadmap.md` and the six M0 items of `docs/architecture/architecture.md`
 section 17). Status: "done" names the card that proves it; "open" means the repository records it as not done yet; "unknown"
