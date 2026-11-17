@@ -1,12 +1,16 @@
 /**
- * The linear static solve: supports, nodal loads, displacements and reactions, for every load case
- * of a model. Units and signs are those of ./element.ts and ../README.md.
+ * The linear static solve: supports, nodal loads and member loads, and for every load case of a
+ * model the displacements, the reactions and the member end forces. Units and signs are those of
+ * ./element.ts and ../README.md; the equivalent nodal loads of a member load are derived in
+ * ./memberLoads.ts.
  */
 import type { Model, ModelIssue } from "@bridle/model";
-import { assemble, type UnsupportedMember, unsupportedMembers } from "./assemble";
+import { assemble, type UnsupportedMember } from "./assemble";
 import { DOFS, DOFS_PER_NODE, type Dof } from "./dof";
+import { ELEMENT_DOFS } from "./element";
 import { factorize, solveFactorized } from "./factor";
 import { type Matrix, zeros } from "./matrix";
+import { equivalentNodalLoadsLocal, type MemberLoad } from "./memberLoads";
 
 /**
  * The smallest ratio of a pivot of the factorization to the diagonal stiffness of the same degree
@@ -43,6 +47,32 @@ export interface NodeReaction {
 /** The names of the six reaction components, in the order of `DOFS`. */
 export const REACTION_COMPONENTS = ["fx", "fy", "fz", "mx", "my", "mz"] as const;
 
+/**
+ * The force (kN) and the moment (kN·m) that a node applies to one end of a member, in the member's
+ * local axes: positive along and about the positive local axes, at the start and at the end alike.
+ * `fx` is the axial force, `fy` and `fz` are the shears, `mx` is the torque, `my` and `mz` are the
+ * bending moments (about local y: bending in the local x-z plane; about local z: in the x-y plane).
+ */
+export interface MemberEndAction {
+  fx: number;
+  fy: number;
+  fz: number;
+  mx: number;
+  my: number;
+  mz: number;
+}
+
+/**
+ * The end forces of one member for one load case: what the start node and the end node apply to
+ * the member's ends. They are end actions in the local axis directions, not internal forces by a
+ * beam sign convention: local x points into the member at the start and out of it at the end, so a
+ * member in tension has a negative `start.fx` and a positive `end.fx`.
+ */
+export interface MemberEndForces {
+  start: MemberEndAction;
+  end: MemberEndAction;
+}
+
 /** The result of one load case. Plain data. */
 export interface LoadCaseResult {
   loadCaseId: string;
@@ -63,20 +93,20 @@ export interface LoadCaseResult {
   /**
    * How much rounding in the stiffness matrix could matter to this result, as a number without
    * unit: ε · (Σ over i, j of |u_i| · |K_ij| · |u_j|) / (Σ over i of f_i · u_i), with ε =
-   * `Number.EPSILON`, K the assembled matrix, u the displacements and f the nodal loads. It is the
-   * relative change of the loads' work Σ f_i u_i (which equals uᵀ K u) that a relative change of ε
-   * in every entry of K could cause for these displacements. 0 when every displacement is 0;
-   * `Infinity` when a displacement is not 0 and the work is not positive. `solve` reports it and
-   * does not act on it.
+   * `Number.EPSILON`, K the assembled matrix, u the displacements and f the load vector (the nodal
+   * loads plus the equivalent nodal loads of the member loads). It is the relative change of the
+   * work Σ f_i u_i (which equals uᵀ K u) that a relative change of ε in every entry of K could
+   * cause for these displacements. 0 when every displacement is 0; `Infinity` when a displacement
+   * is not 0 and the work is not positive. `solve` reports it and does not act on it.
    */
   sensitivity: number;
-}
-
-/** A member load, which `solve` refuses until card S4. */
-export interface UnsupportedMemberLoad {
-  loadId: string;
-  memberId: string;
-  feature: "member-load";
+  /**
+   * One entry per member of the model, by member id: the forces and moments that the member's two
+   * nodes apply to its ends, in the member's local axes (`MemberEndForces`). For a member with the
+   * local matrix k, the transformation T, the end displacements u (global) and the equivalent nodal
+   * loads Q of its own loads of this case (local): k · T · u - Q.
+   */
+  memberEndForces: Record<string, MemberEndForces>;
 }
 
 export type SolveResult =
@@ -84,6 +114,18 @@ export type SolveResult =
       ok: true;
       /** The node ids in the model's order: the order of the two vectors of each load case. */
       nodeIds: string[];
+      /** The member ids in the model's order. */
+      memberIds: string[];
+      /**
+       * The smallest ratio of a pivot of the factorization to the diagonal stiffness of the same
+       * degree of freedom, over the unrestrained degrees of freedom; it is above `PIVOT_THRESHOLD`
+       * and at most 1 up to rounding. The nearer it is to `PIVOT_THRESHOLD`, the nearer the model
+       * is to being reported as unstable and the more digits the results have lost: a ratio r
+       * leaves a relative rounding error of the order of `Number.EPSILON` / r in that pivot. It is
+       * 1 when no degree of freedom is free (nothing was factorized). It belongs to the model and
+       * its supports, not to a load case.
+       */
+      smallestPivotRatio: number;
       /** One result per load case of the model, by load case id. */
       loadCases: Record<string, LoadCaseResult>;
     }
@@ -95,9 +137,9 @@ export type SolveResult =
     }
   | {
       ok: false;
-      /** The model is valid but uses something this card does not solve. */
+      /** The model is valid but has members that are not solved yet (the refusal of `assemble`). */
       reason: "not-supported-yet";
-      unsupported: (UnsupportedMember | UnsupportedMemberLoad)[];
+      unsupported: UnsupportedMember[];
     }
   | {
       ok: false;
@@ -126,9 +168,9 @@ export type SolveResult =
   | {
       ok: false;
       /**
-       * A number overflowed: the stiffness matrix (`where: "stiffness"`), or the displacements or
-       * reactions of a load case (`where: "load-case"`, with `loadCaseId`), hold a value that is not
-       * finite.
+       * A number overflowed: the stiffness matrix (`where: "stiffness"`), or the displacements,
+       * reactions or member end forces of a load case (`where: "load-case"`, with `loadCaseId`),
+       * hold a value that is not finite.
        */
       reason: "non-finite";
       where: "stiffness" | "load-case";
@@ -154,17 +196,20 @@ function record<T>(entries: [string, T][]): Record<string, T> {
  *
  * Steps:
  * 1. `assemble` builds the stiffness matrix K of the free structure (6 rows per node). Its refusals
- *    are passed on (`invalid-model`, `not-supported-yet`); a model with any member load, in any load
- *    case, is refused as `not-supported-yet` too.
+ *    are passed on (`invalid-model`, `not-supported-yet`).
  * 2. A degree of freedom that a support restrains has the displacement 0. The others are the free
  *    degrees of freedom; the reduced matrix is K without the rows and columns of the restrained ones.
  * 3. The reduced matrix is factorized once (`factorize`: L D Lᵀ of its symmetric part, with
  *    symmetric pivoting). If the factorization stops by the test of `PIVOT_THRESHOLD` the result is
  *    `unstable` and nothing is solved.
- * 4. Per load case: f is the sum of the case's nodal loads at each degree of freedom; the free
- *    displacements solve (reduced K) u = (free rows of f); the reactions are the restrained rows of
- *    K u - f, computed with the whole matrix K as assembled.
- * 5. Per load case: the result's `sensitivity` is computed and reported.
+ * 4. Per load case: f is, at each degree of freedom, the sum of the case's nodal loads and of the
+ *    equivalent nodal loads of the case's member loads (`equivalentNodalLoadsLocal`, turned to
+ *    global axes with Tᵀ); the free displacements solve (reduced K) u = (free rows of f); the
+ *    reactions are the restrained rows of K u - f, computed with the whole matrix K as assembled
+ *    and the whole f, so the part of a member load that goes straight into a support is in them.
+ * 5. Per load case and member: the end forces k · T · u - Q in local axes, Q being the sum of the
+ *    equivalent nodal loads of that member's loads of the case.
+ * 6. Per load case: the result's `sensitivity` is computed and reported.
  *
  * The function does not change the model and keeps no state between calls.
  */
@@ -173,19 +218,11 @@ export function solve(model: Model): SolveResult {
   if (!assembled.ok && assembled.reason === "invalid-model") {
     return assembled;
   }
-  const memberLoads: UnsupportedMemberLoad[] = [
-    ...model.memberUniformLoads,
-    ...model.memberPointLoads,
-  ].map((load) => ({ loadId: load.id, memberId: load.memberId, feature: "member-load" }));
-  if (!assembled.ok || memberLoads.length > 0) {
-    return {
-      ok: false,
-      reason: "not-supported-yet",
-      unsupported: [...unsupportedMembers(model), ...memberLoads],
-    };
+  if (!assembled.ok) {
+    return assembled;
   }
 
-  const { stiffness, dofMap } = assembled;
+  const { stiffness, dofMap, elements } = assembled;
   const size = dofMap.size;
   const K = stiffness.data;
   if (!allFinite(K)) {
@@ -236,9 +273,53 @@ export function solve(model: Model): SolveResult {
     };
   }
 
+  // The smallest ratio of a pivot to the diagonal entry of its row in the reduced matrix.
+  let smallestPivotRatio = 1;
+  {
+    const { order, pivots } = factorized.factorization;
+    for (let k = 0; k < free.length; k++) {
+      const row = order[k] as number;
+      const ratio = (pivots[k] as number) / (reduced.data[row * free.length + row] as number);
+      if (ratio < smallestPivotRatio || k === 0) {
+        smallestPivotRatio = ratio;
+      }
+    }
+  }
+
+  const elementIndex = new Map(elements.map((element, index) => [element.memberId, index]));
+  const memberLoads: MemberLoad[] = [...model.memberUniformLoads, ...model.memberPointLoads];
+
   const results: [string, LoadCaseResult][] = [];
   for (const loadCase of model.loadCases) {
     const f = new Float64Array(size);
+
+    // Member loads: per member, the sum Q of the equivalent nodal loads of its loads of this case,
+    // in local axes; Tᵀ Q goes into f at the member's twelve rows.
+    const equivalent: (Float64Array | undefined)[] = new Array(elements.length);
+    for (const memberLoad of memberLoads) {
+      const index =
+        memberLoad.loadCaseId === loadCase.id ? elementIndex.get(memberLoad.memberId) : undefined;
+      const element = index === undefined ? undefined : elements[index];
+      if (index === undefined || element === undefined) {
+        continue;
+      }
+      const q = equivalentNodalLoadsLocal(memberLoad, element.length, element.axes);
+      const sum = equivalent[index] ?? new Float64Array(ELEMENT_DOFS);
+      const t = element.transformation.data;
+      for (let i = 0; i < ELEMENT_DOFS; i++) {
+        const qi = q[i] as number;
+        sum[i] = (sum[i] as number) + qi;
+        if (qi === 0) {
+          continue;
+        }
+        // Column i of Tᵀ is row i of T.
+        for (let j = 0; j < ELEMENT_DOFS; j++) {
+          const row = element.dofIndices[j] as number;
+          f[row] = (f[row] as number) + (t[i * ELEMENT_DOFS + j] as number) * qi;
+        }
+      }
+      equivalent[index] = sum;
+    }
     for (const load of model.nodalLoads) {
       const node = load.loadCaseId === loadCase.id ? dofMap.nodeIndex.get(load.nodeId) : undefined;
       if (node === undefined) {
@@ -273,7 +354,31 @@ export function solve(model: Model): SolveResult {
       r[row] = sum - (f[row] as number);
     }
 
-    if (!allFinite(u) || !allFinite(r)) {
+    // Member end forces in local axes: k · (T · u of the member's rows) - Q.
+    const endForces = new Float64Array(ELEMENT_DOFS * elements.length);
+    const uLocal = new Float64Array(ELEMENT_DOFS);
+    elements.forEach((element, index) => {
+      const t = element.transformation.data;
+      const k = element.kLocal.data;
+      for (let i = 0; i < ELEMENT_DOFS; i++) {
+        let sum = 0;
+        for (let j = 0; j < ELEMENT_DOFS; j++) {
+          sum +=
+            (t[i * ELEMENT_DOFS + j] as number) * (u[element.dofIndices[j] as number] as number);
+        }
+        uLocal[i] = sum;
+      }
+      const q = equivalent[index];
+      for (let i = 0; i < ELEMENT_DOFS; i++) {
+        let sum = 0;
+        for (let j = 0; j < ELEMENT_DOFS; j++) {
+          sum += (k[i * ELEMENT_DOFS + j] as number) * (uLocal[j] as number);
+        }
+        endForces[ELEMENT_DOFS * index + i] = q === undefined ? sum : sum - (q[i] as number);
+      }
+    });
+
+    if (!allFinite(u) || !allFinite(r) || !allFinite(endForces)) {
       return { ok: false, reason: "non-finite", where: "load-case", loadCaseId: loadCase.id };
     }
 
@@ -327,6 +432,18 @@ export function solve(model: Model): SolveResult {
         ]);
       }
     }
+    const endAction = (index: number, offset: number): MemberEndAction => ({
+      fx: endForces[ELEMENT_DOFS * index + offset] as number,
+      fy: endForces[ELEMENT_DOFS * index + offset + 1] as number,
+      fz: endForces[ELEMENT_DOFS * index + offset + 2] as number,
+      mx: endForces[ELEMENT_DOFS * index + offset + 3] as number,
+      my: endForces[ELEMENT_DOFS * index + offset + 4] as number,
+      mz: endForces[ELEMENT_DOFS * index + offset + 5] as number,
+    });
+    const memberEndForces = elements.map((element, index): [string, MemberEndForces] => [
+      element.memberId,
+      { start: endAction(index, 0), end: endAction(index, DOFS_PER_NODE) },
+    ]);
     results.push([
       loadCase.id,
       {
@@ -336,9 +453,16 @@ export function solve(model: Model): SolveResult {
         displacementVector: u,
         reactionVector: r,
         sensitivity,
+        memberEndForces: record(memberEndForces),
       },
     ]);
   }
 
-  return { ok: true, nodeIds: [...dofMap.nodeIds], loadCases: record(results) };
+  return {
+    ok: true,
+    nodeIds: [...dofMap.nodeIds],
+    memberIds: elements.map((element) => element.memberId),
+    smallestPivotRatio,
+    loadCases: record(results),
+  };
 }

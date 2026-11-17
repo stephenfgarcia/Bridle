@@ -1,8 +1,9 @@
 /**
- * `@bridle/solver`: the linear-elastic 3D frame solver of the showcase. So far (pitch cards S2 and
- * S3): the frame element's stiffness matrix, its transformation, the assembly of the global
- * stiffness matrix, and the solve for supports and nodal loads (displacements and reactions).
- * Theory, units and sign conventions are in ../README.md and ./element.ts.
+ * `@bridle/solver`: the linear-elastic 3D frame solver of the showcase. So far (pitch cards S2 to
+ * S4): the frame element's stiffness matrix, its transformation, the assembly of the global
+ * stiffness matrix, and the solve for supports, nodal loads and member loads (displacements,
+ * reactions and member end forces). Theory, units and sign conventions are in ../README.md,
+ * ./element.ts and ./memberLoads.ts.
  */
 export {
   type AssembleResult,
@@ -42,12 +43,19 @@ export {
   zeros,
 } from "./matrix";
 export {
+  equivalentNodalLoadsLocal,
+  isMemberPointLoad,
+  type MemberLoad,
+  memberLoadLocalComponents,
+} from "./memberLoads";
+export {
   type LoadCaseResult,
+  type MemberEndAction,
+  type MemberEndForces,
   type NodeDisplacement,
   type NodeReaction,
   PIVOT_THRESHOLD,
   REACTION_COMPONENTS,
   type SolveResult,
   solve,
-  type UnsupportedMemberLoad,
 } from "./solve";

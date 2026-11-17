@@ -188,7 +188,8 @@ function resultant(model: Model, result: LoadCaseResult): number[] {
 /**
  * The smallest ratio of a pivot to its diagonal entry in the factorization of a model's reduced
  * matrix, for a model that `solve` accepts. The reduced matrix is built here from `assemble` and the
- * supports, and factorized with `factorize` and `PIVOT_THRESHOLD`, as `solve` does.
+ * supports, and factorized with `factorize` and `PIVOT_THRESHOLD`, as `solve` does. Every call also
+ * checks that `solve` reports exactly this number as `smallestPivotRatio`.
  */
 function smallestRatio(model: Model): number {
   const assembled = assemble(model);
@@ -230,6 +231,8 @@ function smallestRatio(model: Model): number {
       (pivots[k] as number) / (reduced.data[row * free.length + row] as number),
     );
   }
+  const viaSolve = solve(model);
+  expect(viaSolve.ok && viaSolve.smallestPivotRatio).toBe(smallest);
   return smallest;
 }
 
@@ -754,7 +757,9 @@ describe("solve: load cases, supports and the result", () => {
     const model = twoCases();
     model.loadCases = [];
     model.nodalLoads = [];
-    expect(solve(model)).toEqual({ ok: true, nodeIds: ["n1", "n2"], loadCases: {} });
+    const result = solve(model);
+    expect(result).toMatchObject({ ok: true, nodeIds: ["n1", "n2"], loadCases: {} });
+    expect(result.ok && Object.keys(result.loadCases)).toEqual([]);
     model.supports = [support("n1", ["ux", "uy", "uz"])];
     expect(solve(model).ok).toBe(false);
   });
@@ -916,36 +921,7 @@ describe("solve: refusals", () => {
     });
   });
 
-  it("refuses a model with a uniform member load or a member point load as not supported yet", () => {
-    const model = portalFrame();
-    model.memberUniformLoads.push({
-      id: "ul1",
-      loadCaseId: "lc1",
-      memberId: "b1",
-      axes: "global",
-      direction: "z",
-      value: -10,
-    });
-    model.memberPointLoads.push({
-      id: "pl1",
-      loadCaseId: "lc1",
-      memberId: "c1",
-      axes: "local",
-      direction: "y",
-      value: 5,
-      position: 2,
-    });
-    expect(solve(model)).toEqual({
-      ok: false,
-      reason: "not-supported-yet",
-      unsupported: [
-        { loadId: "ul1", memberId: "b1", feature: "member-load" },
-        { loadId: "pl1", memberId: "c1", feature: "member-load" },
-      ],
-    });
-  });
-
-  it("refuses truss members and end releases as assemble does, listing them before any member load", () => {
+  it("refuses truss members and end releases as assemble does; a member load is not a reason for refusal and is not listed", () => {
     const truss = solve(planarTruss());
     expect(truss.ok).toBe(false);
     if (truss.ok || truss.reason !== "not-supported-yet") {
@@ -955,7 +931,6 @@ describe("solve: refusals", () => {
     expect(truss.unsupported[0]).toEqual({ memberId: "t1", feature: "truss-member" });
 
     const model = portalFrame();
-    (model.members[1] as Model["members"][number]).releases.end.ry = true;
     model.memberUniformLoads.push({
       id: "ul1",
       loadCaseId: "lc1",
@@ -964,13 +939,12 @@ describe("solve: refusals", () => {
       direction: "z",
       value: -10,
     });
+    expect(solve(model).ok).toBe(true);
+    (model.members[1] as Model["members"][number]).releases.end.ry = true;
     expect(solve(model)).toEqual({
       ok: false,
       reason: "not-supported-yet",
-      unsupported: [
-        { memberId: "b1", feature: "end-release" },
-        { loadId: "ul1", memberId: "b1", feature: "member-load" },
-      ],
+      unsupported: [{ memberId: "b1", feature: "end-release" }],
     });
   });
 

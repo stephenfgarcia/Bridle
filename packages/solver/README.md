@@ -1,12 +1,14 @@
 # @bridle/solver
 
 The linear-elastic 3D frame solver of the showcase (`docs/plan/pitch-plan.md`). So far it has the work of
-pitch cards S2 and S3: the stiffness matrix of a 3D frame element in local axes, its transformation to global
-axes, the assembly of the global stiffness matrix of a model, and `solve`, which applies the supports and the
-nodal loads of each load case and returns the displacements of the nodes and the reactions at the supports.
+pitch cards S2 to S4: the stiffness matrix of a 3D frame element in local axes, its transformation to global
+axes, the assembly of the global stiffness matrix of a model, and `solve`, which applies the supports, the
+nodal loads and the member loads (uniform and point) of each load case and returns the displacements of the
+nodes, the reactions at the supports and the end forces of every member.
 
-Not yet: member loads (card S4), truss members and member end releases (card S5), member end forces and
-values along a member (cards S4 and S6). `solve` refuses a model that has any of the first three.
+Not yet: truss members and member end releases (card S5), values along a member (card S6). `solve` refuses
+a model that has a truss member or an end release. A uniform load covers the whole member; there are no
+partial-length distributed loads, no moments applied along a member and no load combinations.
 
 Plain TypeScript; the one runtime dependency is `@bridle/model`. The functions are pure and keep no state
 between calls, and the source uses no browser or Node API.
@@ -45,11 +47,23 @@ if (result.ok) {
 }
 
 // Solve it: the portal frame fixture has one load case, `lc1`, with 20 kN along +X on node n2.
-const solved = solve(portalFrame());
+// Here a uniform load of 10 kN/m downward is added on the beam b1.
+const frame = portalFrame();
+frame.memberUniformLoads.push({
+  id: "ul1",
+  loadCaseId: "lc1",
+  memberId: "b1",
+  axes: "global",
+  direction: "z",
+  value: -10,
+});
+const solved = solve(frame);
 if (solved.ok) {
   const lc1 = solved.loadCases.lc1;
   lc1?.displacements.n2?.ux; // the sway of node n2, in m
   lc1?.reactions.n1?.my; // the moment the support at n1 applies to the frame, in kN·m
+  lc1?.memberEndForces.b1?.start.my; // the moment node n2 applies to the start of b1, local axes, kN·m
+  solved.smallestPivotRatio; // how close the model is to the instability threshold
 } else {
   solved.reason; // "invalid-model", "not-supported-yet", "unstable" or "non-finite"
 }
@@ -90,7 +104,8 @@ Written once here and in the header of `src/element.ts`. They agree with `packag
 - **Forces and moments.** A force is positive along the positive axis and a moment is positive by the
   right-hand rule about it, like the displacement it goes with. The element matrix gives the forces and
   moments that the nodes apply to the member's ends, f = k u, in the axis directions at both ends. They are
-  not internal forces by a beam sign convention (card S6 derives those).
+  not internal forces by a beam sign convention (card S6 derives those). The member end forces that `solve`
+  reports follow this same rule ("Member end forces" below).
 - **Local and global.** The same rules hold in local and in global axes; only the triad differs. Global
   rotations and moments follow the right-hand rule about global X, Y, Z, as the model's `NodalLoad` says.
 
@@ -123,7 +138,9 @@ and −GJ/L between the two ends.
 | `elementTransformation(axes)`                                                                       | The 12 by 12 matrix T with u_local = T u_global: four copies of the 3 by 3 matrix whose rows are the local x, y, z unit vectors.       |
 | `elementStiffnessGlobal(kLocal, T)`                                                                 | Tᵀ k T, the element matrix in global axes.                                                                                             |
 | `assemble(model)`                                                                                   | The global stiffness matrix, the degree-of-freedom map and one `MemberElement` per member, or a refusal (below).                       |
-| `solve(model)`                                                                                      | Per load case, the displacements of the nodes and the reactions at the supports, or a refusal (below).                                 |
+| `solve(model)`                                                                                      | Per load case, the displacements of the nodes, the reactions at the supports and the member end forces, or a refusal (below).          |
+| `equivalentNodalLoadsLocal(load, length, axes)`                                                     | The twelve equivalent nodal loads of one member load, in the member's local axes ("Member loads" below).                               |
+| `memberLoadLocalComponents(load, axes)`, `isMemberPointLoad(load)`                                  | A member load's value resolved along local x, y, z; whether a member load is a point load.                                             |
 | `factorize(matrix, relativeThreshold)`, `solveFactorized(factorization, b)`                         | The symmetric factorization L D Lᵀ that `solve` uses, and the solution of a system with it.                                            |
 | `unsupportedMembers(model)`                                                                         | The members `assemble` refuses as not supported yet.                                                                                   |
 | `buildDofMap(nodes)`, `dofIndex(map, nodeId, dof)`, `memberDofIndices(map, startNodeId, endNodeId)` | The numbering of the global rows.                                                                                                      |
@@ -164,8 +181,8 @@ of the product Tᵀ k T, not always exactly; the local matrix is exactly symmetr
 
 ### `solve(model)`
 
-For each load case of the model, `solve` finds the displacements of the nodes and the reactions at the
-supports. It does not change the model and keeps no state between calls.
+For each load case of the model, `solve` finds the displacements of the nodes, the reactions at the
+supports and the end forces of the members. It does not change the model and keeps no state between calls.
 
 What it does:
 
@@ -178,29 +195,32 @@ What it does:
    which is also the check for instability (below). The factorization is used for every load case.
 4. **Loads.** For a load case, the load vector f has, at each degree of freedom, the sum of the components
    of the case's nodal loads on that node (`fx`, `fy`, `fz`, `mx`, `my`, `mz` go to `ux`, `uy`, `uz`, `rx`,
-   `ry`, `rz`). The free displacements are the solution of (reduced K) u = (free rows of f).
+   `ry`, `rz`) and of the equivalent nodal loads of the case's member loads ("Member loads" below). The free
+   displacements are the solution of (reduced K) u = (free rows of f).
 5. **Reactions.** The reactions are the restrained rows of K u − f, computed with the whole matrix K as
-   `assemble` returned it, not with the reduced matrix. So a load applied directly on a restrained degree of
-   freedom appears in that reaction with the opposite sign.
-6. **Sensitivity.** A number that indicates how much rounding in K could matter to the result is computed
+   `assemble` returned it, not with the reduced matrix, and with the whole f. So a load applied directly on
+   a restrained degree of freedom appears in that reaction with the opposite sign, and so does the part of
+   a member load that goes straight into a support: a beam fixed at both ends under a uniform load has no
+   displacement at all, and its reactions are wL/2 and wL²/12.
+6. **Member end forces.** For each member, k · T · u − Q in its local axes ("Member end forces" below).
+7. **Sensitivity.** A number that indicates how much rounding in K could matter to the result is computed
    for the load case and reported with it (below). `solve` does not act on it.
 
 `solve` returns one of:
 
-- `{ ok: true, nodeIds, loadCases }`: `loadCases` has one `LoadCaseResult` per load case of the model, under
-  the load case's id. A model with no load case gives an empty `loadCases`; it is still checked for
-  instability.
+- `{ ok: true, nodeIds, memberIds, smallestPivotRatio, loadCases }`: `loadCases` has one `LoadCaseResult`
+  per load case of the model, under the load case's id. A model with no load case gives an empty
+  `loadCases`; it is still checked for instability. `nodeIds` and `memberIds` are the ids in the model's
+  order; `smallestPivotRatio` is described under "The smallest pivot ratio".
 - `{ ok: false, reason: "invalid-model", issues }`: the issues of `validateModel`. A model with no support
   is refused here (`no-support`).
 - `{ ok: false, reason: "not-supported-yet", unsupported }`: the entries of `assemble` for truss members and
-  end releases (`{ memberId, feature }`), then one `{ loadId, memberId, feature: "member-load" }` for each
-  entry of `memberUniformLoads` and then of `memberPointLoads`, whatever its load case. **Member loads are
-  not supported yet**; card S4 adds them.
+  end releases (`{ memberId, feature }`). A member load is not a reason for refusal.
 - `{ ok: false, reason: "unstable", nodeId, dof, pivot, diagonal, threshold, remaining }`: see "The
   instability test".
 - `{ ok: false, reason: "non-finite", where: "stiffness" }` when an entry of K is not a finite number, and
-  `{ ok: false, reason: "non-finite", where: "load-case", loadCaseId }` when a displacement or a reaction of
-  that load case is not (numbers so large that a product overflows a double).
+  `{ ok: false, reason: "non-finite", where: "load-case", loadCaseId }` when a displacement, a reaction or a
+  member end force of that load case is not (numbers so large that a product overflows a double).
 
 #### The result of a load case
 
@@ -212,13 +232,17 @@ What it does:
 | `displacementVector` | A `Float64Array` with the same displacements: six numbers per node, nodes in the order of `nodeIds`, `ux` to `rz` within a node. |
 | `reactionVector`     | A `Float64Array` with the same reactions in the same order (`fx` to `mz` within a node); 0 in every row no support restrains.    |
 | `sensitivity`        | The number of "The sensitivity of a result".                                                                                     |
+| `memberEndForces`    | An object with one entry per member of the model, under the member's id: `{ start, end }`, each `{ fx, fy, fz, mx, my, mz }`.    |
 
-`nodeIds` of the result is the list of node ids in the model's order.
+`nodeIds` of the result is the list of node ids in the model's order, and `memberIds` the list of member
+ids in the model's order.
 
 **Units.** Translations `ux`, `uy`, `uz` are in m; rotations `rx`, `ry`, `rz` are in rad. Reaction forces
-`fx`, `fy`, `fz` are in kN; reaction moments `mx`, `my`, `mz` are in kN·m.
+and member end forces `fx`, `fy`, `fz` are in kN; reaction moments and member end moments `mx`, `my`, `mz`
+are in kN·m.
 
-**Signs.** Everything is in the global axes, by the conventions above:
+**Signs.** Displacements and reactions are in the global axes, by the conventions above (member end forces
+are in each member's local axes; see "Member end forces"):
 
 - A displacement is positive along the positive global axis; a rotation is positive by the right-hand rule
   about it. A node that sinks has a negative `uz`.
@@ -226,8 +250,8 @@ What it does:
   about the positive global axes, like a nodal load. A support that carries a downward load has a positive
   `fz`. For a cantilever along +X fixed at its start with a downward force P at its tip (length L), the
   reaction is `fz` = +P and `my` = −P·L.
-- For each load case the nodal loads and the reactions together are in equilibrium: their forces sum to
-  zero and their moments about any point sum to zero, up to rounding.
+- For each load case the nodal loads, the member loads and the reactions together are in equilibrium:
+  their forces sum to zero and their moments about any point sum to zero, up to rounding.
 - A component of a reaction that its support does not restrain is exactly 0. A support that restrains
   nothing still has an entry, of six zeros.
 
@@ -235,7 +259,7 @@ What it does:
 `Float64Array`s: no function, no `Map` and no class instance. A test checks that `structuredClone` of a
 result (the copy a Web Worker message makes) equals the result. `JSON.stringify` does not keep a
 `Float64Array` as an array; the records `displacements` and `reactions` hold the same numbers as plain
-objects. The order of the keys of a record is not part of the result (JavaScript lists keys that look like
+objects, and `memberEndForces` is plain objects only. The order of the keys of a record is not part of the result (JavaScript lists keys that look like
 whole numbers first); use `nodeIds` for the order of the nodes.
 
 #### The factorization
@@ -322,14 +346,135 @@ The limits of the test, each covered by a test:
   the pivot is positive: it is real stiffness, too small against its diagonal entry to be told from
   rounding.
 - **A model that is accepted close to the threshold has lost digits.** A ratio r leaves the pivot a
-  relative rounding error of the order of ε/r (ε is about 2.2e-16). The 10 m by 10 m portal frame with
+  relative rounding error of the order of ε/r (ε is about 2.2e-16). The smallest ratio of an accepted model
+  is in the result as `smallestPivotRatio`. The 10 m by 10 m portal frame with
   its area multiplied by 1e9 has a smallest ratio between 1e-12 and 1e-11; it solves, and its sway
   differs from the slope-deflection value by more than 1e-6 and less than 1e-4 of it.
 - **The ratio falls as a member is cut into more elements.** For a cantilever of n equal elements along a
-  global axis the smallest ratio is 1/(4n³) (tested for n = 50, 100 and 200; it is 3.1e-8 for n = 200). By that
-  law it would reach 1e-12 near n = 6300; that was not run.
+  global axis the smallest ratio is 1/(4n³) for n = 50, 100 and 200 (tested; it is 3.1e-8 for n = 200). The
+  law does not hold for every n: the review of card PX-01.4 measured 1/64, not 1/108, for n = 3. If the
+  ratio kept falling with the cube of n it would reach 1e-12 near n = 6300; that was not run.
 - The test is a numerical test, not a proof. Whether a ratio near the threshold falls on one side or the
   other can depend on rounding in `Math.sin`, `Math.cos` and `Math.hypot`; the tests were run on Node 22.
+
+#### Member loads
+
+A `MemberUniformLoad` (kN/m over the whole member) and a `MemberPointLoad` (kN at `position` metres from
+the start node) act along one axis, named by `axes` (`"local"` or `"global"`) and `direction` (`"x"`, `"y"`
+or `"z"`), as `@bridle/model` defines them.
+
+- **Resolution into local axes.** A load in local axes is a load along that local axis. A load in global
+  axes is a vector along that global axis; its local components are its dot products with the member's
+  local x, y and z unit vectors. On an inclined member a global vertical load therefore has an axial part
+  and a transverse part. A uniform load is per unit of the member's own length, also for a global
+  direction: the total of a global vertical load w on a member of length L is w · L, whatever its slope
+  (for a member from (0, 0, 0) to (3, 0, 4) and w = 10 kN/m the total is 50 kN, not 30 kN).
+- **Equivalent nodal loads.** Each load is replaced by twelve loads Q on the member's two nodes, in local
+  axes: the fixed-end forces of the load (the end actions of the member with both ends fixed) with the
+  opposite sign. `equivalentNodalLoadsLocal(load, length, axes)` returns them. `solve` turns them to global
+  axes with Tᵀ and adds them to the load vector. The derivation is in the header of `src/memberLoads.ts`:
+  by Betti's theorem the fixed-end force at a degree of freedom is minus the integral of the load times the
+  element's shape function of that degree of freedom, and the shape functions are the exact deflected
+  shapes of an unloaded Euler-Bernoulli member, so the result is exact for this element, not an
+  approximation that improves with more elements.
+- **Position of a point load.** `validateModel` accepts a position up to 1e-9 m past either end; such a
+  position is taken as the end. A point load at an end is that force on that node and nothing else.
+- A load acts on the member's axis, so it gives no torque about local x.
+
+The equivalent nodal loads of a load with the local components (px, py, pz), in the order of the degrees of
+freedom. For a uniform load p is in kN/m; for a point load p is in kN, at a from the start, with b = L − a.
+
+| Component  | Uniform load | Point load       | Remark                         |
+| ---------- | ------------ | ---------------- | ------------------------------ |
+| start `ux` | px·L/2       | px·b/L           |                                |
+| start `uy` | py·L/2       | py·b²(3a + b)/L³ |                                |
+| start `uz` | pz·L/2       | pz·b²(3a + b)/L³ |                                |
+| start `rx` | 0            | 0                |                                |
+| start `ry` | −pz·L²/12    | −pz·a·b²/L²      | minus: d(uz)/dx = −ry          |
+| start `rz` | +py·L²/12    | +py·a·b²/L²      | plus: d(uy)/dx = +rz           |
+| end `ux`   | px·L/2       | px·a/L           |                                |
+| end `uy`   | py·L/2       | py·a²(a + 3b)/L³ |                                |
+| end `uz`   | pz·L/2       | pz·a²(a + 3b)/L³ |                                |
+| end `rx`   | 0            | 0                |                                |
+| end `ry`   | +pz·L²/12    | +pz·a²·b/L²      | the opposite sign of the start |
+| end `rz`   | −py·L²/12    | −py·a²·b/L²      | the opposite sign of the start |
+
+The moments have opposite signs in the two bending planes for the reason given in "What the convention
+does to the bending terms". A check by statics: a load along +z at a distance x from the start node has
+the moment (x, 0, 0) × (0, 0, P) = (0, −x·P, 0) about that node, negative about y, and the equivalent moment
+at the start is negative about y too.
+
+#### Member end forces
+
+For each load case and each member, `memberEndForces[memberId]` is `{ start, end }`: the force and the
+moment that the start node and the end node apply to the member's ends,
+
+    f = k · T · u − Q,
+
+with k the member's local stiffness matrix, T its transformation, u the displacements of its two nodes in
+global axes and Q the sum of the equivalent nodal loads of the member's own loads of that load case (zero
+for a member without loads).
+
+**The sign convention.** The values are in the member's **local axes**, and they are **end actions in the
+axis directions at both ends**: at the start and at the end alike, a force is positive along the positive
+local axis and a moment is positive by the right-hand rule about the positive local axis. They are what
+the node does to the member, not what the member does to the node, and not internal forces by a beam sign
+convention with opposite positive senses on the two faces of a cut.
+
+| Component  | What it is                                   | Positive at the start                               | Positive at the end                              |
+| ---------- | -------------------------------------------- | --------------------------------------------------- | ------------------------------------------------ |
+| `fx`       | axial force                                  | the node pushes into the member (compression there) | the node pulls out of the member (tension there) |
+| `fy`, `fz` | shear along local y, local z                 | the node pushes the end along +y, +z                | the same                                         |
+| `mx`       | torque                                       | right-hand rule about +x                            | the same                                         |
+| `my`       | bending moment about local y (x-z plane, Iy) | right-hand rule about +y: turns z towards x         | the same                                         |
+| `mz`       | bending moment about local z (x-y plane, Iz) | right-hand rule about +z: turns x towards y         | the same                                         |
+
+Because local x points into the member at the start and out of it at the end, the same physical state has
+opposite signs at the two ends. A member in tension with no axial load along it has `start.fx` = −N and
+`end.fx` = +N. For a beam along +X with roll 0 that sags under a downward load (tension in the bottom
+fibre, moment M), a cut end that is a start has `my` = +M and one that is an end has `my` = −M; a hogging
+moment has the opposite signs. In the other plane the signs are reversed: under a load along −y, sagging
+towards −y gives `mz` = −M at a start and `mz` = +M at an end.
+
+**Equilibrium.** The two end actions of a member and the member's own loads are in equilibrium. At a node,
+the nodal loads, the reaction and the opposites of the end actions of the members that meet there, turned
+to global axes, sum to zero.
+
+**Worked example.** A cantilever of 3 m along +X (local axes equal to the global axes), fixed at its start
+node, with a nodal load of 10 kN downward (`fz` = −10) on its end node:
+
+| End   | `fx` | `fy` | `fz` | `mx` | `my` | `mz` |
+| ----- | ---- | ---- | ---- | ---- | ---- | ---- |
+| start | 0    | 0    | +10  | 0    | −30  | 0    |
+| end   | 0    | 0    | −10  | 0    | 0    | 0    |
+
+At the start the node is the support: it pushes the member up with 10 kN and applies −30 kN·m about y, the
+same numbers as the reaction (the load's moment about the fixed end is (3, 0, 0) × (0, 0, −10) = (0, +30, 0),
+and the support balances it). At the end the node passes the load on to the member: 10 kN downward, and no
+moment, because the tip is free. If the same 10 kN is given as a member point load at `position` 3 and not
+as a nodal load, the start is the same and the end is all zeros: the load then acts on the member itself
+and the node applies nothing to it. With a nodal load of 10 kN along +X on the end node the member is in
+tension: `start.fx` = −10 and `end.fx` = +10.
+
+A second example: a beam of 6 m along +X fixed at both ends, with 10 kN/m downward. Start: `fz` = +30,
+`my` = −30 (−wL²/12). End: `fz` = +30, `my` = +30 (+wL²/12). Both ends hog. No node moves, so k · T · u is
+zero and the end forces are −Q.
+
+#### The smallest pivot ratio
+
+`smallestPivotRatio` of a result is the smallest ratio that the factorization met: over the unrestrained
+degrees of freedom, the smallest pivot divided by its diagonal entry of K ("The factorization" above
+defines the ratio). It belongs to the model and its supports and is the same for every load case. It has
+no unit. It is above `PIVOT_THRESHOLD` (1e-12), because otherwise the result would be `unstable`, and it is
+1 when no degree of freedom is free (every one is restrained, so nothing was factorized).
+
+What it tells: how near the model is to being reported as unstable, and how many digits the results may
+have lost. A ratio r leaves the pivot a relative rounding error of the order of ε/r (ε is about 2.2e-16).
+A cantilever of one element has 1/4; a cantilever of 50, 100 or 200 equal elements along a global axis
+has 1/(4n³) (other n can differ from that law); the
+10 m by 10 m portal frame with its area multiplied by 1e9, whose sway is off by more than 1e-6 of the
+slope-deflection value, has a ratio between 1e-12 and 1e-11. An interface can warn when the number is
+within a few orders of magnitude of 1e-12. The solver sets no warning level and does not act on the number.
 
 #### The sensitivity of a result
 
@@ -337,8 +482,9 @@ For the result of each load case `solve` computes
 
     sensitivity = ε · ( Σ over i and j of |u_i| · |K_ij| · |u_j| ) / ( Σ over i of f_i · u_i ),
 
-with ε = `Number.EPSILON` (about 2.2e-16), K the assembled matrix, u the displacements and f the nodal
-loads. The denominator is the work of the loads, which for the exact solution equals uᵀ K u. The quotient
+with ε = `Number.EPSILON` (about 2.2e-16), K the assembled matrix, u the displacements and f the load
+vector (the nodal loads plus the equivalent nodal loads of the member loads). The denominator is the work
+of those loads on the nodes, which for the exact solution equals uᵀ K u. The quotient
 is the relative change of that work that a relative change of ε in every entry of K could cause, for these
 displacements. It has no unit and does not change with the units of force or length. It is 0 when every
 displacement is 0, and `Infinity` when the displacements are not all 0 and the work is not positive.
@@ -378,10 +524,50 @@ a scale given in the test (a force, a moment or a displacement of the same case)
   several loads on one node; a load on a restrained degree of freedom; a support with unrestrained
   components; a model with every degree of freedom restrained.
 - The unstable models and the limits named in "The instability test", and the refusals (invalid model,
-  member loads, truss members and releases, overflow).
+  truss members and releases, overflow). Every test that measures a smallest ratio also checks that
+  `solve` reports the same number as `smallestPivotRatio`.
 - Stiff next to soft: the stepped cantilever and the 200-element cantilever against their closed-form tip
   deflections at relative 1e-7. That tolerance is wider because these systems are ill-conditioned; the
   largest differences measured are about 5e-9 and 2e-8.
 - `factorize` and `solveFactorized` on a 3 by 3 matrix whose order of elimination and factors are worked
   by hand, on a matrix that is not symmetric, on a tridiagonal matrix, on 20 full matrices of 15 rows
   against Gaussian elimination with partial pivoting, and on singular, zero-row and indefinite matrices.
+
+Member loads and member end forces: `src/memberLoads.test.ts`. The tolerances are stated in the tests;
+"relative 1e-12" and the zero rule are as above. The section and material are those of the fixtures.
+
+- `equivalentNodalLoadsLocal` alone: the twelve numbers for a uniform load and for a point load along each
+  local axis, with their signs in both bending planes; a point load at an end, past an end and 1 µm from
+  an end; a global vertical load on a member that rises 4 in 3; a roll of 90 degrees; and for six members
+  (along X, vertical upward and downward, skew, with roll angles of 0, 20, 40 and −115 degrees), uniform
+  and point loads in local and global axes along x, y and z: the twelve numbers have the same force and
+  the same moment about the start node as the load.
+- Closed-form cases through `solve` at relative 1e-12, in both bending planes where the case has one:
+  a simply supported beam with a node at mid-span under a uniform load (reactions wL/2, deflection
+  5wL⁴/(384EI), end rotations wL³/(24EI), mid-span moment wL²/8 in the end forces); the simply supported
+  beam fixture under its own load; a beam fixed at both ends under a uniform load (no displacement, end
+  moments wL²/12 with their signs), and the same with a node at mid-span (deflection wL⁴/(384EI), moment
+  wL²/24); a cantilever under a uniform load (tip deflection wL⁴/(8EI), rotation wL³/(6EI), moment wL²/2);
+  a cantilever under a point load at 2 m, at mid-span, 1 mm from the fixed end, 1 mm from the tip and at
+  the tip of 6 m (tip deflection Pa²(3L − a)/(6EI), rotation Pa²/(2EI)); a propped cantilever under a
+  uniform load (reactions 5wL/8 and 3wL/8, moment wL²/8, rotation wL³/(48EI)); a beam fixed at both ends
+  with an off-centre point load (shears Pb²(3a + b)/L³ and Pa²(a + 3b)/L³, moments Pab²/L² and Pa²b/L²); a
+  bar under an axial uniform load (pL²/(2EA)) and under an axial point load, fixed at one end (Pa/(EA)) and
+  at both (Pb/L and Pa/L); the worked example above.
+- Inclined, vertical and rolled members: the member from (0, 0, 0) to (3, 0, 4) under a global vertical
+  uniform load, on a pin and a roller (total reaction w times the length) and as a cantilever; a column
+  running upward and one running downward under wind along +X and along +Y; a cantilever with a roll of 90
+  degrees (deflection with Iz) and with a roll of 30 degrees (it moves sideways; the reactions do not
+  depend on the roll); a skew cantilever along (2, 3, 6) with a roll of 40 degrees under three loads, at
+  1e-11.
+- Frames: the portal frame fixture with a beam load, a column wind load and two point loads: every member,
+  every node and the whole structure in equilibrium within 1e-12 · 300 kN·m, and a check that these
+  equilibrium tests fail for a changed end force; the portal frame under a beam load with its area
+  multiplied by 1e6 against the slope-deflection values at relative 1e-7.
+- Against a finer model, at 1e-10 of the largest value: a space frame of three skew members with roll
+  angles, where a point load inside a member is compared with the same force on a node placed there
+  (a reference that uses nodal loads only), and a uniform load with the same load on the member cut into
+  three pieces.
+- Load cases (a member load acts in its own load case only; a case with all the loads is the sum of the
+  others), plain data and `structuredClone`, a member id that is a name of `Object.prototype`, the
+  smallest pivot ratio, an overflowing member load.
