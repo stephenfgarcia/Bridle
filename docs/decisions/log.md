@@ -2,8 +2,9 @@
 
 The owner's operational decisions, one dated row each, with where each is already recorded or applied. Architecture decisions stay
 in [ADR 0001](0001-mvp-scope-resolutions.md) and [ADR 0002](0002-architecture-amendments.md); this log links them. "chat only;
-this log is the record" marks a decision with no other written source. No row is invented: a decision that cannot be sourced to
-a card, a document or the P0-11 Spec is left out. Line numbers are those of `docs/plan/roadmap.md` at P0-11's commit.
+this log is the record" marks a decision given in chat, for which this log is the record; such a row may also name where the
+decision is applied or noted. No row is invented: a decision is either sourced to a card, a document or the P0-11 Spec, or
+carries that marker. Line numbers are those of `docs/plan/roadmap.md` at P0-11's commit.
 
 | Date | Decision | Who | Where it is recorded or applied |
 |---|---|---|---|

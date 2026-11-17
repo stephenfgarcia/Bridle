@@ -37,14 +37,19 @@ open `http://127.0.0.1:8787/`.
 
 A review FAIL or a failing test sends the card back to **build** once, with the findings as the note.
 Nothing ships without: tests passing, review PASS, every card section through `## Review` filled, and a commit named
-after the card; then `## Ship` (the hash and the run URL), the done state, the regenerated board and the log entry go
-into one `Cards: <id> shipped` commit.
+after the card; then `## Ship` (the hash and the run URL), the done state, the regenerated board, the log entry and the
+rewritten "In flight / next / only the owner can do" paragraphs of `docs/plan/progress.md` go into one
+`Cards: <id> shipped` commit.
 
 ## Resume
 
 After a break, in this order: the root [README.md](../README.md); `python3 tools/monitor/card.py list` (every card's station
 and status, who is next up); `docs/plan/progress.md` (the board, the owner's open items, the log of shipped cards);
-`docs/plan/roadmap.md` E3 (the order of execution); then `/factory next`.
+`docs/plan/roadmap.md` E3 (the order of execution). Then a parked or in-flight card comes first: a card that `card.py list`
+shows at a station from spec to review is in flight whatever its status (running, blocked, failed or review, as
+`card.py move` names them) and is resumed with `/factory run <id>` (a parked card says where to start in the pause note of
+its Spec; a work-package row waiting at spec while its sub-cards run is not such a card). Otherwise `/factory next`, which
+takes backlog cards only.
 
 ## Several sessions at once
 

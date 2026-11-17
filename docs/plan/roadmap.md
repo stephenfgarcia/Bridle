@@ -1,7 +1,7 @@
 <!-- Header added by card P0-11. Everything from the H1 below is a verbatim copy; amend it only by a commit to this file. -->
 > **Status:** approved 2026-11-03 (second approval, the complete plan; the first approval, the same day, covered Part D only).
 > **Canonical:** from the commit of card P0-11 on, this file is the plan; amendments are commits to this file, each with a dated row in docs/decisions/log.md or an entry in docs/plan/progress.md.
-> **Origin:** /Users/johnstephenf.garcia/.claude/plans/lets-plan-first-in-stateless-pizza.md (371 lines, 79,908 bytes), copied unchanged: the body is not edited, summarized or improved.
+> **Origin:** /Users/johnstephenf.garcia/.claude/plans/lets-plan-first-in-stateless-pizza.md as committed verbatim in 8e0e550 (2026-11-03 22:32 +0800) (371 lines, 79,908 bytes; committed verbatim in 8e0e550), copied unchanged: the body is not edited, summarized or improved, and differs from that file by one byte, the final newline it lacked (so 79,909 bytes). That path has since been reused (card P0-11, ## Test, second pass), so the body is verified against 8e0e550 (by hand: git show 8e0e550:docs/plan/roadmap.md plus one newline) and the sha256 pin in tools/test/docs.test.sh (the sha256 of the body with that newline, not of the 8e0e550 file), not against the path.
 > **Superseded in part:** Part D sections D2 to D6 describe monitor v1 to v3; the monitor as built is docs/plan/monitor-v4.md and tools/monitor/README.md (protocol v2, 2026-11-03).
 > **As of:** the body's status statements (Context, D0, "PLAN-05 sits at review", E4 rows 1 and 2) are as presented on 2026-11-03 07:23; docs/plan/progress.md is the live status.
 

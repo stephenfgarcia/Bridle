@@ -24,7 +24,7 @@ what only the owner can do); [docs/decisions/log.md](docs/decisions/log.md) (the
 - [docs/ops](docs/ops): [github.md](docs/ops/github.md), [local-dev.md](docs/ops/local-dev.md), [permissions.md](docs/ops/permissions.md), [secrets.md](docs/ops/secrets.md), [toolchain.md](docs/ops/toolchain.md).
 - [docs/plan](docs/plan): [roadmap.md](docs/plan/roadmap.md), [monitor-v4.md](docs/plan/monitor-v4.md), [progress.md](docs/plan/progress.md).
 - [factory](factory/README.md): README.md, [line.md](factory/line.md) (stations, workers, exit criteria), [cards/](factory/cards) (one markdown file per work item).
-- [tools](tools): [check.sh](tools/check.sh) (`pnpm check`), [doctor.sh](tools/doctor.sh), [dev.sh](tools/dev.sh), [monitor/](tools/monitor/README.md) (the Bridle Build Monitor and `card.py`), [test/](tools/test) (one test per tooling card).
+- [tools](tools): [check.sh](tools/check.sh) (`pnpm check`), [doctor.sh](tools/doctor.sh), [dev.sh](tools/dev.sh), [monitor/](tools/monitor/README.md) (the Bridle Build Monitor and `card.py`), [test/](tools/test) (one test file per shipped P0-02 and P0-06 sub-card, plus `docs.test.sh` for P0-11; the monitor's tests are in `tools/monitor/test`).
 - [packages](packages): [units](packages/units), the first TypeScript package; [crates](crates): [bridle-canon](crates/bridle-canon), the first Rust crate.
 - Root: [compose.yaml](compose.yaml) (`pnpm dev`), [Dockerfile](Dockerfile), [.github/workflows/check.yml](.github/workflows/check.yml) (CI, the required check `check`), [.claude](.claude): [skills/factory/SKILL.md](.claude/skills/factory/SKILL.md) (the foreman), [agents/](.claude/agents) (the four station agents).
 - `tools/agent-hq/`: another session's standalone app (committed in `aac9cca`, excluded from root Biome by `049b0fd`), not part of the pnpm workspace or the factory.
@@ -40,7 +40,7 @@ what only the owner can do); [docs/decisions/log.md](docs/decisions/log.md) (the
 ## How to resume
 
 1. `bash tools/doctor.sh` (the toolchain, [docs/ops/toolchain.md](docs/ops/toolchain.md)), then `pnpm check`.
-2. `/factory next` in a Claude Code session. Preconditions ([.claude/skills/factory/SKILL.md](.claude/skills/factory/SKILL.md), step 0): the card exists, every `dependsOn` card is done, and for P1 and later cards the roadmap is approved; step 0 then arms the watch.
+2. In a Claude Code session, a parked or in-flight card comes first: a card that `python3 tools/monitor/card.py list` shows at a station from spec to review is in flight whatever its status (running, blocked, failed or review, as `card.py move` names them) and is resumed with `/factory run <id>` (a parked card says where to start in the pause note of its Spec). A work-package row waiting at spec while its sub-cards run is not such a card (an E2 row "is a work package, not a card", SKILL.md). Otherwise `/factory next`, which takes backlog cards only. Preconditions ([.claude/skills/factory/SKILL.md](.claude/skills/factory/SKILL.md), step 0): the card exists, every `dependsOn` card is done, and for P1 and later cards the roadmap is approved; step 0 then arms the watch unless another session is already the mirror.
 
 ## By hand (only the owner)
 
@@ -52,4 +52,4 @@ The [E4 table of the roadmap](docs/plan/roadmap.md#e4-by-hand-the-user) lists wh
 - Stage only your own files, with explicit paths; never `git add -A`.
 - Announce every commit to the other session.
 - Only one session runs the monitor watch (`tools/monitor/watch.sh`).
-- Regenerate the board (`python3 tools/monitor/card.py status --write docs/plan/progress.md`) at every commit that touches a card.
+- Regenerate the board (`python3 tools/monitor/card.py status --write docs/plan/progress.md`) at every `card.py new` and at every ship; a station move in between is rendered at the next regeneration and is not checked.

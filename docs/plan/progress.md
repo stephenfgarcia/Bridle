@@ -4,8 +4,8 @@ The board between the markers is generated from the cards by `python3 tools/moni
 (at every `card.py new` and at every ship) and checked by `python3 tools/monitor/card.py status --check docs/plan/progress.md`,
 a step of `pnpm check` (`tools/test/docs.test.sh`): the check compares the card ids and the `done` ids with the cards; station,
 owner, updated and "next up" are rendered, not checked. The log is written by hand at every ship (`factory/line.md`, the ship
-row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Regenerate the board at every commit that
-touches a card.
+row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. The board is regenerated at every
+`card.py new` and at every ship; a station move in between is rendered at the next regeneration and is not checked.
 
 ## Board
 
@@ -111,7 +111,7 @@ means no card or document says either way.
 | E4.4 Google Cloud and Microsoft Entra OIDC app registrations | P4-01 | | open |
 | E4.5 Anthropic API key, organization spend cap, rate-limit tier request; about $25 for the measurement run | P5-03 manual gate | | open |
 | E4.6 Grafana Cloud, Sentry and status-page accounts | P7-02 | | open |
-| E4.7 Self-hosted M1 Mac mini and Tiger Lake runners | P2-04 R14 evidence only (never blocks ship) | | open |
+| E4.7 Self-hosted M1 Mac mini and Tiger Lake runners | P2-04 R14 evidence only (never blocks ship) | | unknown: no card or document says whether the runners exist or are set up |
 | E4.8 AISC Shapes license (requested at P0-07, executed by M4), ASCE and ACI consent requests, counsel, SME framework agreements and signed verification records, DMCA agent, pentest booking, insurance, pilot agreement | P0-07 requests; gates on P2-11, the P2-08 clause attestation, P7-04 and P7-05 | M0 2026-11-16 for counsel, the AISC and ACI requests and the SME agreements; M4 2027-03-12 for the executed AISC license | open: P0-07 is at backlog |
 | E4.9 Design-partner instructors and two SME reviewers named; spring-2028 term confirmed | P1-05 | M0 2026-11-16 | open: plan-approval decision 1, default in force, not yet answered |
 | M0 Counsel engaged | P0-07 requests (E4.8); M3 determinations for register items 1-3 and 5-8 | 2026-11-16 | open: not started (owner, 2026-11-04) |
@@ -128,6 +128,9 @@ One entry per shipped card and per recorded commit without a card, chronological
 subject. For a card the hash is the one in its `## Ship` section (where that section names no hash, the entry says where its
 hash comes from); every hash is verified against `git log --oneline`, and the date and time are the commit's, on the local
 clock (UTC+8). Cards shipped before `0e2e2cf` (P0-02.3, the Actions workflow) predate CI and carry no Actions run URL.
+A pause is an entry too, in the shape `- Paused <date> <time> (<who>): <the state at the pause>`, on the same clock: the last
+shipped card, the parked card and how to resume it, what is next, the open owner items, the last check and its Actions run, and
+the sessions open on the checkout.
 
 - 2026-11-03 04:11, P0-01, commit 9b95026 (and ecc7870 at 04:15, the backfill tool): Build and publish this monitor; seed tasks; first commit; the Bridle Build Monitor page, `tools/monitor/log.sh`, the seed tasks, the repository's first commit. Both hashes come from the card's history line "Monitor published and committed (9b95026, ecc7870)"; its `## Ship` was empty until the pause check of 2026-11-04.
 - 2026-11-03 04:31, P0-03, commit ee9afdc: Software factory: skill, station agents, cards, Factory view; the `/factory` skill, four station agents, `tools/monitor/card.py`, the first cards, the monitor's Factory view.
