@@ -33,7 +33,7 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | P0-02.5 | P0 | ship | done | orchestrator | 2026-11-17T08:33:00Z |
 | P0-02.6 | P0 | ship | done | orchestrator | 2026-11-17T09:57:34Z |
 | P0-12 | P0 | backlog | planned | - | 2026-11-03T17:07:59Z |
-| P0-08.1 | P0 | backlog | planned | - | 2026-11-17T10:01:07Z |
+| P0-08.1 | P0 | ship | done | orchestrator | 2026-11-17T14:32:55Z |
 | P0-08.2 | P0 | backlog | planned | - | 2026-11-17T10:01:07Z |
 | P0-08.3 | P0 | backlog | planned | - | 2026-11-17T10:01:07Z |
 | P0-08.4 | P0 | backlog | planned | - | 2026-11-17T10:01:07Z |
@@ -94,23 +94,24 @@ Next up: P0-07 External dependencies and legal register
 ## In flight / next / only the owner can do
 
 Resumed 2026-11-17 by the owner after the pause of 2026-11-04 (the `- Paused` entry of the Log below). No sub-card is in flight:
-P0-02.6 Externalized UI strings shipped that day, so the last shipped card is P0-02.6 (`c005a7c`), and the P0-02 Repository
-bootstrap row was closed with it in the same step (the row's card, `## Ship`, lists which sub-card delivers what, and the three
-deliverables of the row's text that wait for later rows: the wasm32 build of both facades, schema drift and the quanta walk). The cards shipped before it on
-2026-11-17 are P0-02.5 Next.js skeleton (`ee5d288`) and P0-11 Resume-ability (`6078dcd`); before those, P0-02.4 (`d8d8b7e`).
+P0-08.1 Card tooling shipped that day, so the last shipped card is P0-08.1 (`99168d5`): `card.py` reads and ticks `manualGates` and
+refuses ship or done while a gate is open, and `log.sh` and the trace hook write events to the main checkout from a linked worktree.
+The cards shipped before it on 2026-11-17 are P0-02.6 Externalized UI strings (`c005a7c`, which closed the P0-02 Repository
+bootstrap row; the row's card, `## Ship`, lists the three deliverables that wait for later rows), P0-02.5 Next.js skeleton
+(`ee5d288`) and P0-11 Resume-ability (`6078dcd`); before those, P0-02.4 (`d8d8b7e`).
 
 In flight as a row: P0-08 Factory lanes (parallel mode) stands at spec with status running since 2026-11-17: it is the
 work-package row whose sub-cards run, not a card to resume. Its split into P0-08.1 to P0-08.4 and the row's acceptance criteria are
 in its card's Spec and in `docs/decisions/log.md` (the owner's decision 3 at approval, lanes right after P0-02, `docs/plan/roadmap.md`
-E1 and E2; the owner's decision of 2026-11-17 on faster production).
+E1 and E2; the owner's decision of 2026-11-17 on faster production). P0-08.1 is done; three sub-cards remain.
 
-Next: P0-08.1 Card tooling (`/factory run P0-08.1`), then P0-08.2 Lane tooling, P0-08.3 PR-based ship and P0-08.4 Factory rules,
-which closes the row. `card.py list` names P0-07 as next up meanwhile, because its order (4) is lower than the sub-cards' (31 to
+Next: P0-08.2 Lane tooling (`/factory run P0-08.2`), then P0-08.3 PR-based ship and P0-08.4 Factory rules,
+which closes the row. `card.py list` names P0-07 as next up meanwhile, because its order (4) is lower than the sub-cards' (32 to
 34): the owner's order of 2026-11-17 puts the P0-08 sub-cards first. After P0-08.4 ships the owner approves the acceptance criteria
 and splits of P1-01, P2-01 and P4-06 in one sitting. P0-07 External dependencies and legal register and the plan-only sub-cards of
 P0-05 OpenTofu run whenever the line is idle; P0-05's apply sub-card waits for the AWS items below. P0-12 Local ports is in the
 backlog for the session that owns the tool. The owner's five measures of 2026-11-17 for faster production (`docs/decisions/log.md`) are carried by card
-P0-08.4, which also creates the two cards they add (Next.js behind the `web` entrypoint; Actions runs the web build and the smoke). The `## Ship` sections of cards P0-02.6, P0-02.5 and P0-11 list what each leaves for
+P0-08.4, which also creates the two cards they add (Next.js behind the `web` entrypoint; Actions runs the web build and the smoke). The `## Ship` sections of cards P0-08.1, P0-02.6, P0-02.5 and P0-11 list what each leaves for
 later cards and the open questions for the owner (which card puts Next.js behind the `web` entrypoint, needed before P0-05's ECS
 service; Next.js 15 with a TypeScript 6 pin against Next.js 16; whether Actions runs the smoke; whether "Bridle" stays untranslated).
 
@@ -179,3 +180,4 @@ the sessions open on the checkout.
 - 2026-11-17 16:31, P0-02.5, commit ee5d288: Next.js skeleton and pnpm e2e:smoke; `apps/web` (Next.js 15, React 19) with a home page and `/api/v1/health`, the Chromium-only Playwright smoke `pnpm e2e:smoke` with its screenshot, `tools/test/web.test.sh`, the image pruned of the web app, and the full list of pin mirrors in `docs/ops/toolchain.md`; Actions run https://github.com/stephenfgarcia/Bridle/actions/runs/44047464566 green.
 - 2026-11-17 17:55, P0-02.6, commit c005a7c: Externalized UI strings: catalog, lint, pseudo-locale; `packages/i18n` (ICU catalog `en.json`, typed `t()`, the pseudo-locale `en-XA.json` and `pnpm i18n:pseudo`, the string lint in `pnpm lint` with its allowlist), `apps/web` on the catalog by `NEXT_PUBLIC_LOCALE`, `tools/test/i18n.test.sh` and `docs/ops/i18n.md`; the P0-02 row closed with it; Actions run https://github.com/stephenfgarcia/Bridle/actions/runs/44060053116 green.
 - 2026-11-17 17:55, P0-02, commit c005a7c: Repository bootstrap; the work package closed with its last sub-card, its deliverables being the six sub-cards' commits (bd758ed, 1890d99, 0e2e2cf, d8d8b7e, ee5d288, c005a7c); the hash and time are those of P0-02.6's commit, as the card's `## Ship` and its history line say ("Work package complete").
+- 2026-11-17 22:31, P0-08.1, commit 99168d5: Card tooling: manual gates and worktree-safe card.py and log.sh; `card.py gates` and `gate`, the refusal of ship or done with an open gate (exit 3), of malformed gate lines, line breaks and non-UTF-8 arguments, atomic card writes, events written to the main checkout from a linked worktree by `log.sh` and `trace-hook.sh`, 47 cases in `tools/monitor/test/card.test.py`; the owner allowed one build loop past a block and set the bar for the remaining stations; Actions run https://github.com/stephenfgarcia/Bridle/actions/runs/44104022679 green.
