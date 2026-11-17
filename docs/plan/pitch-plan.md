@@ -1,12 +1,15 @@
 # Pitch plan: a working showcase by 2026-12-16
 
-Status: DRAFT of 2026-11-18, written by the foreman for the owner's approval. Nothing in it is built until the owner approves it.
+Status: APPROVED by the owner on 2026-11-18 (`docs/decisions/log.md`), with the answers recorded under "The owner's answers"
+below. Written by the foreman.
 The owner's decision behind it is in `docs/decisions/log.md` (2026-11-17, the pitch on 2027-01-01). `docs/plan/roadmap.md` stays
 the plan for after the pitch; this file replaces its order of work until then.
 
 ## Goal
 
-On 2027-01-01 the owner presents Bridle to a university and a competition panel. By 2026-12-16 the showcase works end to end, and
+On 2027-01-01 the owner presents Bridle to a university and a competition panel; the same work is the owner's thesis case study
+and defense. The presentation is 20 to 30 minutes and covers the whole system, how it was built, and its paper and
+documentation. The panel judges the presentation, the system, and how well the development and implementation plan is explained. By 2026-12-16 the showcase works end to end, and
 the two weeks after that are for fixes and rehearsal only.
 
 What the panel sees, in one sitting:
@@ -115,9 +118,11 @@ marks the cards that get a separate review station (see Process).
 | C3 | Introduction page for the panel |
 | C4 | Visual pass: empty, loading and error states |
 | C5 | Browser and speed check in Chrome and Safari |
-| C6 | Demonstration script, rehearsal checklist and a recorded backup video |
+| C6 | Demonstration script for 20 to 30 minutes, rehearsal checklist and a recorded backup video |
+| C7 | Validation report for the paper: the solver's benchmark results against closed-form values, the AI consistency check, the speed test, each with the command that reproduces it |
+| C8 | Development and implementation summary for the paper: the architecture of the showcase, the plan and how it was cut, the factory process and its records, what comes after the pitch; source material for the owner's thesis, not the thesis itself |
 
-That is 40 cards in 20 working days, with stage A's two tables running side by side in two lanes.
+That is 42 cards in 20 working days, with stage A's two tables running side by side in two lanes.
 
 ## Schedule
 
@@ -127,7 +132,7 @@ That is 40 cards in 20 working days, with stage A's two tables running side by s
 | 2026-12-01 | Milestone A (W13) | A deployed link: build a portal frame, watch the diagrams change |
 | 2026-12-08 | Milestone B (T12) on the development machine | The full learner and instructor path with AI feedback |
 | 2026-12-14 | C1 to C5 | The public link and the local mode |
-| 2026-12-16 | C6 | A full rehearsal |
+| 2026-12-16 | C6 to C8 | A full rehearsal; the two documents for the paper |
 | 2026-12-17 to 2026-12-31 | Freeze | Fixes only; nothing new |
 
 If a checkpoint is missed by more than two working days, the foreman tells the owner the same day and names what to drop. The
@@ -165,9 +170,12 @@ The owner's lighter process for the pitch (decision of 2026-11-18):
 - The monthly spend limit stops the factory. Guard: two lanes at most; the foreman reports the pace each checkpoint.
 - New wishes during the build. Guard: anything added means something on the dropping list goes.
 
-## Open questions for the owner
+## The owner's answers (2026-11-18)
 
-1. Units: SI (kN, m) or US customary (kip, ft)? Draft assumption: SI.
-2. How long is the presentation, and does the panel use the product themselves or watch the owner use it?
-3. Does the competition publish judging criteria? If so, the three tasks and the introduction page are shaped to them.
-4. Does the name "Bridle" stay for the pitch?
+1. Units: the units and terms the industry uses. The foreman's reading: SI, with forces in kN, lengths in m, moments in kN·m,
+   stresses in MPa and deflections in mm; the model stores kN and m.
+2. The presentation is 20 to 30 minutes on the full scope of the system and how it was built, with its paper and documentation.
+3. Judging: how well the owner presents, how good the system is, and how well the development plan and the implementation plan
+   are explained in the research and development; the work is also the owner's thesis case study and defense. Cards C7 and C8
+   were added for this.
+4. The name "Bridle" stays.

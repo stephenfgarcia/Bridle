@@ -237,7 +237,7 @@ WANT = {
              'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'turbo.json', 'Dockerfile', 'tools/toolchain.json',
              'rust-toolchain.toml', '.node-version', '.dockerignore', '.editorconfig', '.env.example', '.gitattributes',
              '.gitignore', 'biome.json', 'tsconfig.base.json', 'rustfmt.toml', 'compose.yaml', 'playwright.config.ts',
-             'CLAUDE.md', 'README.md', 'packages/units/', 'docs/'],
+             'CLAUDE.md', 'README.md', 'packages/units/', 'packages/model/', 'packages/solver/', 'docs/'],
     'web': ['apps/web/', 'packages/ui/', 'packages/api-core/', 'packages/api-client/', 'packages/engine-protocol/',
             'packages/i18n/', 'e2e/'],
     'platform': ['apps/worker/', 'apps/judge/', 'apps/system/', 'packages/grader/', 'infra/', '.github/',

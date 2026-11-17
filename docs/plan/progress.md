@@ -87,6 +87,48 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | PLAN-03 | PLAN | ship | done | orchestrator | 2026-11-02T22:07:01Z |
 | PLAN-04 | PLAN | ship | done | orchestrator | 2026-11-02T23:23:05Z |
 | PLAN-05 | PLAN | ship | done | orchestrator | 2026-11-03T08:28:25Z |
+| PX-01.1 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
+| PX-01.2 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
+| PX-01.3 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
+| PX-01.4 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
+| PX-01.5 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
+| PX-01.6 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
+| PX-01.7 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
+| PX-01.8 | PX | backlog | planned | - | 2026-11-17T16:26:44Z |
+| PX-01.9 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.1 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.2 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.3 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.4 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.5 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.6 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.7 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.8 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.9 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.10 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.11 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.12 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.13 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.1 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.2 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.3 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.4 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.5 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.6 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.7 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.8 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.9 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-03.10 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-03.11 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-03.12 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-04.1 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-04.2 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-04.3 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-04.4 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-04.5 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-04.6 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-04.7 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
+| PX-04.8 | PX | backlog | planned | - | 2026-11-17T16:26:46Z |
 
 Next up: P0-07 External dependencies and legal register
 <!-- board:end -->
@@ -109,9 +151,9 @@ The P0-08 row card stays at spec with status running until the owner closes or r
 
 Next: the January pitch plan. The owner presents the project on 2027-01-01 to a university and a competition panel and wants a
 working showcase by mid-December 2026, so `docs/plan/roadmap.md` becomes the plan for after the pitch and the foreman drafts a
-short plan for the owner's approval (the draft is `docs/plan/pitch-plan.md`): first a frame solver with a 3D workspace and live results, then tasks, submission, AI
+plan, which the owner approved on 2026-11-18 (`docs/plan/pitch-plan.md`): first a frame solver with a 3D workspace and live results, then tasks, submission, AI
 feedback against a rubric and a simple instructor view, built in that order so that the first part stands alone if the second
-slips. Nothing of it is built until the owner approves the plan. Until then the roadmap order no longer applies: P0-07, P0-05
+slips. Its cards are the sub-cards PX-01.1 to PX-04.8. Until the pitch the roadmap order does not apply: P0-07, P0-05
 OpenTofu (its apply sub-card waits for the AWS items below), P0-12 and the drafts of P1-01, P2-01 and P4-06 (answered by the
 owner on 2026-11-17) wait for the pitch plan to say which of them it uses. The owner's five measures of 2026-11-17 for faster
 production were to be written into the factory documents by P0-08.4; they stay in force from `docs/decisions/log.md`. The `## Ship`

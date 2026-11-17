@@ -28,6 +28,8 @@
     {"pattern": "playwright.config.ts", "lane": "core", "comment": "Root file; one lane owns the root files."},
     {"pattern": "CLAUDE.md", "lane": "core", "comment": "Root file; one lane owns the root files."},
     {"pattern": "README.md", "lane": "core", "comment": "Root file; one lane owns the root files."},
+    {"pattern": "packages/model/", "lane": "core", "comment": "Not named by E1; assigned for the pitch plan (docs/plan/pitch-plan.md): the structural model types, beside the solver."},
+    {"pattern": "packages/solver/", "lane": "core", "comment": "Not named by E1; assigned for the pitch plan (docs/plan/pitch-plan.md): the TypeScript frame solver of the showcase."},
     {"pattern": "packages/units/", "lane": "core", "comment": "Not named by E1; assigned by P0-08.2: the schema row P1-01 builds it beside packages/schema."},
     {"pattern": "docs/", "lane": "core", "comment": "Not named by E1; assigned by P0-08.2: requirements, architecture, ADRs and the plan are shared contracts, so one lane owns them and the other lanes stop and raise."},
     {"pattern": "apps/web/", "lane": "web", "comment": "E1 names apps/web for web."},
