@@ -13,7 +13,7 @@
 #
 # Environment: GIT_SHA (the Dockerfile's build arg; `unknown` without it), PORT (default 3000).
 # Every name is a stub today. The mapping once the apps exist (architecture 4.1, 4.6, 4.7, 4.8):
-#   web      node apps/web/server.js           (Next.js standalone; P0-02.5)
+#   web      node apps/web/server.js           (Next.js standalone; a later card)
 #   worker   node apps/worker/dist/worker.js
 #   judge    node apps/judge/dist/judge.js
 #   system   node apps/system/dist/system.js

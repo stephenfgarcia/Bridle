@@ -2,7 +2,8 @@
 
 The stateful services a Bridle process needs on a developer machine run as one docker compose project
 (`compose.yaml`, project name `bridle`), driven by three pnpm scripts. Nothing in it is a secret: every
-credential is a committed default from `.env.example`. The application container image (one image, four
+credential is a committed default from `.env.example`. The web application and its smoke test have their own
+section, "Web application and the smoke test". The application container image (one image, four
 entrypoints) is the last section, "Application image"; migrations come later.
 
 ## Services
@@ -123,6 +124,58 @@ itself, so the stack is three images. The documented fallback, should RustFS fai
 linguistic ordering matching between local and staging; where order matters, sort with an explicit
 `COLLATE "C"` or an ICU collation in the query or the column definition, which behaves the same everywhere.
 
+## Web application and the smoke test
+
+`apps/web` is the Next.js 15 application (React 19, the App Router, TypeScript strict; card P0-02.5). It is a
+skeleton: one page, `/`, that says Bridle with the git sha and the educational-use notice as plain text, and one
+route handler, `GET /api/v1/health`, that answers 200 `application/json` `{"ok":true,"sha":"<sha>"}`. There is no
+stylesheet, no component and no shell: the design system is P4-06.
+
+| Command | Does |
+|---|---|
+| `pnpm --filter web dev` | `next dev` on port 3000 (Next's default; `pnpm --filter web dev --port 3001` moves it). Without `--hostname`, Next listens on every interface of the machine; `--hostname 127.0.0.1` keeps it on loopback. Writes `apps/web/.next/` and `apps/web/next-env.d.ts`, both gitignored. |
+| `pnpm --filter web build` | `next build` into `apps/web/.next/`. Stop a dev server of this checkout first: the two write the same directory. |
+| `pnpm --filter web start` | `next start`: serves the last build on port 3000 (`--port`). |
+| `pnpm e2e:smoke` | `playwright test`: the smoke test below. |
+| `bash tools/test/web.test.sh` | the tests of card P0-02.5 (never part of `pnpm test`: they start servers and a browser, on free loopback ports, never 3000; they refuse to start while a server answers on 3000). |
+
+Where the sha comes from (`apps/web/src/sha.ts`, read at every request and never cached, so a dev server follows
+HEAD): `GIT_SHA` when it is set and not empty (the application image sets it), else `git rev-parse --short HEAD`
+(where git and the repository exist: development and the smoke test), else `unknown`.
+
+`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the two
+tests of `e2e/smoke.spec.ts`. It starts `pnpm --filter web dev --hostname 127.0.0.1 --port $PORT` (`PORT`, default
+3000) and stops it when the tests end, or reuses the server that already answers
+`http://127.0.0.1:$PORT/api/v1/health`. The first test asserts the health route: 200, `application/json`, a body
+equal to `{ok: true, sha}`. The second opens `/`: 200, the heading `Bridle`, the sha, the notice, then a full-page
+screenshot to `.bridle/screenshots/smoke-home.png` (1280 x 720). Failure output goes to `.bridle/playwright/`; both
+directories are gitignored. The sha the tests expect is `GIT_SHA` when the shell that runs the smoke has it, else
+`git rev-parse --short HEAD`, so a server started with another `GIT_SHA` fails the smoke: the sha is asserted, not
+echoed. It took 3 to 4 s here when Playwright started the server and under 1 s against a running one (card
+P0-02.5, 2026-11-17).
+
+The browser: `@playwright/test` 1.64.1 (the pin of `tools/toolchain.json`, also typed in the root `package.json`)
+drives the Chromium build that `npx playwright@1.64.1 install chromium` puts in `~/Library/Caches/ms-playwright`
+(docs/ops/toolchain.md); `pnpm install` downloads no browser.
+
+When another process holds the port: Playwright takes any answer from 200 to 403 on the health URL for "the server
+is up", so the health test fails first and shows what answered; with the port taken by something that answers
+otherwise or not at all (the image's `--serve` stub answers 404 there), Playwright starts `next dev`, which exits
+with `EADDRINUSE` and does not move to another port. Either way run the smoke elsewhere: `PORT=3001 pnpm
+e2e:smoke`.
+
+TypeScript: `apps/web` pins typescript 6.0.3 while the rest of the workspace keeps 7.0.2. Next.js 15.5.29 refuses
+TypeScript 7 (`next build` exits 1 with "TypeScript 7.0.2 is not supported by this version of Next.js", found at
+the card's plan station); Next.js 16.2.11 or later accepts it, and that move changes the architecture's
+"Next.js 15", so it is the owner's decision (card P0-02.5, open question 2). `apps/web/tsconfig.json` extends
+`tsconfig.base.json` (strict) with the options Next asks for, so a build does not rewrite it. If `tsc` fails on a
+file under `apps/web/.next/types` after a route was removed, the directory is stale: `rm -rf apps/web/.next`.
+
+`pnpm check` covers `apps/web` in two of its steps: lint (`biome ci .`; there is no ESLint) and typecheck (`turbo
+run typecheck` runs `web#typecheck`, `tsc --noEmit`). `pnpm --filter web build` and `pnpm e2e:smoke` are separate
+commands, not steps of `pnpm check`; the test, review and ship stations run the smoke for cards that touch
+`apps/web` (factory/line.md). Actions runs neither: Playwright's browsers reach the runners with P0-09.
+
 ## Other local ports
 
 Everything that listens on this machine during development, so two tools never collide:
@@ -133,6 +186,7 @@ Everything that listens on this machine during development, so two tools never c
 | 9000, 9001 | RustFS S3 API and console (compose `minio`) | `compose.yaml` |
 | 1025, 8025 | mailpit SMTP and web UI | `compose.yaml` |
 | 3000 | the application image's `--serve` stub (`PORT`) | `Dockerfile`, `tools/entrypoint.sh` |
+| 3000 | the web application's dev server, `pnpm --filter web dev` (`--port`), and the server `pnpm e2e:smoke` starts or reuses (`PORT`) | `apps/web/package.json`, `playwright.config.ts` |
 | 8787 | the monitor's local viewer, `python3 tools/monitor/serve.py` | `tools/monitor/serve.py` (`--port`) |
 | 5180, 5181 | Agent HQ's Vite dev server and preview | `tools/agent-hq/vite.config.ts` |
 | 8787 | Agent HQ's API server (`pnpm api`), the target of both Vite proxies | `tools/agent-hq/server/index.ts` (`PORT`), `tools/agent-hq/vite.config.ts` |
@@ -140,13 +194,20 @@ Everything that listens on this machine during development, so two tools never c
 The monitor viewer and Agent HQ's API both default to 8787, and Agent HQ's proxy target is fixed at that port: run one at a
 time, or start the viewer elsewhere with `python3 tools/monitor/serve.py --port 8788`. Card P0-12 removes the clash.
 
+The image's `--serve` stub and the web application's dev server share 3000 too: with `docker run -p 3000:3000
+bridle:dev web --serve` up, `next dev` exits with `EADDRINUSE`. Move one of them: `pnpm --filter web dev --port
+3001`, `PORT=3001 pnpm e2e:smoke`, or `docker run -p 3001:3000 ...`.
+
 ## Application image
 
 The deployment unit of the architecture (sections 3, 15, 16): one container image, four entrypoints. The root
 `Dockerfile` builds it and `tools/entrypoint.sh` dispatches on its first argument, `web`, `worker`, `judge` or
 `system`. Every name is a stub today: it prints `<name> <sha>` and exits 0, or stays up behind `--serve` with a
-health endpoint. P0-02.5 puts the Next.js server behind `web` and later cards the pg-boss processors behind the
-other three, under the same names in the same image (card P0-02.4 introduced it).
+health endpoint. Later cards put the Next.js server behind `web` and the pg-boss processors behind the other
+three, under the same names in the same image (card P0-02.4 introduced it). Since card P0-02.5 the build stage
+builds `apps/web`, which proves the application builds on Linux; `web` is still the stub, the prune leaves
+`apps/web` out and the runtime stage carries nothing of it. The card that copies Next's output into the runtime
+stage copies it `--chown=node:node`: `/app` is root-owned 755 and Next writes `.next/cache`.
 
 The base image, verbatim from the Dockerfile (the only `FROM` with a tag; tag and digest are bumped together):
 
@@ -164,7 +225,7 @@ runner.
 |---|---|---|
 | `base` | the pinned image | nothing: the one place the version is typed |
 | `deps` | `base` | `corepack enable pnpm && corepack install -g pnpm@12.16.1` (the toolchain pin, equal to `packageManager`), copies the `.dockerignore`'d context to `/app`, then `pnpm install --frozen-lockfile --store-dir /pnpm/store` with the store on a BuildKit cache mount (`--mount=type=cache,id=bridle-pnpm-store,target=/pnpm/store`): the layer is reused until the context changes, and when it does the packages come from the mount, not the network |
-| `build` | `deps` | `pnpm exec turbo run build` (no package has a `build` script yet, so turbo runs nothing; apps/web's build lands in P0-02.5), then the prune: `rm -rf node_modules packages/*/node_modules` and `pnpm install --frozen-lockfile --prod --ignore-scripts` from the same mount (an in-place `--prod` over a full tree keeps too much) |
+| `build` | `deps` | `pnpm exec turbo run build` (one task today, `web#build`: `next build` of `apps/web`), then the prune: `rm -rf node_modules packages/*/node_modules apps/*/node_modules` and `pnpm install --frozen-lockfile --prod --ignore-scripts --filter '!web'` from the same mount (an in-place `--prod` over a full tree keeps too much; without the filter the prune would keep next, swc and sharp, which nothing in the runtime can reach while `web` is the stub) |
 | `runtime` | `base` | copies `package.json`, `pnpm-workspace.yaml`, the pruned `node_modules`, `packages/` and `tools/entrypoint.sh` (mode 755), all owned by `node`; `NODE_ENV=production`, `PORT=3000`; then `ARG GIT_SHA` to `ENV GIT_SHA` and the `org.opencontainers.image.revision` label, last so a new sha re-runs only those lines; `USER node`, `EXPOSE 3000`, the `HEALTHCHECK`, `ENTRYPOINT ["/app/tools/entrypoint.sh"]`, no `CMD` |
 
 Build and run, from the repository root (docker 29 with BuildKit, as OrbStack and Docker Desktop ship it):
@@ -187,30 +248,38 @@ probe of `http://127.0.0.1:$PORT/healthz` every 30 s, 3 s timeout, 5 s start per
 in the image) is honest for every process. Docker honours it (`docker ps` shows `(healthy)`); ECS ignores image
 healthchecks, and the task definition gets its own in P0-05.
 
-Build context (`.dockerignore`): the pnpm workspace and the entrypoint, 13 files and 44 KB today: `package.json`,
+Build context (`.dockerignore`): the pnpm workspace and the entrypoint, 20 files and 68 KB today: `package.json`,
 `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `turbo.json`, `biome.json`, `tsconfig.base.json`, `.editorconfig`,
-`.node-version`, `packages/*/{package.json,tsconfig.json,src/}`, `tools/entrypoint.sh`. Everything else stays out:
+`.node-version`, `packages/*/{package.json,tsconfig.json,src/}`, `apps/web/{package.json,tsconfig.json,next.config.mjs,src/}`,
+`tools/entrypoint.sh`. Everything else stays out:
 `.git*` (`.git`, `.github`, `.gitignore`, `.gitattributes`), `node_modules` and `**/node_modules` (the host's macOS
-tree must never reach a Linux image), `**/.turbo`, `**/dist`, `**/*.tsbuildinfo`, the Rust workspace (`target`,
+tree must never reach a Linux image), `**/.turbo`, `**/dist`, `**/*.tsbuildinfo`, `**/.next` and
+`**/next-env.d.ts` (what Next writes on the host; the build stage makes its own), the Rust workspace (`target`,
 `crates`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `rustfmt.toml`), `.bridle`, `.claude`,
-`.claude-sessions`, `.worktrees`, `docs`, `factory`, `tools/*` except the entrypoint, `compose.yaml`, the
-`Dockerfile` and `.dockerignore` themselves, `*.md`, `**/.DS_Store`, and `.env*`: a developer's `.env.local`
-(docs/ops/secrets.md) must never land in a layer, so the whole family is excluded, `.env.example` included (the
-image needs none of it).
+`.claude-sessions`, `.worktrees`, `docs`, `factory`, `tools/*` except the entrypoint, `e2e` and
+`playwright.config.ts` (the smoke test runs on the host), `compose.yaml`, the `Dockerfile` and `.dockerignore`
+themselves, `**/*.md`, `**/.DS_Store`, and `**/.env*`: a developer's `.env.local` (docs/ops/secrets.md) must never
+land in a layer, so the whole family is excluded at every depth, `apps/web/.env.local` and `.env.example` included
+(the image needs none of it). The `**/` matters: in a `.dockerignore` a bare `.env*` matches at the root of the
+context only.
 
-Measured on this machine (M4, OrbStack, the base image already pulled) by card P0-02.4 on 2026-11-03: cold build
-(empty builder cache) 8 s wall, of which corepack's pnpm download 2.3 s and `pnpm install` 3.5 s; warm rebuild
-with nothing changed under 1 s, every step `CACHED`; a changed source file re-runs the install from the store
-mount in 2 s with `downloaded 0`; a new `GIT_SHA` alone rebuilds in under 1 s. Image size
-(`docker image inspect bridle:dev --format '{{.Size}}'`) 343,942,622 bytes = 344 MB, of which 343,893,906 bytes
-is the base image: the workspace adds 49 KB until the apps arrive. One cold build on 2026-11-03 failed at
+Measured on this machine (M4, OrbStack, docker 29.8.2, the base image already pulled) by card P0-02.5 on
+2026-11-17: a build after a change of the context 14 s wall, of which `pnpm install` from the store mount 2.9 s
+(`downloaded 0`) and `turbo run build` (`next build`) 9.8 s; `docker build --no-cache` 19 s, of which corepack's
+pnpm download 2.6 s, `pnpm install` 5.4 s, `turbo run build` 9.4 s and the prune 0.4 s; a warm rebuild with nothing
+changed 0.6 s, every step `CACHED`; a new `GIT_SHA` alone 0.5 s. Any change under `apps/web` or `packages` now
+re-runs the install and the Next build. Image size (`docker image inspect bridle:dev --format '{{.Size}}'`)
+343,946,809 bytes = 344 MB, of which 343,893,906 bytes is the base image: the workspace adds 53 KB, because the
+prune leaves `apps/web` out. One cold build on 2026-11-03 failed at
 `corepack install -g pnpm@12.16.1` with `Error when performing the request to https://registry.npmjs.org/...`
 after 4 s (a transient registry fetch; the probe of the same step passed seconds later): run the build again,
 a failed step is never cached.
 
-Test: `bash tools/test/image.test.sh` (never part of `pnpm test`: it needs the docker engine; about 20 s warm, a
+Test: `bash tools/test/image.test.sh` (never part of `pnpm test`: it needs the docker engine; about 30 s warm, a
 few minutes cold). It builds the image with the current sha, runs the four entrypoints, probes `--serve` on a random
-loopback port, checks the unknown-name exit code and the build context, and reads this section.
+loopback port, checks the unknown-name exit code and the build context (the real one, and a synthetic context with
+nested `.env.local`, markdown and Next output that only the manifests and sources may leave), and reads this
+section.
 
 Out of scope for the image today: pushing it to a registry (P0-05, with the ECS task definitions); Rust
 compilation and the wasm artifacts (they are built by the Rust workspace and copied in by later cards, never

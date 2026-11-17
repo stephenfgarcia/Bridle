@@ -10,6 +10,7 @@
     "lint": "biome ci .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "e2e:smoke": "playwright test",
     "fmt": "biome check --write . && cargo fmt --all",
     "dev": "bash tools/dev.sh up",
     "dev:down": "bash tools/dev.sh down",
@@ -17,6 +18,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
+    "@playwright/test": "1.64.1",
     "turbo": "2.11.10"
   }
 }

@@ -20,3 +20,11 @@ node_modules/
 target/
 dist/
 *.tsbuildinfo
+
+# Next.js (apps/web, P0-02.5): build output and the type file Next generates
+.next/
+next-env.d.ts
+
+# Playwright (pnpm e2e:smoke, P0-02.5): the smoke screenshot and the failure output
+.bridle/screenshots/
+.bridle/playwright/

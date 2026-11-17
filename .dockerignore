@@ -1,10 +1,12 @@
-# Build context for the Dockerfile: the pnpm workspace (root manifests and lockfile, packages' manifests and sources) and tools/entrypoint.sh; everything else, secrets first (.env*), never reaches a layer.
+# Build context for the Dockerfile: the pnpm workspace (root manifests and lockfile, the manifests and sources of packages/* and apps/*) and tools/entrypoint.sh; everything else, secrets first (**/.env*, at any depth), never reaches a layer.
 .git*
 node_modules
 **/node_modules
 **/.turbo
 **/dist
 **/*.tsbuildinfo
+**/.next
+**/next-env.d.ts
 target
 crates
 Cargo.toml
@@ -19,9 +21,11 @@ docs
 factory
 tools/*
 !tools/entrypoint.sh
+e2e
+playwright.config.ts
 compose.yaml
 Dockerfile
 .dockerignore
-.env*
-*.md
+**/.env*
+**/*.md
 **/.DS_Store

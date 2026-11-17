@@ -103,13 +103,52 @@ toolchain list` shows the channel (and sets `RUSTUP_AUTO_INSTALL=0`), the pnpm p
 
 ## Bumping a pin
 
-1. Edit `tools/toolchain.json` (the only place a version is typed).
-2. Mirror it: `rust.channel`, `rust.components` and `rust.targets` into `rust-toolchain.toml`; `node.major` into
-   `.node-version`. The doctor fails on drift until both agree.
+1. Edit `tools/toolchain.json`: the source of every pin. A pin is typed a second time only in the mirrors of
+   step 2, and each of them follows this file.
+2. Mirror it. The list is every place outside `docs/`, `factory/`, `pnpm-lock.yaml` and `tools/agent-hq/` (not a
+   workspace member; it follows no pin) that types a pin; the pins of `wasm-bindgen-cli`, `binaryen`, `wasmtime`,
+   `opentofu` and `awscli` are typed nowhere else yet.
+   - `rust.channel`, `rust.components` and `rust.targets` into `rust-toolchain.toml`; `node.major` into
+     `.node-version`. The doctor fails on drift until both agree.
+   - `rust.channel` also into `rust-version` of the root `Cargo.toml` (`tools/test/workspace.test.sh` compares it;
+     the doctor does not read it).
+   - `node.major` into `engines.node` and `pnpm.version` into `packageManager` of the root `package.json`
+     (`tools/test/workspace.test.sh` compares both).
+   - `node.major` into the base image line of the `Dockerfile` (the `FROM ... AS base` line, tag and digest
+     together; docs/ops/local-dev.md, "Application image") and into the `base` line of the "Stages" list in the
+     header comment of that file, which types the same tag; into the same tag in `tools/test/image.test.sh` (its
+     header and the pattern and message of its `build` case) and into the major of `@types/node` in
+     `apps/web/package.json` (then `pnpm install`). Nothing compares the major of the image tag or of
+     `@types/node` with this file.
+   - `pnpm.version` into the `corepack install -g pnpm@<version>` line of the `Dockerfile` and the two comments
+     of that file that quote it: the `deps` line of the "Stages" list in its header and the corepack comment above
+     the `corepack install` line. Nothing compares them with this file.
+   - Comments that say the node major: the header of `.github/workflows/check.yml`, the corepack comment of the
+     `Dockerfile`, the docstring of `check_node_version` in `tools/doctor.sh` (its examples), and the `nvm use 22`
+     line of the header of `tools/test/compose.test.sh`, `tools/test/image.test.sh`, `tools/test/web.test.sh` and
+     `tools/test/workspace.test.sh`.
+   - `playwright.version` into `devDependencies["@playwright/test"]` of the root `package.json`, typed there too
+     since card P0-02.5 (`pnpm e2e:smoke` runs that package), then `pnpm install` so that `pnpm-lock.yaml` follows.
+     The doctor does not read this mirror; the `smoke` case of `tools/test/web.test.sh` compares the two. That
+     file also types the pin: the literal of its `smoke` case (`[ "$PW_PIN" = "1.64.1" ]`, with its message) and
+     the two needles of its `docs` case (`1.64.1` and `npx playwright@1.64.1 install chromium`), which follow
+     `docs/ops/local-dev.md`. Until all three move, `bash tools/test/web.test.sh` fails after a bump.
+   - `playwright.browsers` (`chromium`) is typed in three files; nothing compares any of them with this file.
+     - `playwright.config.ts`: the project name of `projects` (`name: "chromium"`, with `devices["Desktop Chrome"]`
+       on the same line), and the header comment of that file, whose first line says "Chromium only".
+     - `tools/test/web.test.sh`: its `smoke` case asserts that project name by the literal `chromium` (the
+       `[chromium]` count of `playwright test --list`, the `name: "chromium"` pattern, the `firefox|webkit`
+       pattern, and their messages and the summary line); the header of that test file says it twice, in the
+       `smoke` row (`[chromium]`, "no firefox or webkit") and in its "Needs" sentence ("the Chromium build of
+       `npx playwright@<pin> install chromium`"); and its `docs` case holds the needle
+       `npx playwright@1.64.1 install chromium`.
+     - `tools/test/doctor.test.sh`: its `docs` case looks for `npx playwright@<version> install chromium` (the
+       version read from this file, the browser typed) in this document.
 3. Reinstall the tool with its command from the table (for rust: `rustup toolchain install <new>` with the same
    components and target; for playwright: `npx playwright@<new> install chromium`, which also refreshes the npx cache).
-4. Run `bash tools/doctor.sh`; ship the three files (and `docs/ops/toolchain.md` if a command changed) in one commit.
-   CI reads the same file (`jq -r .tools.rust.channel tools/toolchain.json` and friends), so it follows the bump.
+4. Run `bash tools/doctor.sh`; ship `tools/toolchain.json` and every mirror that changed (and `docs/ops/toolchain.md`
+   and `docs/ops/local-dev.md` where they quote the version or a command) in one commit. CI reads the same file
+   (`jq -r .tools.rust.channel tools/toolchain.json` and friends), so it follows the bump.
 
 ## For later cards
 

@@ -1,6 +1,8 @@
 # Bridle application image (card P0-02.4): one image, four entrypoints (architecture sections 3, 15, 16).
 # `tools/entrypoint.sh` dispatches on its first argument, web | worker | judge | system; every one is a stub
-# until P0-02.5 and later cards put the real programs behind the same names.
+# until later cards put the real programs behind the same names. Since card P0-02.5 the build stage builds
+# apps/web (Next.js), which proves the application builds on Linux; `web` is still the stub and the runtime
+# stage carries nothing of apps/web.
 #
 #   docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD) -t bridle:dev .
 #   docker run --rm bridle:dev web                          # prints `web <sha>`, exit 0
@@ -12,8 +14,9 @@
 #             .dockerignore'd context, `pnpm install --frozen-lockfile` from a BuildKit cache mount at
 #             /pnpm/store (id bridle-pnpm-store): the store survives across builds, the layer is cached until
 #             the context changes
-#   build     `turbo run build` (no build task yet; apps/web's lands in P0-02.5), then the prune: a fresh
-#             `--prod --ignore-scripts` install from the hot store (an in-place --prod keeps too much)
+#   build     `turbo run build` (apps/web: `next build`), then the prune: a fresh `--prod --ignore-scripts`
+#             install from the hot store (an in-place --prod keeps too much), with `--filter '!web'`: the
+#             runtime does not run Next yet, so next, swc and sharp stay out of the image
 #   runtime   base again: the manifests, the pruned node_modules, packages, tools/entrypoint.sh, user node;
 #             GIT_SHA is the last layer so a new sha re-runs only the lines below it
 FROM node:22.23.4-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da AS base
@@ -24,6 +27,7 @@ ENV PNPM_HOME=/pnpm \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     DO_NOT_TRACK=1 \
     TURBO_TELEMETRY_DISABLED=1
+# corepack ships with Node 22: when the base pin moves past 22, switch to `npm install -g pnpm@12.16.1`.
 RUN corepack enable pnpm && corepack install -g pnpm@12.16.1 && pnpm --version
 WORKDIR /app
 COPY . .
@@ -33,10 +37,12 @@ RUN --mount=type=cache,id=bridle-pnpm-store,target=/pnpm/store \
 FROM deps AS build
 RUN pnpm exec turbo run build
 RUN --mount=type=cache,id=bridle-pnpm-store,target=/pnpm/store \
-    rm -rf node_modules packages/*/node_modules \
-    && pnpm install --frozen-lockfile --prod --ignore-scripts --store-dir /pnpm/store \
+    rm -rf node_modules packages/*/node_modules apps/*/node_modules \
+    && pnpm install --frozen-lockfile --prod --ignore-scripts --filter '!web' --store-dir /pnpm/store \
     && mkdir -p node_modules
 
+# The card that copies Next's output in copies it `--chown=node:node`: /app is root-owned 755 and Next writes
+# `.next/cache`.
 FROM base AS runtime
 ENV NODE_ENV=production \
     PORT=3000

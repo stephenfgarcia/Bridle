@@ -13,12 +13,17 @@
 #                          probes /healthz; static: the Dockerfile has exactly one FROM that names an image (the
 #                          others name stages) and it is node:22.23.4-bookworm-slim@sha256:<64 hex> AS base, stages
 #                          base deps build runtime, and lines with --frozen-lockfile, --mount=type=cache, --prod,
-#                          USER node, HEALTHCHECK, EXPOSE 3000, ARG GIT_SHA, ENTRYPOINT ["/app/tools/entrypoint.sh"]
+#                          USER node, HEALTHCHECK, EXPOSE 3000, ARG GIT_SHA, ENTRYPOINT ["/app/tools/entrypoint.sh"],
+#                          and an instruction line (not a comment) with --filter '!web' (the prune leaves apps/web
+#                          out: card P0-02.5); `docker build -q --target build <root>` (cached) exports the build
+#                          stage, /app/apps/web/.next/BUILD_ID is in it and not empty (the build stage ran `next
+#                          build` on Linux), and that image is removed again
 #   entrypoints  AC1       `docker run --rm bridle:dev <name>` for web, worker, judge, system exits 0 with stdout
 #                          exactly the one line `<name> <sha>`; `-e GIT_SHA=` (empty) prints `web unknown`;
 #                          `--entrypoint id ... -u` prints 1000; `--entrypoint ls ... -A /app` lists exactly
 #                          node_modules package.json packages pnpm-workspace.yaml tools and `-A /app/node_modules`
-#                          dot-entries only (pruned to --prod); /app/tools/entrypoint.sh is 755 node:node; the
+#                          dot-entries only (pruned to --prod) and no `next@` entry under /app/node_modules/.pnpm
+#                          (the filtered prune kept Next out); /app/tools/entrypoint.sh is 755 node:node; the
 #                          script itself runs on the host under this bash (3.2 syntax): `GIT_SHA=<sha> bash
 #                          tools/entrypoint.sh web` prints `web <sha>`
 #   serve        AC1       `docker run -d -p 127.0.0.1::3000 bridle:dev web --serve` (random loopback port, read back
@@ -34,17 +39,23 @@
 #                          web, worker, judge and system on stderr; no argument exits 2 the same way; `web --bogus`
 #                          exits 2 with nothing on stdout; `--help` exits 0 with the usage on stdout; on the host
 #                          `bash tools/entrypoint.sh bogus` exits 2
-#   context      AC3       .dockerignore has the whole lines node_modules, target, .bridle, .git*, docs, factory, .env*,
-#                          tools/*, !tools/entrypoint.sh; behavioural: `docker build -q --target deps <root>` (cached)
-#                          exports the deps stage and inside it `ls -A /app` lists none of .git .github .gitignore
-#                          .gitattributes docs factory target .bridle .claude .claude-sessions .worktrees crates
-#                          Cargo.toml Cargo.lock compose.yaml Dockerfile .dockerignore .env .env.example .env.local,
-#                          no *.md, but does list package.json pnpm-lock.yaml pnpm-workspace.yaml packages tools
-#                          node_modules; `ls -A /app/tools` is exactly entrypoint.sh; /app/node_modules/.pnpm is not
-#                          empty and no entry names darwin (the host's macOS tree did not leak); the card's `## Build`
-#                          names bridle:dev and a `<n> MB` size; the deps-stage image is removed again (unless its id
-#                          existed before the test: a cached export can land on an id another build already left)
-#                          and bridle:dev still exists
+#   context      AC3       .dockerignore has the whole lines node_modules, target, .bridle, .git*, docs, factory,
+#                          **/.env*, **/.next, tools/*, !tools/entrypoint.sh; behavioural: `docker build -q --target
+#                          deps <root>` (cached) exports the deps stage and inside it `ls -A /app` lists none of .git
+#                          .github .gitignore .gitattributes docs factory target .bridle .claude .claude-sessions
+#                          .worktrees crates Cargo.toml Cargo.lock compose.yaml Dockerfile .dockerignore .env
+#                          .env.example .env.local e2e playwright.config.ts, no *.md, but does list package.json
+#                          pnpm-lock.yaml pnpm-workspace.yaml apps packages tools node_modules; `ls -A /app/apps/web`
+#                          lists none of .next .env.local next-env.d.ts; `ls -A /app/tools` is exactly entrypoint.sh;
+#                          /app/node_modules/.pnpm is not empty and no entry names darwin (the host's macOS tree did
+#                          not leak); the deps-stage image is removed again (unless its id existed before the test: a
+#                          cached export can land on an id another build already left) and bridle:dev still exists;
+#                          fixture (card P0-02.5): a synthetic context under `mktemp -d`, outside the repository,
+#                          holding a copy of .dockerignore and 19 files (secrets, markdown, Next output and the e2e
+#                          files at the root, in apps/web and in packages/units), built with a two-line Dockerfile
+#                          (`FROM <the base reference>`, `COPY . /ctx`) passed by -f; `find /ctx -type f` in it prints
+#                          exactly /ctx/apps/web/package.json /ctx/apps/web/src/keep.ts /ctx/package.json
+#                          /ctx/packages/units/package.json; that image is removed again
 #   docs         Files     docs/ops/local-dev.md has a `## Application image` section naming Dockerfile, .dockerignore,
 #                          tools/entrypoint.sh, bridle:dev, GIT_SHA, --serve, /healthz, 3000, web, worker, judge,
 #                          system, 1000, tools/test/image.test.sh and the Dockerfile's base image reference
@@ -59,11 +70,11 @@
 # Prints `ok - <case>` per case (and `# ...` comment lines with the measured output); stops at the first failed
 # assertion with `not ok - <case>: <why>` and the command's output on stderr, exit 1. Needs bash 3.2, docker with
 # BuildKit (OrbStack or Docker Desktop, engine running), git, curl, awk, sed, grep, sort, tr, wc, mktemp, date.
-# It writes nothing inside the repository (logs and captured output live under `mktemp -d`, removed on exit), starts
-# one container (removed on exit, `docker rm -f` when a failure leaves it running), builds the tag (kept; the image
-# the tag pointed at before stays as docker leaves it) and one untagged deps-stage image (removed on exit when the
-# test created it), never runs `docker image prune`, and touches no compose project. About 25 s warm, a few minutes
-# on an empty builder cache.
+# It writes nothing inside the repository (logs, captured output and the context fixture live under `mktemp -d`,
+# removed on exit), starts one container (removed on exit, `docker rm -f` when a failure leaves it running), builds
+# the tag (kept; the image the tag pointed at before stays as docker leaves it) and three untagged images, the build
+# stage, the deps stage and the context fixture (each removed on exit when the test created it), never runs `docker
+# image prune`, and touches no compose project. About 30 s warm, a few minutes on an empty builder cache.
 set -u
 set -o pipefail
 
@@ -72,11 +83,11 @@ DOCKERFILE="$ROOT/Dockerfile"
 DOCKERIGNORE="$ROOT/.dockerignore"
 ENTRYPOINT="$ROOT/tools/entrypoint.sh"
 DOC="$ROOT/docs/ops/local-dev.md"
-CARD="$ROOT/factory/cards/P0-02.4-dockerfile-with-four-stub-entrypoints.md"
 IMAGE="${BRIDLE_IMAGE:-bridle:dev}"
 CASE=setup
 CONTAINERS=""   # ids the test started (the EXIT trap removes them)
 DEPS_IMAGE=""   # the untagged deps-stage image the test built (the EXIT trap removes it)
+TMP_IMAGES=""   # the untagged build-stage and context-fixture images the test built (the EXIT trap removes them)
 tmp=""
 
 [ -d "$HOME/.orbstack/bin" ] && PATH="$HOME/.orbstack/bin:$PATH"
@@ -92,7 +103,7 @@ fail() {  # $1 = why; $2 = output to show (optional). Prints `not ok` and exits 
   exit 1
 }
 
-cleanup() {  # EXIT trap: the containers and the deps-stage image the test created go; the tag and everything else stay
+cleanup() {  # EXIT trap: the containers and the untagged images the test created go; the tag and everything else stay
   local rc=$? c
   for c in $CONTAINERS; do
     docker rm -f "$c" >/dev/null 2>&1 || true
@@ -100,6 +111,9 @@ cleanup() {  # EXIT trap: the containers and the deps-stage image the test creat
   if [ -n "$DEPS_IMAGE" ]; then
     docker image rm "$DEPS_IMAGE" >/dev/null 2>&1 || true
   fi
+  for c in $TMP_IMAGES; do
+    docker image rm "$c" >/dev/null 2>&1 || true
+  done
   [ -n "$tmp" ] && rm -rf "$tmp"
   exit "$rc"
 }
@@ -113,7 +127,6 @@ done
 [ -f "$ENTRYPOINT" ] || fail "tools/entrypoint.sh does not exist"
 [ -x "$ENTRYPOINT" ] || fail "tools/entrypoint.sh is not executable"
 [ -f "$DOC" ] || fail "docs/ops/local-dev.md does not exist"
-[ -f "$CARD" ] || fail "the card $CARD does not exist"
 docker info >/dev/null 2>&1 || fail "the docker engine is not reachable (open -a OrbStack)"
 tmp="$(mktemp -d)" || fail "mktemp -d failed"
 case "$tmp" in "$ROOT"/*) fail "mktemp -d gave a directory inside the repository: $tmp" ;; esac
@@ -132,6 +145,9 @@ inspect() {  # $1 = go template: `docker image inspect` of the tag under test
 }
 http_code() {  # $@ = curl arguments: the HTTP status code, the body in $tmp/body (000 when the connection fails)
   curl -s -o "$tmp/body" -w '%{http_code}' "$@" 2>/dev/null || true
+}
+dangling() {  # the ids of the untagged images, one per line (what existed before a `docker build -q` export)
+  docker images -q --no-trunc -f dangling=true 2>/dev/null || true
 }
 
 # ---- build (AC2) ------------------------------------------------------------------------------------------------
@@ -160,6 +176,8 @@ for s in '--frozen-lockfile' '--mount=type=cache' '--prod' 'USER node' 'HEALTHCH
          'ENTRYPOINT ["/app/tools/entrypoint.sh"]'; do
   grep -q -F -- "$s" "$DOCKERFILE" || fail "Dockerfile has no line with '$s'"
 done
+grep -v -E '^[[:space:]]*#' "$DOCKERFILE" | grep -q -F -- "--filter '!web'" \
+  || fail "Dockerfile has no instruction line with --filter '!web' (the prune must leave apps/web out of the runtime image)"
 
 build() {  # the criterion's command, log to $tmp/build.log; sets RC
   docker build --build-arg "GIT_SHA=$sha" -t "$IMAGE" "$ROOT" >"$tmp/build.log" 2>&1
@@ -194,8 +212,30 @@ hc="$(inspect '{{json .Config.Healthcheck.Test}}')" || fail "the image has no HE
 printf '%s\n' "$hc" | grep -q -F '/healthz' || fail "the HEALTHCHECK does not probe /healthz: $hc"
 echo "# docker build --build-arg GIT_SHA=$sha -t $IMAGE: exit 0 in $BUILD_ELAPSED s ($CACHED steps CACHED)"
 echo "# image: $IMAGE $mb MB ($bytes bytes); revision=$rev user=$user entrypoint=$ep cmd=$cmd exposed=$exposed; HEALTHCHECK probes /healthz"
+stage_before="$(dangling)"
+t0="$(date +%s)"
+BID="$(docker build -q --target build "$ROOT" 2>"$tmp/stage.err")" \
+  || fail "docker build -q --target build $ROOT failed" "$(tail -n 60 "$tmp/stage.err")"
+t1="$(date +%s)"
+printf '%s\n' "$BID" | grep -q -E '^sha256:[0-9a-f]{64}$' || fail "docker build -q --target build printed '$BID', want sha256:<id>" "$(cat "$tmp/stage.err")"
+if printf '%s\n' "$stage_before" | grep -q -x -F -- "$BID"; then
+  STAGE_NOTE="left in place: its id existed before the test"
+else
+  TMP_IMAGES="$BID"
+  STAGE_NOTE="removed"
+fi
+run docker run --rm --entrypoint cat "$BID" /app/apps/web/.next/BUILD_ID
+[ "$RC" -eq 0 ] && [ -n "$OUT" ] \
+  || fail "the build stage has no /app/apps/web/.next/BUILD_ID (exit $RC): \`turbo run build\` did not build apps/web" "$OUT$ERR"
+NEXT_BUILD_ID="$OUT"
+if [ -n "$TMP_IMAGES" ]; then
+  out="$(docker image rm "$BID" 2>&1)" || fail "docker image rm $BID (the build-stage image the test built) failed" "$out"
+  TMP_IMAGES=""
+fi
 echo "# Dockerfile: base $BASE_REF (the only FROM naming an image); stages base deps build runtime;" \
-     "--frozen-lockfile, --mount=type=cache, --prod, USER node, HEALTHCHECK, EXPOSE 3000, ARG GIT_SHA present"
+     "--frozen-lockfile, --mount=type=cache, --prod, --filter '!web', USER node, HEALTHCHECK, EXPOSE 3000, ARG GIT_SHA present"
+echo "# docker build -q --target build: $(printf '%s' "$BID" | cut -c8-19) in $((t1 - t0)) s; /app/apps/web/.next/BUILD_ID: $NEXT_BUILD_ID;" \
+     "build-stage image $STAGE_NOTE"
 echo "ok - build"
 
 # ---- entrypoints (AC1) ------------------------------------------------------------------------------------------
@@ -222,6 +262,11 @@ run docker run --rm --entrypoint ls "$IMAGE" -A /app/node_modules
 bad="$(printf '%s\n' "$OUT" | grep -v -E '^(\.|$)' || true)"
 [ -z "$bad" ] || fail "ls -A /app/node_modules lists entries that are not dot-entries (not pruned to --prod):" "$bad"
 LS_NM="$(printf '%s\n' "$OUT" | tr '\n' ' ')"
+run docker run --rm --entrypoint sh "$IMAGE" -c 'if [ -d /app/node_modules/.pnpm ]; then ls -A /app/node_modules/.pnpm; fi'
+[ "$RC" -eq 0 ] || fail "listing /app/node_modules/.pnpm in $IMAGE: exit $RC" "$OUT$ERR"
+bad="$(printf '%s\n' "$OUT" | grep -E '^next@' || true)"
+[ -z "$bad" ] || fail "/app/node_modules/.pnpm in $IMAGE holds Next (the prune did not leave apps/web out):" "$bad"
+RT_PNPM_N="$(printf '%s\n' "$OUT" | grep -c . || true)"
 run docker run --rm --entrypoint stat "$IMAGE" -c '%a %U:%G' /app/tools/entrypoint.sh
 [ "$RC" -eq 0 ] && [ "$OUT" = "755 node:node" ] || fail "/app/tools/entrypoint.sh is '$OUT' (exit $RC), want 755 node:node" "$ERR"
 run env "GIT_SHA=$sha" "$BASH" "$ENTRYPOINT" web
@@ -229,6 +274,7 @@ run env "GIT_SHA=$sha" "$BASH" "$ENTRYPOINT" web
   || fail "on the host, GIT_SHA=$sha $BASH tools/entrypoint.sh web printed '$OUT' (exit $RC), want 'web $sha'" "$ERR"
 echo "# docker run --rm $IMAGE <name>: web, worker, judge, system each exit 0 with stdout exactly '<name> $sha'; -e GIT_SHA= -> 'web unknown'"
 echo "# id -u -> 1000; ls -A /app -> $LS_APP(exact); ls -A /app/node_modules -> $LS_NM(dot-entries only: pruned);" \
+     "node_modules/.pnpm: $RT_PNPM_N entries, no next@;" \
      "tools/entrypoint.sh 755 node:node; on the host ($BASH $BASH_VERSION): web $sha"
 echo "ok - entrypoints"
 
@@ -337,10 +383,10 @@ echo "ok - unknown"
 
 # ---- context (AC3) ----------------------------------------------------------------------------------------------
 CASE=context
-for s in node_modules target .bridle '.git*' docs factory '.env*' 'tools/*' '!tools/entrypoint.sh'; do
+for s in node_modules target .bridle '.git*' docs factory '**/.env*' '**/.next' 'tools/*' '!tools/entrypoint.sh'; do
   grep -q -x -F -- "$s" "$DOCKERIGNORE" || fail ".dockerignore has no line '$s'"
 done
-before="$(docker images -q --no-trunc -f dangling=true 2>/dev/null || true)"
+before="$(dangling)"
 deps_build() {  # the deps stage, cached, exported as an untagged image; sets RC and DID
   DID="$(docker build -q --target deps "$ROOT" 2>"$tmp/deps.err")"
   RC=$?
@@ -364,15 +410,23 @@ run docker run --rm --entrypoint ls "$DID" -A /app
 [ "$RC" -eq 0 ] || fail "docker run --rm --entrypoint ls <deps> -A /app: exit $RC" "$OUT$ERR"
 DEPS_APP="$OUT"
 for s in .git .github .gitignore .gitattributes docs factory target .bridle .claude .claude-sessions .worktrees crates \
-         Cargo.toml Cargo.lock compose.yaml Dockerfile .dockerignore .env .env.example .env.local; do
+         Cargo.toml Cargo.lock compose.yaml Dockerfile .dockerignore .env .env.example .env.local e2e playwright.config.ts; do
   if printf '%s\n' "$DEPS_APP" | grep -q -x -F -- "$s"; then
     fail "the build context (deps stage /app) holds $s: .dockerignore does not keep it out" "$DEPS_APP"
   fi
 done
 bad="$(printf '%s\n' "$DEPS_APP" | grep -E '\.md$' || true)"
 [ -z "$bad" ] || fail "markdown files reached the build context:" "$bad"
-for s in package.json pnpm-lock.yaml pnpm-workspace.yaml packages tools node_modules; do
+for s in package.json pnpm-lock.yaml pnpm-workspace.yaml apps packages tools node_modules; do
   printf '%s\n' "$DEPS_APP" | grep -q -x -F -- "$s" || fail "the deps stage /app lacks $s (the listing is not the workspace)" "$DEPS_APP"
+done
+run docker run --rm --entrypoint ls "$DID" -A /app/apps/web
+[ "$RC" -eq 0 ] || fail "docker run --rm --entrypoint ls <deps> -A /app/apps/web: exit $RC" "$OUT$ERR"
+DEPS_WEB="$OUT"
+for s in .next .env.local next-env.d.ts; do
+  if printf '%s\n' "$DEPS_WEB" | grep -q -x -F -- "$s"; then
+    fail "the build context (deps stage /app/apps/web) holds $s: .dockerignore does not keep it out" "$DEPS_WEB"
+  fi
 done
 run docker run --rm --entrypoint ls "$DID" -A /app/tools
 [ "$RC" -eq 0 ] && [ "$OUT" = "entrypoint.sh" ] \
@@ -385,21 +439,55 @@ darwin="$(printf '%s\n' "$OUT" | grep -c darwin || true)"
 [ "$darwin" -eq 0 ] || fail "$darwin darwin entries under /app/node_modules/.pnpm: the host's macOS node_modules leaked into the image" \
   "$(printf '%s\n' "$OUT" | grep darwin)"
 linux="$(printf '%s\n' "$OUT" | grep -c linux || true)"
-sect="$(sed -n '/^## Build$/,/^## Test$/p' "$CARD")"
-printf '%s\n' "$sect" | grep -q -F 'bridle:dev' || fail "the card's ## Build does not name bridle:dev"
-printf '%s\n' "$sect" | grep -q -E '[0-9] MB' || fail "the card's ## Build records no '<n> MB' image size"
-MB_LINE="$(printf '%s\n' "$sect" | grep -o -E '[0-9][0-9,]* MB' | head -n 1)"
 if [ -n "$DEPS_IMAGE" ]; then
   out="$(docker image rm "$DEPS_IMAGE" 2>&1)" || fail "docker image rm $DEPS_IMAGE (the deps-stage image the test built) failed" "$out"
   DEPS_IMAGE=""
 fi
+# the fixture: what .dockerignore lets through, proven on a synthetic context outside the repository
+CTX="$tmp/ctx"
+CTX_FILES=".env .env.local .env.example README.md package.json playwright.config.ts e2e/smoke.spec.ts apps/web/.env
+apps/web/.env.local apps/web/.env.production.local apps/web/README.md apps/web/next-env.d.ts apps/web/.next/BUILD_ID
+apps/web/.next/cache/x apps/web/package.json apps/web/src/keep.ts packages/units/.env.local packages/units/NOTES.md
+packages/units/package.json"
+CTX_WANT="/ctx/apps/web/package.json
+/ctx/apps/web/src/keep.ts
+/ctx/package.json
+/ctx/packages/units/package.json"
+for f in $CTX_FILES; do
+  mkdir -p "$CTX/$(dirname "$f")" || fail "mkdir -p $CTX/$(dirname "$f") failed"
+  echo "fixture $f" > "$CTX/$f" || fail "writing the fixture file $CTX/$f failed"
+done
+CTX_N="$(printf '%s\n' $CTX_FILES | grep -c .)"
+cp "$DOCKERIGNORE" "$CTX/.dockerignore" || fail "copying .dockerignore into the fixture context failed"
+printf 'FROM %s\nCOPY . /ctx\n' "$BASE_REF" > "$tmp/ctx.Dockerfile"
+ctx_before="$(dangling)"
+CID="$(docker build -q -f "$tmp/ctx.Dockerfile" "$CTX" 2>"$tmp/ctx.err")" \
+  || fail "docker build -q -f <two-line Dockerfile> <fixture context> failed" "$(tail -n 60 "$tmp/ctx.err")"
+printf '%s\n' "$CID" | grep -q -E '^sha256:[0-9a-f]{64}$' || fail "the fixture build printed '$CID', want sha256:<id>" "$(cat "$tmp/ctx.err")"
+if printf '%s\n' "$ctx_before" | grep -q -x -F -- "$CID"; then
+  CTX_NOTE="left in place: its id existed before the test"
+else
+  TMP_IMAGES="$CID"
+  CTX_NOTE="removed"
+fi
+run docker run --rm --entrypoint find "$CID" /ctx -type f
+[ "$RC" -eq 0 ] || fail "docker run --rm --entrypoint find <fixture> /ctx -type f: exit $RC" "$OUT$ERR"
+CTX_HAVE="$(printf '%s\n' "$OUT" | LC_ALL=C sort)"
+[ "$CTX_HAVE" = "$CTX_WANT" ] \
+  || fail "the fixture context ($CTX_N files and a copy of .dockerignore) let other files through than the four manifests and sources; arrived:" "$CTX_HAVE"
+if [ -n "$TMP_IMAGES" ]; then
+  out="$(docker image rm "$CID" 2>&1)" || fail "docker image rm $CID (the fixture image the test built) failed" "$out"
+  TMP_IMAGES=""
+fi
 out="$(inspect '{{.Id}}')" || fail "$IMAGE is gone after the context case: $out"
-echo "# .dockerignore: node_modules, target, .bridle, .git*, docs, factory, .env*, tools/*, !tools/entrypoint.sh present as whole lines"
+echo "# .dockerignore: node_modules, target, .bridle, .git*, docs, factory, **/.env*, **/.next, tools/*, !tools/entrypoint.sh present as whole lines"
 echo "# docker build -q --target deps: $(printf '%s' "$DID" | cut -c8-19) in $((t1 - t0)) s; /app: $(printf '%s\n' "$DEPS_APP" | tr '\n' ' ')"
 echo "# none of .git .github .gitignore .gitattributes docs factory target .bridle .claude .claude-sessions .worktrees crates Cargo.* compose.yaml" \
-     "Dockerfile .dockerignore .env .env.example .env.local or *.md in /app; /app/tools: entrypoint.sh only;" \
+     "Dockerfile .dockerignore .env .env.example .env.local e2e playwright.config.ts or *.md in /app; /app/tools: entrypoint.sh only;" \
      "node_modules/.pnpm: $PNPM_N entries, $linux linux, 0 darwin"
-echo "# card ## Build names bridle:dev and '$MB_LINE'; deps-stage image $DEPS_NOTE; $IMAGE kept ($(printf '%s' "$out" | cut -c8-19))"
+echo "# /app/apps/web: $(printf '%s\n' "$DEPS_WEB" | tr '\n' ' ')(none of .next .env.local next-env.d.ts)"
+echo "# fixture: $CTX_N files and a copy of .dockerignore under mktemp; find /ctx -type f: $(printf '%s\n' "$CTX_HAVE" | tr '\n' ' ')(exact); fixture image $CTX_NOTE"
+echo "# deps-stage image $DEPS_NOTE; $IMAGE kept ($(printf '%s' "$out" | cut -c8-19))"
 echo "ok - context"
 
 # ---- docs (Files) -----------------------------------------------------------------------------------------------
@@ -415,5 +503,5 @@ n="$(grep -c -F 'Application containers are card P0-02.4' "$DOC" || true)"
 echo "# docs/ops/local-dev.md: '## Application image'; names Dockerfile, .dockerignore, tools/entrypoint.sh, bridle:dev, GIT_SHA, --serve," \
      "/healthz, 3000, web, worker, judge, system, 1000, tools/test/image.test.sh and the base image $BASE_REF verbatim"
 echo "ok - docs"
-echo "# 6 cases in $(( $(date +%s) - T_START )) s; built $IMAGE ($mb MB, revision $sha) and kept it; container and deps-stage image removed"
+echo "# 6 cases in $(( $(date +%s) - T_START )) s; built $IMAGE ($mb MB, revision $sha) and kept it; container and the untagged images removed"
 exit 0
