@@ -34,7 +34,8 @@ In scope:
 - A 3D workspace: draw and edit nodes, members, supports and loads; property panel; table editor; undo and redo; templates.
 - Three seeded tasks, one demo learner and one demo instructor, submissions stored in Postgres.
 - AI feedback through the Anthropic API, with the evidence computed by the solver and only the wording written by the model.
-- A public link on a managed host, and a one-command local mode for presentation day.
+- A public link on Google Cloud Run in the owner's Google Cloud project `comm360-sandbox` (the owner's decision of 2026-11-18),
+  and a one-command local mode for presentation day.
 
 Out of scope until after the pitch (all of it stays in `docs/plan/roadmap.md`):
 
@@ -113,7 +114,7 @@ marks the cards that get a separate review station (see Process).
 
 | Card | What |
 |---|---|
-| C1 | Hosting: the managed host, the database, the environment, a health check |
+| C1 | Hosting on Google Cloud Run in the project `comm360-sandbox`: the container image of the repository's `Dockerfile` with Next.js behind its `web` entrypoint, the database, the secrets (the Anthropic API key in Secret Manager), a budget alert, a health check; nothing billable is created before the owner confirms the list of resources |
 | C2 | Local presentation mode: one command, seeded data, a reset button |
 | C3 | Introduction page for the panel |
 | C4 | Visual pass: empty, loading and error states |
@@ -155,8 +156,8 @@ The owner's lighter process for the pitch (decision of 2026-11-18):
 |---|---|
 | Answer the questions below | before the cards are created |
 | Read and correct the three task briefs (card T2) | 2026-11-28 |
-| Anthropic API key with a spend cap | 2026-12-02 (card T7) |
-| An account on the managed host | 2026-11-30 (card W13) |
+| Anthropic API key with a spend cap; the foreman asks for it when card T7 starts | 2026-12-02 (card T7) |
+| Confirm the list of Google Cloud resources and their expected cost before the first deployment (the project `comm360-sandbox` and the `gcloud` CLI are already set up on the development machine) | 2026-11-30 (card W13) |
 | Rehearse with the script | 2026-12-16 |
 
 ## Risks
