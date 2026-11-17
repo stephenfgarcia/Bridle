@@ -94,21 +94,31 @@ a `messageKey` (`model.issue.<code>`), the `ids` it concerns and, where it has a
 `sections[0].A`. This package exports no text for a user: the message catalog (`packages/i18n`) does not hold
 these keys yet; the card that first shows an issue on screen adds them.
 
-| Code                           | Reported when                                                                                                      | `ids`                                                                |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| `duplicate-id`                 | an id appears a second time in one list                                                                            | the id                                                               |
-| `duplicate-support`            | a node has a second support                                                                                        | the node id                                                          |
-| `missing-node`                 | a member, support or nodal load names a node that is not there                                                     | member or load id, then the node id; for a support the node id alone |
-| `missing-section`              | a member names a section that is not there                                                                         | member id, section id                                                |
-| `missing-material`             | a member names a material that is not there                                                                        | member id, material id                                               |
-| `missing-member`               | a member load names a member that is not there                                                                     | load id, member id                                                   |
-| `missing-load-case`            | a load names a load case that is not there                                                                         | load id, load case id                                                |
-| `zero-length-member`           | a member's two ends are the same node, or closer than `ZERO_LENGTH_TOLERANCE` (1e-9 m)                             | member id                                                            |
-| `non-positive-value`           | a section's `A`, `Iy`, `Iz`, `J`, `depthY` or `depthZ`, or a material's `E`, `G` or `fy`, is not greater than zero | section or material id                                               |
-| `load-position-outside-member` | a point load's `position` is below 0 or beyond the member's length                                                 | load id, member id                                                   |
-| `no-support`                   | no support on an existing node restrains anything                                                                  | none                                                                 |
+| Code                           | Reported when                                                                                                                              | `ids`                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| `duplicate-id`                 | an id appears a second time in one list                                                                                                    | the id                                                               |
+| `duplicate-support`            | a node has a second support                                                                                                                | the node id                                                          |
+| `missing-node`                 | a member, support or nodal load names a node that is not there                                                                             | member or load id, then the node id; for a support the node id alone |
+| `missing-section`              | a member names a section that is not there                                                                                                 | member id, section id                                                |
+| `missing-material`             | a member names a material that is not there                                                                                                | member id, material id                                               |
+| `missing-member`               | a member load names a member that is not there                                                                                             | load id, member id                                                   |
+| `missing-load-case`            | a load names a load case that is not there                                                                                                 | load id, load case id                                                |
+| `non-finite-value`             | a number is NaN, Infinity or -Infinity (the list of numbers checked is below the table)                                                    | the id of the node, member, section, material or load                |
+| `zero-length-member`           | a member's two ends are the same node, or closer than `ZERO_LENGTH_TOLERANCE` (1e-9 m)                                                     | member id                                                            |
+| `non-positive-value`           | a section's `A`, `Iy`, `Iz`, `J`, `depthY` or `depthZ`, or a material's `E`, `G` or `fy`, is a finite number that is not greater than zero | section or material id                                               |
+| `load-position-outside-member` | a point load's `position` is a finite number below 0 or beyond the member's length                                                         | load id, member id                                                   |
+| `no-support`                   | no support on an existing node restrains anything                                                                                          | none                                                                 |
 
-`validateModel` does not decide whether the structure is stable; that is the solver's job (card S3).
+`non-finite-value` is checked for: a node's `x`, `y`, `z`; a member's `rollAngleDeg`; a section's `A`, `Iy`,
+`Iz`, `J`, `depthY`, `depthZ`; a material's `E`, `G`, `fy`, `density`; a nodal load's six components; a uniform
+load's `value`; a point load's `value` and `position`. The `path` names the field (`nodes[1].z`). A number that
+is not finite gets this code only: it is not also reported as `non-positive-value` or
+`load-position-outside-member`, and a member with such a coordinate at one of its nodes is not reported as
+`zero-length-member`. A member whose length is not finite although its nodes' coordinates are (their difference
+overflows a double) is reported with this code too, with the member's id and `members[i]` as the path.
+`parseModel` accepts only finite numbers, so the check matters for a model built in code.
+
+`validateModel` does not decide whether the structure is stable; that is the solver's job (`solve` of `packages/solver`).
 
 ## JSON format
 

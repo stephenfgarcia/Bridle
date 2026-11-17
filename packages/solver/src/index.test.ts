@@ -642,9 +642,20 @@ describe("assemble", () => {
     });
   });
 
-  it("throws for a member whose local axes cannot be computed (an infinite coordinate)", () => {
+  it("refuses an infinite coordinate as an invalid model (validateModel reports non-finite-value)", () => {
     const model = portalFrame();
     (model.nodes[1] as Model["nodes"][number]).z = Number.POSITIVE_INFINITY;
-    expect(() => assemble(model)).toThrow("member c1 could not be resolved");
+    expect(assemble(model)).toEqual({
+      ok: false,
+      reason: "invalid-model",
+      issues: [
+        {
+          code: "non-finite-value",
+          messageKey: "model.issue.non-finite-value",
+          ids: ["n2"],
+          path: "nodes[1].z",
+        },
+      ],
+    });
   });
 });

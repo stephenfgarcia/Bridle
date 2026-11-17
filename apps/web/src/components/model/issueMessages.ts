@@ -14,6 +14,7 @@ export const ISSUE_MESSAGE: Record<IssueCode, MessageId> = {
   "missing-member": "model.issue.missingMember",
   "missing-load-case": "model.issue.missingLoadCase",
   "zero-length-member": "model.issue.zeroLengthMember",
+  "non-finite-value": "model.issue.nonFiniteValue",
   "non-positive-value": "model.issue.nonPositiveValue",
   "load-position-outside-member": "model.issue.loadPositionOutsideMember",
   "no-support": "model.issue.noSupport",

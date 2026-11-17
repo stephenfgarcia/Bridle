@@ -13,6 +13,7 @@ export const VALIDATION_ISSUE_CODES = [
   "missing-material",
   "missing-member",
   "missing-load-case",
+  "non-finite-value",
   "zero-length-member",
   "non-positive-value",
   "load-position-outside-member",

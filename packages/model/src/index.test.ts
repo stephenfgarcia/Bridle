@@ -398,9 +398,119 @@ describe("validateModel", () => {
     }
   }
 
+  /** Every number of a model that `validateModel` checks for being finite, with its path and id. */
+  const numbers: [path: string, id: string, set: (model: Model, value: number) => void][] = [
+    ...(["x", "y", "z"] as const).map(
+      (field): [string, string, (model: Model, value: number) => void] => [
+        `nodes[1].${field}`,
+        "n2",
+        (m, value) => {
+          (m.nodes[1] as Model["nodes"][number])[field] = value;
+        },
+      ],
+    ),
+    [
+      "members[0].rollAngleDeg",
+      "m1",
+      (m, value) => {
+        first(m.members).rollAngleDeg = value;
+      },
+    ],
+    ...(["A", "Iy", "Iz", "J", "depthY", "depthZ"] as const).map(
+      (field): [string, string, (model: Model, value: number) => void] => [
+        `sections[0].${field}`,
+        "s1",
+        (m, value) => {
+          first(m.sections)[field] = value;
+        },
+      ],
+    ),
+    ...(["E", "G", "fy", "density"] as const).map(
+      (field): [string, string, (model: Model, value: number) => void] => [
+        `materials[0].${field}`,
+        "mat1",
+        (m, value) => {
+          first(m.materials)[field] = value;
+        },
+      ],
+    ),
+    ...(["fx", "fy", "fz", "mx", "my", "mz"] as const).map(
+      (field): [string, string, (model: Model, value: number) => void] => [
+        `nodalLoads[0].${field}`,
+        "nl1",
+        (m, value) => {
+          first(m.nodalLoads)[field] = value;
+        },
+      ],
+    ),
+    [
+      "memberUniformLoads[0].value",
+      "ul1",
+      (m, value) => {
+        first(m.memberUniformLoads).value = value;
+      },
+    ],
+    [
+      "memberPointLoads[0].value",
+      "pl1",
+      (m, value) => {
+        first(m.memberPointLoads).value = value;
+      },
+    ],
+    [
+      "memberPointLoads[0].position",
+      "pl1",
+      (m, value) => {
+        first(m.memberPointLoads).position = value;
+      },
+    ],
+  ];
+
+  for (const [path, id, set] of numbers) {
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      it(`reports ${path} of ${value} as non-finite-value, and as nothing else`, () => {
+        const issues = broken((m) => set(m, value));
+        expect(issues).toEqual([
+          { code: "non-finite-value", messageKey: "model.issue.non-finite-value", ids: [id], path },
+        ]);
+      });
+    }
+  }
+
+  it("the non-finite cases cover 24 numbers: every number field of the model's types", () => {
+    // 3 of a node, 1 of a member, 6 of a section, 4 of a material, 6 of a nodal load, 1 of a
+    // uniform load, 2 of a point load. A support, a load case and a release hold no number.
+    expect(numbers).toHaveLength(3 + 1 + 6 + 4 + 6 + 1 + 2);
+  });
+
+  it("does not report a NaN coordinate as a zero-length member", () => {
+    const issues = broken((m) => {
+      first(m.nodes).x = Number.NaN;
+    });
+    expect(issues.map((item) => item.code)).toEqual(["non-finite-value"]);
+    expect(issues[0]?.path).toBe("nodes[0].x");
+  });
+
+  it("reports a member whose length overflows, between nodes with finite coordinates, as non-finite-value", () => {
+    const issues = broken((m) => {
+      first(m.nodes).x = -1e308;
+      (m.nodes[1] as Model["nodes"][number]).x = 1e308;
+      m.memberPointLoads = [];
+    });
+    expect(issues).toEqual([
+      {
+        code: "non-finite-value",
+        messageKey: "model.issue.non-finite-value",
+        ids: ["m1"],
+        path: "members[0]",
+      },
+    ]);
+  });
+
   it("the cases above cover every validation code", () => {
     const covered = new Set<string>(cases.map(([, code]) => code));
     covered.add("non-positive-value");
+    covered.add("non-finite-value");
     expect([...covered].sort()).toEqual([...VALIDATION_ISSUE_CODES].sort());
   });
 

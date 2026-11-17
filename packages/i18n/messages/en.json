@@ -17,6 +17,7 @@
   "model.issue.unsupportedUnits": "The file uses units this application does not read.",
   "model.issue.unsupportedVersion": "The file is of a model version this application does not read.",
   "model.issue.zeroLengthMember": "A member has no length: both of its ends are at the same place.",
+  "model.issue.nonFiniteValue": "A number of the model is not finite.",
   "nav.label": "Main",
   "nav.tasks": "Tasks",
   "nav.workspace": "Workspace",

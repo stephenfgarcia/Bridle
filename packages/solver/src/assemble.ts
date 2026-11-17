@@ -1,7 +1,7 @@
 /**
  * Assembly of the global stiffness matrix of a model from its members (direct stiffness method).
  * Supports and loads are not applied here: the matrix is that of the free structure, so it is
- * singular (it has the six rigid-body motions). Card S3 applies the supports and solves.
+ * singular (it has the six rigid-body motions). `solve` (./solve.ts) applies the supports and solves.
  */
 import {
   distance,
@@ -16,7 +16,7 @@ import { buildDofMap, type DofMap, memberDofIndices } from "./dof";
 import { elementStiffnessGlobal, elementStiffnessLocal, elementTransformation } from "./element";
 import { addAt, at, type Matrix, zeros } from "./matrix";
 
-/** One member as the solver sees it. Card S3 and later cards read member results from these. */
+/** One member as the solver sees it. Later cards read member results from these. */
 export interface MemberElement {
   memberId: string;
   /** Length, m. */
@@ -97,10 +97,10 @@ export function unsupportedMembers(model: Model): UnsupportedMember[] {
  * - A member is of kind `truss` or has an end release:
  *   `{ ok: false, reason: "not-supported-yet", unsupported }` (until card S5).
  *
- * The function does not change the model and keeps no state between calls. `validateModel` does not
- * check that every number is finite: for a member whose local axes cannot be computed (an infinite
- * coordinate, for example) `assemble` throws an `Error`, and other non-finite values (E, a roll
- * angle) give a matrix with non-finite entries.
+ * The function does not change the model and keeps no state between calls. `validateModel` reports
+ * every number of the model that is not finite, so such a model is refused as `invalid-model`. The
+ * entries of the matrix are not checked: finite numbers whose products overflow a double (E times A,
+ * for example) give a matrix with entries that are not finite; `solve` checks for that.
  */
 export function assemble(model: Model): AssembleResult {
   const issues = validateModel(model);
@@ -127,8 +127,9 @@ export function assemble(model: Model): AssembleResult {
     const axes = start && end ? memberLocalAxes(start, end, member.rollAngleDeg) : undefined;
     const dofIndices = memberDofIndices(dofMap, member.startNodeId, member.endNodeId);
     if (!start || !end || !section || !material || !axes || !dofIndices) {
-      // validateModel reports a missing node, section or material and a zero-length member, so this
-      // is reached only for what it does not check, such as a coordinate that is infinite.
+      // validateModel reports a missing node, section or material, a zero-length member and a
+      // coordinate or length that is not finite, so a model it accepts does not come here. The
+      // check is kept so that a later change to the validation cannot pass `undefined` on silently.
       throw new Error(`assemble: member ${member.id} could not be resolved`);
     }
 
