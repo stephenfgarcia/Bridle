@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# Tests for the externalized UI strings (card P0-02.6): one case per acceptance criterion.
-#   catalog AC1  packages/i18n/messages/en.json and en-XA.json are exactly fixtures C1 and C2 (every pseudo message
-#                in brackets, accented and longer than its source); `pnpm i18n:pseudo` exits 0 and leaves both
-#                files and the tree as they were; pseudo.ts reproduces fixture P and the tag line of fixture G;
+# Tests for the externalized UI strings (card P0-02.6): one case per acceptance criterion. Card PX-02.2 moved the
+# `catalog` case from "the catalog is exactly the two messages of card P0-02.6" to "the catalog holds them" (the
+# catalog has grown with the application), the count of smoke tests to 5, and made the file lists leave out a file
+# that is deleted in the tree but still in git's index.
+#   catalog AC1  packages/i18n/messages/en.json and en-XA.json hold fixtures C1 and C2 (`app.name` and
+#                `home.notice`, accented, no ASCII letter left) and the same keys in the same order, at least
+#                two; every pseudo message is in brackets and longer than its source; `pnpm i18n:pseudo` exits 0
+#                and leaves both files and the tree as they were; pseudo.ts reproduces fixture P and the tag line of fixture G;
 #                intl-messageformat is a dependency at an exact version, the one installed; the package's tests
 #                pass and turbo lists @bridle/i18n#test. In a `mktemp -d` copy of the clone's files, after `pnpm
 #                install --frozen-lockfile`: `t(id, values)` formats (the plural of fixture G, a missing value
@@ -26,7 +30,7 @@
 #   pseudo  AC3  `NEXT_PUBLIC_LOCALE=en-XA pnpm --filter web build` exits 0; `pnpm --filter web start` without the
 #                variable serves <html lang="en-XA">, the h1 and the notice of fixture C2 and no English; the
 #                health route answers fixture H byte for byte (the locale does not reach the API); the smoke
-#                with the variable passes against it (2 passed, the same pid listening, smoke-home-en-XA.png a
+#                with the variable passes against it (5 passed, the same pid listening, smoke-home-en-XA.png a
 #                gitignored PNG) and fails without it, naming en-XA; with no server running the smoke starts its
 #                own in the pseudo-locale and leaves none; `NEXT_PUBLIC_LOCALE=fr` fails the build, naming fr
 #   docs    AC4  docs/ux/ux-spec.md is fixture U and docs/ux is as 50a9e25 left it; docs/ops/i18n.md names the
@@ -52,7 +56,7 @@
 # .bridle/playwright/ and .bridle/screenshots/smoke-home-en-XA.png (all gitignored). An EXIT trap stops the servers
 # the test started (by pid, and whatever listens on a port it took), removes the directory and, when the `pseudo`
 # case ran, removes apps/web/.next whole (no en-XA build is left for a later `next start`) and the two other paths
-# if they were not there before; the screenshot stays. Takes about a minute.
+# if they were not there before; the screenshot stays. Takes about a minute and a half.
 set -u
 set -o pipefail
 export DO_NOT_TRACK=1 # turbo: no telemetry and no first-run banner
@@ -67,7 +71,7 @@ BASE=50a9e25  # the commit before this card: fixture L0, the health route and do
 PNG="$ROOT/.bridle/screenshots/smoke-home-en-XA.png"
 CASE=setup
 
-# Fixtures C1 and C2 (literal): the two messages and their pseudo forms.
+# Fixtures C1 and C2 (literal): the two messages of card P0-02.6 and their pseudo forms.
 NAME='Bridle'
 NOTICE='Educational use only. Not for construction, permitting, or professional engineering use. Results are not a substitute for analysis and design by a licensed engineer.'
 NAME_XA='[Ɓŕîîðļéé]'
@@ -187,10 +191,14 @@ set_json() {  # $1 = JSON file, $2 = key, $3 = value: sets it and writes the fil
   node -e 'const fs = require("fs"); const [f, k, v] = process.argv.slice(1);
 const j = JSON.parse(fs.readFileSync(f, "utf8")); j[k] = v; fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");' "$1" "$2" "$3"
 }
+existing() {  # stdin: paths relative to the root, NUL-separated; stdout: those that exist, NUL-separated. A file
+              # deleted in the tree but still in git's index (a deletion not committed yet) is left out.
+  (cd "$ROOT" && xargs -0 sh -c 'for f in "$@"; do if [ -e "$f" ] || [ -L "$f" ]; then printf "%s\0" "$f"; fi; done' sh)
+}
 tree_state() {  # git's view of the tree, and the bytes of the files a build, the generator or the smoke could rewrite
   (cd "$ROOT" && git status --porcelain \
      && git ls-files -z --cached --others --exclude-standard -- apps/web packages/i18n e2e playwright.config.ts \
-          package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .gitignore | xargs -0 shasum -a 256)
+          package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .gitignore | existing | xargs -0 shasum -a 256)
 }
 same_tree() {  # $1 = state before, $2 = what ran: fails when the tree changed
   local now
@@ -219,7 +227,7 @@ ensure_copy() {  # COPY = what a clone holds (without tools/agent-hq, no workspa
   COPY="$tmp/clone"
   mkdir -p "$COPY" || fail "cannot create $COPY"
   (cd "$ROOT" && git ls-files -z --cached --others --exclude-standard -- . ':(exclude)tools/agent-hq' \
-     | tar --null -T - -cf - | tar -C "$COPY" -xf -) || fail "copying the tracked and untracked-not-ignored files into $COPY failed"
+     | existing | tar --null -T - -cf - | tar -C "$COPY" -xf -) || fail "copying the tracked and untracked-not-ignored files into $COPY failed"
   run_in "$COPY" pnpm install --frozen-lockfile
   [ "$RC" -eq 0 ] || fail "pnpm install --frozen-lockfile in the copy: exit $RC" "$OUT"
   cmp -s "$ROOT/pnpm-lock.yaml" "$COPY/pnpm-lock.yaml" || fail "pnpm install --frozen-lockfile rewrote pnpm-lock.yaml in the copy" "$OUT"
@@ -281,18 +289,29 @@ EN="$PKG/messages/en.json"
 XA="$PKG/messages/en-XA.json"
 [ -f "$EN" ] || fail "packages/i18n/messages/en.json does not exist"
 [ -f "$XA" ] || fail "packages/i18n/messages/en-XA.json does not exist (the output of pnpm i18n:pseudo is committed)"
-want_entries() {  # $1, $2 = the two values: the entries a catalog must have, as JSON
+want_entries() {  # $1, $2 = the two values: the entries of fixture C1 or C2, as JSON
   node -e 'console.log(JSON.stringify([["app.name", process.argv[1]], ["home.notice", process.argv[2]]]))' "$1" "$2"
 }
-got="$(json "$EN" 'Object.entries(j)')" || fail "packages/i18n/messages/en.json does not parse as JSON"
-[ "$got" = "$(want_entries "$NAME" "$NOTICE")" ] || fail "packages/i18n/messages/en.json is not fixture C1 (app.name, home.notice, in that order, nothing else)" "$got"
-got="$(json "$XA" 'Object.entries(j)')" || fail "packages/i18n/messages/en-XA.json does not parse as JSON"
-[ "$got" = "$(want_entries "$NAME_XA" "$NOTICE_XA")" ] || fail "packages/i18n/messages/en-XA.json is not fixture C2" "$got"
+FIXTURE_ENTRIES='[["app.name", j["app.name"]], ["home.notice", j["home.notice"]]]'
+got="$(json "$EN" "$FIXTURE_ENTRIES")" || fail "packages/i18n/messages/en.json does not parse as JSON"
+[ "$got" = "$(want_entries "$NAME" "$NOTICE")" ] || fail "packages/i18n/messages/en.json does not hold fixture C1 (app.name and home.notice)" "$got"
+got="$(json "$XA" "$FIXTURE_ENTRIES")" || fail "packages/i18n/messages/en-XA.json does not parse as JSON"
+[ "$got" = "$(want_entries "$NAME_XA" "$NOTICE_XA")" ] || fail "packages/i18n/messages/en-XA.json does not hold fixture C2 (the pseudo forms of app.name and home.notice)" "$got"
+# Every message: the same keys in the same order in both files, the pseudo one in brackets and longer. The two
+# fixture messages have no argument, so no ASCII letter may be left in their pseudo forms (an argument such as
+# {name} keeps its letters).
 shape="$(node -e 'const fs = require("fs"); const [e, x] = process.argv.slice(1).map((f) => JSON.parse(fs.readFileSync(f, "utf8")));
-const bad = Object.keys(e).filter((k) => !(x[k].startsWith("[") && x[k].endsWith("]") && [...x[k]].length > [...e[k]].length
-  && !/[A-Za-z]/.test(x[k])));
-console.log(bad.length ? "bad: " + bad.join(" ") : Object.keys(e).map((k) => [...e[k]].length + " to " + [...x[k]].length).join(", "));' "$EN" "$XA")"
-[ "$shape" = "6 to 10, 165 to 223" ] || fail "the pseudo messages are not bracketed, accented and lengthened as fixture C2 says (6 to 10 and 165 to 223 characters)" "$shape"
+const keys = Object.keys(e);
+if (keys.join("\n") !== Object.keys(x).join("\n")) { console.log("the keys of the two files differ"); process.exit(0); }
+const bad = keys.filter((k) => !(x[k].startsWith("[") && x[k].endsWith("]") && [...x[k]].length > [...e[k]].length));
+for (const k of ["app.name", "home.notice"]) if (/[A-Za-z]/.test(x[k])) bad.push(k + " (an ASCII letter is left)");
+console.log(bad.length ? "bad: " + bad.join(" ") : keys.length + " messages; " + ["app.name", "home.notice"].map((k) => [...e[k]].length + " to " + [...x[k]].length).join(", "));' "$EN" "$XA")"
+NMESSAGES="${shape%% messages; *}"
+case "$shape" in
+  *' messages; 6 to 10, 165 to 223') ;;
+  *) fail "the pseudo messages are not bracketed and lengthened, the keys of the two files differ, or app.name and home.notice are not 6 to 10 and 165 to 223 characters (fixture C2)" "$shape" ;;
+esac
+[ "$NMESSAGES" -ge 2 ] || fail "the catalog holds $NMESSAGES messages, expected at least the two of fixture C1"
 
 [ "$(json "$ROOT/package.json" 'j.scripts["i18n:pseudo"]')" = "pnpm --filter @bridle/i18n pseudo" ] \
   || fail "the root i18n:pseudo script is not 'pnpm --filter @bridle/i18n pseudo'"
@@ -312,7 +331,7 @@ got="$(node -e 'import(process.argv[1]).then((m) => { console.log(m.pseudoText(p
   || fail "node cannot import packages/i18n/src/pseudo.ts and call pseudoText and pseudoMessage" "$(cat "$tmp/p.err")"
 [ "$got" = "$P_OUT
 [Ŕééååð ţĥéé <b>ñööţîîçéé</b> ƒîîŕšţ]" ] || fail "pseudoText and pseudoMessage do not reproduce fixture P and the tag line of fixture G" "$got"
-echo "# en.json = fixture C1, en-XA.json = fixture C2 ($shape characters, bracketed, no ASCII letter left); pnpm i18n:pseudo: exit 0, '$PSEUDO_LINE', both files and the tree unchanged; pseudo.ts reproduces fixture P and the tag line of G"
+echo "# en.json holds fixture C1, en-XA.json fixture C2 ($shape characters; every message bracketed and longer, the same keys in both); pnpm i18n:pseudo: exit 0, '$PSEUDO_LINE', both files and the tree unchanged; pseudo.ts reproduces fixture P and the tag line of G"
 
 dep="$(json "$PKG/package.json" 'j.dependencies["intl-messageformat"]')" || fail "cannot read packages/i18n/package.json"
 printf '%s\n' "$dep" | grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "packages/i18n/package.json: dependencies[\"intl-messageformat\"] is '$dep', expected an exact version (ICU MessageFormat)"
@@ -620,8 +639,8 @@ echo "# NEXT_PUBLIC_LOCALE=en-XA pnpm --filter web build: exit 0 in $((t1 - t0))
 rm -f "$PNG"
 run_in "$ROOT" env NEXT_PUBLIC_LOCALE=en-XA PORT="$P1" pnpm e2e:smoke
 [ "$RC" -eq 0 ] || fail "NEXT_PUBLIC_LOCALE=en-XA PORT=$P1 pnpm e2e:smoke against the en-XA server: exit $RC" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +2 passed' || fail "the pseudo-locale smoke against the en-XA server did not print '2 passed'" "$OUT"
-PASS_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +2 passed' | sed 's/^ *//')"
+printf '%s\n' "$OUT" | grep -q -E '^ +5 passed' || fail "the pseudo-locale smoke against the en-XA server did not print '5 passed'" "$OUT"
+PASS_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +5 passed' | sed 's/^ *//')"
 [ "$(listeners "$P1" | sed -n '1p')" = "$SRV_LISTENER" ] || fail "after the smoke, pid $SRV_LISTENER no longer listens on $P1: the en-XA server was not the one tested" "$OUT"
 [ -f "$PNG" ] || fail "the pseudo-locale smoke wrote no .bridle/screenshots/smoke-home-en-XA.png"
 sig="$(od -An -tx1 -N4 "$PNG" | tr -d ' \n')"
@@ -630,7 +649,7 @@ PNG_BYTES="$(wc -c < "$PNG" | tr -d ' ')"
 (cd "$ROOT" && git check-ignore -q .bridle/screenshots/smoke-home-en-XA.png) || fail ".bridle/screenshots/smoke-home-en-XA.png is not gitignored"
 run_in "$ROOT" env PORT="$P1" pnpm e2e:smoke
 [ "$RC" -ne 0 ] || fail "PORT=$P1 pnpm e2e:smoke without NEXT_PUBLIC_LOCALE exits 0 against the en-XA server: the smoke does not assert the strings of its locale" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +2 passed' && fail "the smoke printed '2 passed' in en against the en-XA server" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +5 passed' && fail "the smoke printed '5 passed' in en against the en-XA server" "$OUT"
 printf '%s\n' "$OUT" | grep -q -F 'en-XA' || fail "the failed en smoke does not name the locale it received (en-XA): it failed for another reason" "$OUT"
 NEG_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +[0-9]+ failed' | sed -n '1p' | sed 's/^ *//')"
 NEG_RC="$RC"
@@ -642,9 +661,9 @@ PORTS="$PORTS $P2"
 rm -f "$PNG"
 run_in "$ROOT" env NEXT_PUBLIC_LOCALE=en-XA PORT="$P2" pnpm e2e:smoke
 [ "$RC" -eq 0 ] || fail "NEXT_PUBLIC_LOCALE=en-XA PORT=$P2 pnpm e2e:smoke with no server running: exit $RC (the server Playwright starts must inherit the variable)" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +2 passed' || fail "the pseudo-locale smoke that starts its own server did not print '2 passed'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +5 passed' || fail "the pseudo-locale smoke that starts its own server did not print '5 passed'" "$OUT"
 [ -f "$PNG" ] || fail "the start path wrote no .bridle/screenshots/smoke-home-en-XA.png"
-START_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +2 passed' | sed 's/^ *//')"
+START_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +5 passed' | sed 's/^ *//')"
 i=0
 while [ -n "$(listeners "$P2")" ]; do
   i=$((i + 1))

@@ -1,10 +1,12 @@
-// The smoke test of apps/web (card P0-02.5; the locale since card P0-02.6; the shell since card PX-02.1): the
-// health route, then the home page and its screenshot, then the workspace route with the navigation.
+// The smoke test of apps/web (card P0-02.5; the locale since card P0-02.6; the shell since card PX-02.1; the
+// 3D viewport since card PX-02.2): the health route, then the home page and its screenshot, then the workspace
+// route with the navigation, then the viewport with the side panel's counts and the fixture switch, then
+// hovering and selecting a member in the viewport.
 // The health test is first: when a foreign process holds the port, its failure names the cause.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { expect, type TestInfo, test } from "@playwright/test";
+import { expect, type Page, type TestInfo, test } from "@playwright/test";
 
 // The locale under test: NEXT_PUBLIC_LOCALE as apps/web reads it (Playwright's webServer inherits it), `en`
 // when it is unset or empty. The strings the page must show are read from that locale's catalog, not typed
@@ -70,9 +72,7 @@ test("/ says Bridle with the sha and the educational-use notice", async ({ page 
   await page.screenshot({ path: screenshotPath(testInfo, "smoke-home"), fullPage: true });
 });
 
-test("/workspace shows the navigation, the viewport area and the side panel", async ({
-  page,
-}, testInfo) => {
+test("/workspace shows the navigation, the viewport area and the side panel", async ({ page }) => {
   const response = await page.goto("/workspace");
   expect(response?.status()).toBe(200);
   await expect(page.locator("html")).toHaveAttribute("lang", LOCALE);
@@ -86,6 +86,103 @@ test("/workspace shows the navigation, the viewport area and the side panel", as
   await expect(tasks).not.toHaveAttribute("aria-current");
   await expect(page.getByTestId("viewport")).toBeVisible();
   await expect(page.getByTestId("side-panel")).toBeVisible();
+});
+
+// The canvas of the viewport: it is there once the page has hydrated and loaded the 3D code, so a test that
+// waits for it may then use the controls.
+async function openViewport(page: Page) {
+  const response = await page.goto("/workspace");
+  expect(response?.status()).toBe(200);
+  await expect(page.locator("html")).toHaveAttribute("lang", LOCALE);
+  await expect(page.getByTestId("viewport").locator("canvas")).toBeVisible();
+}
+
+async function expectCounts(page: Page, nodes: number, members: number, supports: number) {
+  await expect(page.getByTestId("count-nodes")).toHaveText(String(nodes));
+  await expect(page.getByTestId("count-members")).toHaveText(String(members));
+  await expect(page.getByTestId("count-supports")).toHaveText(String(supports));
+}
+
+test("/workspace draws the portal frame and the fixture switch changes the counts", async ({
+  page,
+}, testInfo) => {
+  const problems: string[] = [];
+  page.on("pageerror", (error) => problems.push(`page error: ${error.message}`));
+  page.on("console", (entry) => {
+    if (entry.type() === "error" && /hydrat/i.test(entry.text())) {
+      problems.push(`console error: ${entry.text()}`);
+    }
+  });
+  await openViewport(page);
+  const panel = page.getByTestId("side-panel");
+  const fixture = panel.getByLabel(message("workspace.fixture.label"), { exact: true });
+  // The portal frame first: 4 nodes, 3 members, 2 supports.
+  await expect(fixture).toHaveValue("portal");
+  await expectCounts(page, 4, 3, 2);
+  await expect(panel.getByTestId("selection-empty")).toHaveText(message("workspace.panel.empty"));
+  for (const id of ["fit", "view3d", "viewFront", "viewTop"]) {
+    await expect(
+      page
+        .getByTestId("viewport")
+        .getByRole("button", { name: message(`workspace.viewport.${id}`), exact: true }),
+    ).toBeVisible();
+  }
   // The viewport of the Desktop Chrome device is 1280 by 720: the laptop screen the shell is laid out for.
   await page.screenshot({ path: screenshotPath(testInfo, "smoke-workspace") });
+  await fixture.selectOption("truss");
+  await expectCounts(page, 5, 7, 5);
+  await fixture.selectOption("beam");
+  await expectCounts(page, 2, 1, 2);
+  await fixture.selectOption("portal");
+  await expectCounts(page, 4, 3, 2);
+  await expect(page.getByTestId("viewport").locator("canvas")).toBeVisible();
+  // No error was thrown in the page, and the console holds no hydration error.
+  expect(problems).toEqual([]);
+});
+
+test("/workspace highlights the member under the pointer and a click selects it", async ({
+  page,
+}) => {
+  await openViewport(page);
+  await page
+    .getByTestId("viewport")
+    .getByRole("button", { name: message("workspace.viewport.viewFront"), exact: true })
+    .click();
+  const surface = page.getByTestId("viewport-surface");
+  const box = await page.getByTestId("viewport").boundingBox();
+  if (box === null) {
+    throw new Error("the viewport area has no box");
+  }
+  // Seen from the front, the beam b1 of the portal frame crosses the middle of the viewport above its centre:
+  // the pointer goes down the middle until the viewport says it is over the beam.
+  const x = box.x + box.width / 2;
+  let y = box.y + 8;
+  const middle = box.y + box.height / 2;
+  for (; y < middle; y += 3) {
+    await page.mouse.move(x, y);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+    if ((await surface.getAttribute("data-hover")) === "member:b1") {
+      break;
+    }
+  }
+  await expect(surface).toHaveAttribute("data-hover", "member:b1");
+  const panel = page.getByTestId("side-panel");
+  await expect(panel.getByTestId("selection-empty")).toBeVisible();
+  await page.mouse.click(x, y);
+  const selection = panel.getByTestId("selection");
+  const named = (name: string, id: string) =>
+    message("workspace.selection.named").replace("{name}", name).replace("{id}", id);
+  for (const text of [
+    message("workspace.selection.kindMember"),
+    "b1",
+    "n2",
+    "n3",
+    named("I 300x150", "s1"),
+    named("S355", "mat1"),
+  ]) {
+    await expect(selection).toContainText(text);
+  }
+  // The middle of the viewport is inside the frame, on no member: a click there clears the selection.
+  await page.mouse.click(x, middle);
+  await expect(panel.getByTestId("selection-empty")).toHaveText(message("workspace.panel.empty"));
 });

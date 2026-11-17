@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Tests for the Next.js application and pnpm e2e:smoke (card P0-02.5): one case per acceptance criterion. Card
 # PX-02.1 (the app shell) replaced the case `plain`, which held that apps/web had no stylesheet, component or shell,
-# with the case `shell`, and moved fixture F, the count of smoke tests (3) and the case list with it.
+# with the case `shell`, and moved fixture F, the count of smoke tests and the case list with it. Card PX-02.2 (the
+# 3D viewport) moved fixture F and the count of smoke tests (5) again, added the dependency on @bridle/model to the
+# case `shell`, and made the file lists leave out a file that is deleted in the tree but still in git's index.
 #   app    AC1  the files of apps/web a clone holds are exactly fixture F; next is 15.x and react, react-dom 19.x in
 #               apps/web/package.json and as installed (`pnpm ls --filter web --depth 0 --json`); src/app exists and
 #               there is no `pages` directory (the App Router); tsconfig.json extends the base, the base is strict
@@ -20,19 +22,20 @@
 #   smoke  AC2  playwright.config.ts (at the root, the only one) and e2e/smoke.spec.ts exist; the `e2e:smoke` script
 #               is `playwright test`; devDependencies["@playwright/test"] equals tools.playwright.version of
 #               tools/toolchain.json and `pnpm exec playwright --version` prints it; `playwright test --list` ends
-#               `Total: 3 tests in 1 file` with three test lines, each `[chromium]`; the config names no firefox or
+#               `Total: 5 tests in 1 file` with five test lines, each `[chromium]`; the config names no firefox or
 #               webkit and one project; the spec requests /api/v1/health and navigates to / (ruling 7) and to /workspace; it reads
 #               its strings from packages/i18n/messages by NEXT_PUBLIC_LOCALE and holds no copy of fixture N, and
 #               `home.notice` of packages/i18n/messages/en.json equals fixture N (card P0-02.6). Against
 #               the running dev server, screenshot removed: `PORT=<its port> pnpm e2e:smoke` exits 0 with
-#               `3 passed`, the same pid still listens (the reuse path), the PNG exists (signature 89 50 4e 47,
+#               `5 passed`, the same pid still listens (the reuse path), the PNG exists (signature 89 50 4e 47,
 #               over 1,000 bytes), `git check-ignore` accepts it and .bridle/playwright/. Server stopped,
-#               screenshot removed: `PORT=<another free port> pnpm e2e:smoke` exits 0 with `3 passed` (the start
+#               screenshot removed: `PORT=<another free port> pnpm e2e:smoke` exits 0 with `5 passed` (the start
 #               path), the PNG exists, nothing listens on that port afterwards. A dev server started with
 #               GIT_SHA=feedbee answers `{"ok":true,"sha":"feedbee"}`, and the smoke run without that variable
 #               exits non-zero against it, naming feedbee (the sha is asserted, not echoed). The tree is as it was
 #   shell  PX-02.1  every dependency of apps/web is an exact version or `workspace:*`, and three,
-#               @react-three/fiber, @react-three/drei and zustand are among them; apps/web/src/styles/tokens.css is
+#               @react-three/fiber, @react-three/drei and zustand are among them, and @bridle/model is
+#               `workspace:*` (card PX-02.2); apps/web/src/styles/tokens.css is
 #               byte for byte docs/ux/tokens.css and `pnpm --filter web test` exits 0; apps/web/src/components
 #               exists; the HTML of `/` links a stylesheet and has one <header, one <nav with links to /workspace
 #               and /tasks, and one <main> that starts with the h1 and the two paragraphs, byte for byte, and
@@ -60,7 +63,7 @@
 # Writes: apps/web/.next and apps/web/next-env.d.ts (the build and the dev server), .bridle/screenshots/ and
 # .bridle/playwright/ (the smoke), all gitignored; the copy and the logs live in `mktemp -d`. An EXIT trap stops
 # the servers it started (by pid, and whatever listens on a port it took) and removes the directory.
-# Takes about 35 s.
+# Takes about a minute.
 set -u
 set -o pipefail
 export DO_NOT_TRACK=1 # turbo: no telemetry and no first-run banner
@@ -92,15 +95,25 @@ apps/web/src/app/workspace/page.tsx
 apps/web/src/components/shell/NavLinks.tsx
 apps/web/src/components/shell/TopBar.module.css
 apps/web/src/components/shell/TopBar.tsx
-apps/web/src/components/viewport/StaticGrid.tsx
-apps/web/src/components/viewport/StaticGridCanvas.tsx
+apps/web/src/components/viewport/ModelScene.tsx
+apps/web/src/components/viewport/Viewport.module.css
+apps/web/src/components/viewport/Viewport.tsx
+apps/web/src/components/viewport/ViewportCanvas.tsx
+apps/web/src/components/viewport/camera.ts
+apps/web/src/components/viewport/scene.test.ts
+apps/web/src/components/viewport/scene.ts
+apps/web/src/components/viewport/viewportStore.ts
+apps/web/src/components/workspace/SidePanel.tsx
+apps/web/src/components/workspace/WorkspaceView.module.css
+apps/web/src/components/workspace/WorkspaceView.tsx
 apps/web/src/css.d.ts
 apps/web/src/i18n.ts
 apps/web/src/sha.ts
 apps/web/src/styles/global.css
 apps/web/src/styles/tokens.css
 apps/web/src/styles/tokens.test.mjs
-apps/web/tsconfig.json'
+apps/web/tsconfig.json
+apps/web/vitest.config.ts'
 
 tmp=""
 WRAPPERS=""   # pids of the `pnpm --filter web dev` commands this test started
@@ -192,13 +205,17 @@ json() {  # $1 = JSON file, $2 = JavaScript expression over `j`: prints its valu
 const v = eval(process.argv[2]);
 console.log(typeof v === "string" ? v : JSON.stringify(v));' "$1" "$2"
 }
+existing() {  # stdin: paths relative to the root, NUL-separated; stdout: those that exist, NUL-separated. A file
+              # deleted in the tree but still in git's index (a deletion not committed yet) is left out.
+  (cd "$ROOT" && xargs -0 sh -c 'for f in "$@"; do if [ -e "$f" ] || [ -L "$f" ]; then printf "%s\0" "$f"; fi; done' sh)
+}
 clone_files() {  # $1.. = paths: the files of them a clone holds once the card is committed, sorted
-  (cd "$ROOT" && git ls-files --cached --others --exclude-standard -- "$@" | LC_ALL=C sort)
+  (cd "$ROOT" && git ls-files -z --cached --others --exclude-standard -- "$@" | existing | tr '\0' '\n' | LC_ALL=C sort)
 }
 tree_state() {  # git's view of the tree, and the bytes of the files Next, pnpm or Playwright could rewrite
   (cd "$ROOT" && git status --porcelain \
      && git ls-files -z --cached --others --exclude-standard -- apps/web e2e playwright.config.ts package.json \
-          pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .gitignore | xargs -0 shasum -a 256)
+          pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .gitignore | existing | xargs -0 shasum -a 256)
 }
 same_tree() {  # $1 = state before, $2 = what ran: fails when the tree changed
   local now
@@ -360,7 +377,7 @@ echo "# pnpm --filter web dev --hostname 127.0.0.1 --port $DEV_PORT: fixture H a
 # The two fail-fast proofs, in a copy of what a clone holds.
 COPY="$tmp/clone"
 mkdir -p "$COPY" || fail "cannot create $COPY"
-(cd "$ROOT" && git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -C "$COPY" -xf -) \
+(cd "$ROOT" && git ls-files -z --cached --others --exclude-standard | existing | tar --null -T - -cf - | tar -C "$COPY" -xf -) \
   || fail "copying the tracked and untracked-not-ignored files into $COPY failed"
 run_in "$COPY" pnpm install --frozen-lockfile
 [ "$RC" -eq 0 ] || fail "pnpm install --frozen-lockfile in the copy: exit $RC" "$OUT"
@@ -410,11 +427,11 @@ run_in "$ROOT" pnpm exec playwright --version
 run_in "$ROOT" pnpm exec playwright test --list
 [ "$RC" -eq 0 ] || fail "pnpm exec playwright test --list: exit $RC" "$OUT"
 last="$(printf '%s\n' "$OUT" | grep -v '^ *$' | tail -n 1)"
-[ "$last" = "Total: 3 tests in 1 file" ] || fail "playwright test --list ends '$last', expected 'Total: 3 tests in 1 file'" "$OUT"
+[ "$last" = "Total: 5 tests in 1 file" ] || fail "playwright test --list ends '$last', expected 'Total: 5 tests in 1 file'" "$OUT"
 ntests="$(printf '%s\n' "$OUT" | grep -c ' › ' || true)"
 nchromium="$(printf '%s\n' "$OUT" | grep -c -E '^ *\[chromium\] › ' || true)"
-[ "$ntests" -eq 3 ] && [ "$nchromium" -eq 3 ] \
-  || fail "playwright test --list: $ntests test lines, $nchromium of them [chromium]; expected 3 and 3" "$OUT"
+[ "$ntests" -eq 5 ] && [ "$nchromium" -eq 5 ] \
+  || fail "playwright test --list: $ntests test lines, $nchromium of them [chromium]; expected 5 and 5" "$OUT"
 grep -i -E 'firefox|webkit' "$CFG" > "$tmp/browsers" && fail "playwright.config.ts names firefox or webkit; the Chromium project only" "$(cat "$tmp/browsers")"
 nproj="$(grep -o -E 'name: *["'"'"'][^"'"'"']*["'"'"']' "$CFG" | grep -c . || true)"
 [ "$nproj" -eq 1 ] || fail "playwright.config.ts names $nproj projects, expected one (chromium)"
@@ -432,7 +449,7 @@ grep -q -F -- "$NOTICE" "$SPEC" && fail "e2e/smoke.spec.ts holds a copy of the n
 CATALOG="$ROOT/packages/i18n/messages/en.json"
 [ -f "$CATALOG" ] || fail "packages/i18n/messages/en.json does not exist"
 [ "$(json "$CATALOG" 'j["home.notice"]')" = "$NOTICE" ] || fail "home.notice of packages/i18n/messages/en.json is not fixture N"
-echo "# playwright.config.ts at the root, e2e/smoke.spec.ts; @playwright/test $pw_dep = the pin, 'Version $PW_PIN'; --list: 3 tests, all [chromium], '$last'; one project; the spec gets /api/v1/health and goes to / and /workspace, reads its strings from packages/i18n/messages; home.notice of en.json = fixture N"
+echo "# playwright.config.ts at the root, e2e/smoke.spec.ts; @playwright/test $pw_dep = the pin, 'Version $PW_PIN'; --list: 5 tests, all [chromium], '$last'; one project; the spec gets /api/v1/health and goes to / and /workspace, reads its strings from packages/i18n/messages; home.notice of en.json = fixture N"
 
 STATE="$(tree_state)" || fail "cannot read the state of the tree"
 # The reuse path: against the dev server that is already running.
@@ -442,13 +459,13 @@ t0="$(date +%s)"
 run_in "$ROOT" env PORT="$DEV_PORT" pnpm e2e:smoke
 t1="$(date +%s)"
 [ "$RC" -eq 0 ] || fail "PORT=$DEV_PORT pnpm e2e:smoke against the running dev server: exit $RC" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +3 passed' || fail "the smoke against the running dev server did not print '3 passed'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +5 passed' || fail "the smoke against the running dev server did not print '5 passed'" "$OUT"
 [ "$(listeners "$DEV_PORT" | sed -n '1p')" = "$DEV_LISTENER" ] \
   || fail "after the smoke, pid $DEV_LISTENER no longer listens on $DEV_PORT: the running server was not reused, or was stopped" "$OUT"
 png_ok "the reuse path"
 (cd "$ROOT" && git check-ignore -q .bridle/screenshots/smoke-home.png) || fail ".bridle/screenshots/smoke-home.png is not gitignored"
 (cd "$ROOT" && git check-ignore -q .bridle/playwright/) || fail ".bridle/playwright/ is not gitignored"
-echo "# reuse path: PORT=$DEV_PORT pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +3 passed' | sed 's/^ *//')', pid $DEV_LISTENER still listening; PNG $PNG_BYTES bytes, gitignored with .bridle/playwright/"
+echo "# reuse path: PORT=$DEV_PORT pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +5 passed' | sed 's/^ *//')', pid $DEV_LISTENER still listening; PNG $PNG_BYTES bytes, gitignored with .bridle/playwright/"
 stop_dev
 
 # The start path: Playwright starts the server itself and stops it.
@@ -459,7 +476,7 @@ t0="$(date +%s)"
 run_in "$ROOT" env PORT="$P2" pnpm e2e:smoke
 t1="$(date +%s)"
 [ "$RC" -eq 0 ] || fail "PORT=$P2 pnpm e2e:smoke with no server running: exit $RC" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +3 passed' || fail "the smoke that starts its own server did not print '3 passed'" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +5 passed' || fail "the smoke that starts its own server did not print '5 passed'" "$OUT"
 png_ok "the start path"
 i=0
 while [ -n "$(listeners "$P2")" ]; do
@@ -467,7 +484,7 @@ while [ -n "$(listeners "$P2")" ]; do
   [ "$i" -lt 10 ] || fail "5 s after the smoke, something still listens on port $P2 (pid $(listeners "$P2" | tr '\n' ' ')): Playwright left its server running" "$OUT"
   sleep 0.5
 done
-echo "# start path: PORT=$P2 pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +3 passed' | sed 's/^ *//')'; PNG $PNG_BYTES bytes; nothing listens on $P2 afterwards"
+echo "# start path: PORT=$P2 pnpm e2e:smoke: exit 0 in $((t1 - t0)) s, '$(printf '%s\n' "$OUT" | grep -E '^ +5 passed' | sed 's/^ *//')'; PNG $PNG_BYTES bytes; nothing listens on $P2 afterwards"
 
 # The sha is asserted, not echoed: a server that reports another sha fails the smoke.
 P3="$(free_port)" || fail "node gave no free loopback port"
@@ -477,7 +494,7 @@ body="$(cat "$tmp/b")"
 [ "$body" = '{"ok":true,"sha":"feedbee"}' ] || fail "a dev server started with GIT_SHA=feedbee answers '$body', fixture H says {\"ok\":true,\"sha\":\"feedbee\"}"
 run_in "$ROOT" env PORT="$P3" pnpm e2e:smoke
 [ "$RC" -ne 0 ] || fail "PORT=$P3 pnpm e2e:smoke exits 0 against a server that reports sha feedbee: the sha is echoed, not asserted" "$OUT"
-printf '%s\n' "$OUT" | grep -q -E '^ +3 passed' && fail "the smoke printed '3 passed' against a server that reports sha feedbee" "$OUT"
+printf '%s\n' "$OUT" | grep -q -E '^ +5 passed' && fail "the smoke printed '5 passed' against a server that reports sha feedbee" "$OUT"
 printf '%s\n' "$OUT" | grep -q -F 'feedbee' || fail "the failed smoke does not name the sha it received (feedbee): it failed for another reason" "$OUT"
 NEG_LINE="$(printf '%s\n' "$OUT" | grep -E '^ +[0-9]+ failed' | sed -n '1p' | sed 's/^ *//')"
 stop_dev
@@ -502,13 +519,15 @@ for name in three @react-three/fiber @react-three/drei zustand; do
   [ "$v" != "missing" ] || fail "apps/web/package.json: dependencies.$name is missing"
   VERSIONS="$VERSIONS $name $v"
 done
+[ "$(json "$PKG" "j.dependencies['@bridle/model'] || 'missing'")" = "workspace:*" ] \
+  || fail "apps/web/package.json: dependencies['@bridle/model'] is not workspace:* (card PX-02.2: the viewport draws a Model)"
 [ -f "$WEB/src/styles/tokens.css" ] || fail "apps/web/src/styles/tokens.css does not exist"
 cmp -s "$ROOT/docs/ux/tokens.css" "$WEB/src/styles/tokens.css" \
   || fail "apps/web/src/styles/tokens.css differs from docs/ux/tokens.css (cp docs/ux/tokens.css apps/web/src/styles/tokens.css)"
 run_in "$ROOT" pnpm --filter web test
 [ "$RC" -eq 0 ] || fail "pnpm --filter web test (the token copy test): exit $RC" "$OUT"
 [ -d "$WEB/src/components" ] || fail "apps/web/src/components does not exist"
-echo "# apps/web: exact pins;$VERSIONS; src/styles/tokens.css = docs/ux/tokens.css, pnpm --filter web test exit 0; src/components exists"
+echo "# apps/web: exact pins;$VERSIONS; @bridle/model workspace:*; src/styles/tokens.css = docs/ux/tokens.css, pnpm --filter web test exit 0; src/components exists"
 
 count_of() {  # $1 = fixed string, $2 = file: how many times the file holds it
   grep -o -F -- "$1" "$2" | grep -c . || true

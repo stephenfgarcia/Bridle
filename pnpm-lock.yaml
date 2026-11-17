@@ -181,6 +181,9 @@ importers:
       '@bridle/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@bridle/model':
+        specifier: workspace:*
+        version: link:../../packages/model
       '@react-three/drei':
         specifier: 10.7.9
         version: 10.7.9(@react-three/fiber@9.8.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0))(@types/react@19.3.0)(@types/three@0.187.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0)
@@ -218,6 +221,9 @@ importers:
       typescript:
         specifier: 6.0.3
         version: 6.0.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5))
 
   packages/i18n:
     dependencies:

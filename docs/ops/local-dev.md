@@ -126,13 +126,26 @@ linguistic ordering matching between local and staging; where order matters, sor
 
 ## Web application and the smoke test
 
-`apps/web` is the Next.js 15 application (React 19, the App Router, TypeScript strict; card P0-02.5). It is a
-skeleton: one page, `/`, that says Bridle with the git sha and the educational-use notice as plain text, and one
-route handler, `GET /api/v1/health`, that answers 200 `application/json` `{"ok":true,"sha":"<sha>"}`. There is no
-stylesheet, no component and no shell: the design system is P4-06. The page's title, heading and notice come from
-the message catalog of `packages/i18n` through `t("id")` (`apps/web/src/i18n.ts`; card P0-02.6), in the locale
-`NEXT_PUBLIC_LOCALE` names at build time: `en` when it is unset or empty, `en-XA` for the pseudo-locale, and any
-other value fails the build. The catalog, the string lint and the allowlist are in [i18n.md](i18n.md).
+`apps/web` is the Next.js 15 application (React 19, the App Router, TypeScript strict; card P0-02.5). It has
+three pages and one route handler:
+
+- `/` says Bridle with the git sha and the educational-use notice, and links to the workspace.
+- `/workspace` is the 3D viewport of a structural model beside a side panel (cards PX-02.1 and PX-02.2). Until the
+  model store exists, the model is one of the three fixtures of `packages/model`, the portal frame first; a select
+  in the side panel changes it. The viewport draws the nodes, the members and the supports with Z up, on a ground
+  grid, with orbit, pan and zoom, a Fit button and three views (3D, Front, Top). A click selects a node or a
+  member and the side panel shows its data, read-only. The canvas (three.js through `@react-three/fiber`) is
+  loaded in the browser only.
+- `/tasks` is a "Coming soon" state.
+- `GET /api/v1/health` answers 200 `application/json` `{"ok":true,"sha":"<sha>"}`.
+
+Every page has the shell: a top bar with the product name and the navigation (card PX-02.1). Styling is plain CSS:
+`apps/web/src/styles/tokens.css` (a copy of `docs/ux/tokens.css`; `pnpm --filter web test` fails when the two
+differ), one global stylesheet and CSS Modules. The component library of the design system is P4-06. Every
+user-facing string comes from the message catalog of `packages/i18n` through `t("id")` (`apps/web/src/i18n.ts`;
+card P0-02.6), in the locale `NEXT_PUBLIC_LOCALE` names at build time: `en` when it is unset or empty, `en-XA` for
+the pseudo-locale, and any other value fails the build. The catalog, the string lint and the allowlist are in
+[i18n.md](i18n.md).
 
 | Command | Does |
 |---|---|
@@ -149,20 +162,27 @@ Where the sha comes from (`apps/web/src/sha.ts`, read at every request and never
 HEAD): `GIT_SHA` when it is set and not empty (the application image sets it), else `git rev-parse --short HEAD`
 (where git and the repository exist: development and the smoke test), else `unknown`.
 
-`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the two
+`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the five
 tests of `e2e/smoke.spec.ts`. It starts `pnpm --filter web dev --hostname 127.0.0.1 --port $PORT` (`PORT`, default
 3000) and stops it when the tests end, or reuses the server that already answers
 `http://127.0.0.1:$PORT/api/v1/health`. The first test asserts the health route: 200, `application/json`, a body
 equal to `{ok: true, sha}`. The second opens `/`: 200, `<html lang>` equal to the locale, the title and the heading
 (`app.name` of that locale's catalog: `Bridle` in `en`), the sha, the notice (`home.notice`), then a full-page
 screenshot to `.bridle/screenshots/smoke-home.png` (1280 x 720; `smoke-home-<locale>.png` for another locale than
-`en`). The locale is `NEXT_PUBLIC_LOCALE` of the shell that runs the smoke, `en` when unset, so against a running
-server of another locale the second test fails at `lang`: run it with the server's locale, or on another `PORT`.
+`en`). The third opens `/workspace` and checks the navigation, the viewport area and the side panel area. The
+fourth waits for the viewport's canvas, checks the side panel's counts for the portal frame (4 nodes, 3 members, 2
+supports) and the four buttons of the viewport, takes `.bridle/screenshots/smoke-workspace.png`, changes the
+fixture and checks the counts again (5, 7 and 5 for the truss; 2, 1 and 2 for the beam), and fails when the page
+threw an error or the console holds a hydration error. The fifth takes the front view, moves the pointer down the
+middle of the viewport until the viewport reports the beam `b1` under it, clicks, checks that the side panel shows
+that member, then clicks on nothing and checks that the selection is gone. The locale is `NEXT_PUBLIC_LOCALE` of
+the shell that runs the smoke, `en` when unset, so against a running server of another locale the four tests that
+open a page fail at `lang`: run it with the server's locale, or on another `PORT`.
 Failure output goes to `.bridle/playwright/`; both
 directories are gitignored. The sha the tests expect is `GIT_SHA` when the shell that runs the smoke has it, else
 `git rev-parse --short HEAD`, so a server started with another `GIT_SHA` fails the smoke: the sha is asserted, not
-echoed. It took 3 to 4 s here when Playwright started the server and under 1 s against a running one (card
-P0-02.5, 2026-11-17).
+echoed. With its five tests it took 8 to 11 s here when Playwright started the server and about 6 s against a
+running one (card PX-02.2, 2026-11-18).
 
 The browser: `@playwright/test` 1.64.1 (the pin of `tools/toolchain.json`, also typed in the root `package.json`)
 drives the Chromium build that `npx playwright@1.64.1 install chromium` puts in `~/Library/Caches/ms-playwright`
@@ -184,10 +204,12 @@ the card's plan station); Next.js 16.2.11 or later accepts it, and that move cha
 `tsconfig.base.json` (strict) with the options Next asks for, so a build does not rewrite it. If `tsc` fails on a
 file under `apps/web/.next/types` after a route was removed, the directory is stale: `rm -rf apps/web/.next`.
 
-`pnpm check` covers `apps/web` in two of its steps: lint (`biome ci .`, then the string lint, `node
+`pnpm check` covers `apps/web` in three of its steps: lint (`biome ci .`, then the string lint, `node
 packages/i18n/lint/lint-strings.mjs`, which fails on a hard-coded user-facing string under `apps/web/src`; there is
-no ESLint) and typecheck (`turbo run typecheck` runs `web#typecheck`, `tsc --noEmit`, where a `t("id")` whose id is
-not in the catalog is a type error). `pnpm --filter web build` and `pnpm e2e:smoke` are separate
+no ESLint), typecheck (`turbo run typecheck` runs `web#typecheck`, `tsc --noEmit`, where a `t("id")` whose id is
+not in the catalog is a type error) and test (`turbo run test` runs `web#test`: the token copy test on node's own
+test runner, then `vitest run` for the `*.test.ts` files under `apps/web/src`, which test without a browser what
+the viewport draws for a model and where its camera stands). `pnpm --filter web build` and `pnpm e2e:smoke` are separate
 commands, not steps of `pnpm check`; the test, review and ship stations run the smoke for cards that touch
 `apps/web` (factory/line.md). Actions runs neither: Playwright's browsers reach the runners with P0-09.
 

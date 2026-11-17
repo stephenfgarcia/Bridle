@@ -4,8 +4,9 @@
 /** @type {import("next").NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
-  // @bridle/i18n is TypeScript source (its `exports` names src/index.ts): Next compiles it with the application.
-  transpilePackages: ["@bridle/i18n"],
+  // @bridle/i18n and @bridle/model are TypeScript source (their `exports` name src/index.ts): Next compiles them
+  // with the application.
+  transpilePackages: ["@bridle/i18n", "@bridle/model"],
   // No development badge: it would be in the smoke test's screenshot.
   devIndicators: false,
   // There is no ESLint in this workspace: Biome is the lint (`pnpm lint`, the first step of `pnpm check`).
