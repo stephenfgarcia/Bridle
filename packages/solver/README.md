@@ -6,7 +6,11 @@ axes, the assembly of the global stiffness matrix of a model, and `solve`, which
 nodal loads and the member loads (uniform and point) of each load case and returns the displacements of the
 nodes, the reactions at the supports and the end forces of every member.
 
-Not yet: truss members and member end releases (card S5), values along a member (card S6). `solve` refuses
+Card S6 added the values along a member ("Values along a member" below): `memberValues`, the axial force,
+shears, torque, bending moments and deflection at stations along a member with their extreme values, and
+`deflectedShape`, the deflected structure as polylines for drawing.
+
+Not yet: truss members and member end releases (card S5). `solve` refuses
 a model that has a truss member or an end release. A uniform load covers the whole member; there are no
 partial-length distributed loads, no moments applied along a member and no load combinations.
 
@@ -112,7 +116,7 @@ Written once here and in the header of `src/element.ts`. They agree with `packag
 - **Forces and moments.** A force is positive along the positive axis and a moment is positive by the
   right-hand rule about it, like the displacement it goes with. The element matrix gives the forces and
   moments that the nodes apply to the member's ends, f = k u, in the axis directions at both ends. They are
-  not internal forces by a beam sign convention (card S6 derives those). The member end forces that `solve`
+  not internal forces by a beam sign convention (those are in "Values along a member"). The member end forces that `solve`
   reports follow this same rule ("Member end forces" below).
 - **Local and global.** The same rules hold in local and in global axes; only the triad differs. Global
   rotations and moments follow the right-hand rule about global X, Y, Z, as the model's `NodalLoad` says.
@@ -140,20 +144,23 @@ and −GJ/L between the two ends.
 
 ## Functions
 
-| Function                                                                                            | What it returns                                                                                                                        |
-| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `elementStiffnessLocal(properties)`                                                                 | The 12 by 12 stiffness matrix in local axes. Inputs are not checked.                                                                   |
-| `elementTransformation(axes)`                                                                       | The 12 by 12 matrix T with u_local = T u_global: four copies of the 3 by 3 matrix whose rows are the local x, y, z unit vectors.       |
-| `elementStiffnessGlobal(kLocal, T)`                                                                 | Tᵀ k T, the element matrix in global axes.                                                                                             |
-| `assemble(model)`                                                                                   | The global stiffness matrix, the degree-of-freedom map and one `MemberElement` per member, or a refusal (below).                       |
-| `solve(model)`                                                                                      | Per load case, the displacements of the nodes, the reactions at the supports and the member end forces, or a refusal (below).          |
-| `equivalentNodalLoadsLocal(load, length, axes)`                                                     | The twelve equivalent nodal loads of one member load, in the member's local axes ("Member loads" below).                               |
-| `memberLoadLocalComponents(load, axes)`, `isMemberPointLoad(load)`                                  | A member load's value resolved along local x, y, z; whether a member load is a point load.                                             |
-| `factorize(matrix, relativeThreshold)`, `solveFactorized(factorization, b)`                         | The symmetric factorization L D Lᵀ that `solve` uses, and the solution of a system with it.                                            |
-| `unsupportedMembers(model)`                                                                         | The members `assemble` refuses as not supported yet.                                                                                   |
-| `buildDofMap(nodes)`, `dofIndex(map, nodeId, dof)`, `memberDofIndices(map, startNodeId, endNodeId)` | The numbering of the global rows.                                                                                                      |
-| `PIVOT_THRESHOLD`, `REACTION_COMPONENTS`                                                            | The threshold of the instability test (below) and the names `fx`, `fy`, `fz`, `mx`, `my`, `mz` in the order of the degrees of freedom. |
-| `zeros`, `fromRows`, `at`, `addAt`, `transpose`, `multiply`, `multiplyVector`, `maxAbs`             | Helpers for the `Matrix` type.                                                                                                         |
+| Function                                                                                            | What it returns                                                                                                                          |
+| --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `elementStiffnessLocal(properties)`                                                                 | The 12 by 12 stiffness matrix in local axes. Inputs are not checked.                                                                     |
+| `elementTransformation(axes)`                                                                       | The 12 by 12 matrix T with u_local = T u_global: four copies of the 3 by 3 matrix whose rows are the local x, y, z unit vectors.         |
+| `elementStiffnessGlobal(kLocal, T)`                                                                 | Tᵀ k T, the element matrix in global axes.                                                                                               |
+| `assemble(model)`                                                                                   | The global stiffness matrix, the degree-of-freedom map and one `MemberElement` per member, or a refusal (below).                         |
+| `solve(model)`                                                                                      | Per load case, the displacements of the nodes, the reactions at the supports and the member end forces, or a refusal (below).            |
+| `equivalentNodalLoadsLocal(load, length, axes)`                                                     | The twelve equivalent nodal loads of one member load, in the member's local axes ("Member loads" below).                                 |
+| `memberLoadLocalComponents(load, axes)`, `isMemberPointLoad(load)`                                  | A member load's value resolved along local x, y, z; whether a member load is a point load.                                               |
+| `memberValues(model, result, loadCaseId, memberId, stations?, at?)`                                 | The internal actions N, Vy, Vz, T, My, Mz and the deflection at stations along one member, and their extremes ("Values along a member"). |
+| `deflectedShape(model, result, loadCaseId, scale, stations?)`                                       | For every member a polyline of points, the undeformed axis plus `scale` times the deflection ("Values along a member").                  |
+| `DEFAULT_STATIONS`, `MAX_STATIONS`, `MEMBER_QUANTITIES`                                             | 21, 1001, and the names of the quantities that `extremes` of `memberValues` has.                                                         |
+| `factorize(matrix, relativeThreshold)`, `solveFactorized(factorization, b)`                         | The symmetric factorization L D Lᵀ that `solve` uses, and the solution of a system with it.                                              |
+| `unsupportedMembers(model)`                                                                         | The members `assemble` refuses as not supported yet.                                                                                     |
+| `buildDofMap(nodes)`, `dofIndex(map, nodeId, dof)`, `memberDofIndices(map, startNodeId, endNodeId)` | The numbering of the global rows.                                                                                                        |
+| `PIVOT_THRESHOLD`, `REACTION_COMPONENTS`                                                            | The threshold of the instability test (below) and the names `fx`, `fy`, `fz`, `mx`, `my`, `mz` in the order of the degrees of freedom.   |
+| `zeros`, `fromRows`, `at`, `addAt`, `transpose`, `multiply`, `multiplyVector`, `maxAbs`             | Helpers for the `Matrix` type.                                                                                                           |
 
 ### The matrix type
 
@@ -503,6 +510,224 @@ it is not a test of stability. The tests measure ε for an axial bar, 13 ε for 
 a value between 1e-4 and 1e-3 for the 10 m by 10 m portal frame with its area multiplied by 1e9, whose
 sway is off by less than 1e-4.
 
+### Values along a member
+
+Card S6, `src/memberValues.ts`. Two pure functions that take the model and what `solve` returned for it:
+
+- `memberValues(model, result, loadCaseId, memberId, stations = 21, at = [])` returns the internal actions
+  and the deflection of one member at stations along its length, and the extreme values of each.
+- `deflectedShape(model, result, loadCaseId, scale, stations = 21)` returns one polyline per member for
+  drawing the deflected structure.
+
+Neither changes its arguments or keeps state; both use no Node and no DOM API, so they run in the worker or
+in the main thread. Neither checks that `result` is the result of that `model`.
+
+```ts
+const result = solve(model);
+const v = memberValues(model, result, "lc1", "b1"); // undefined when it cannot be computed (below)
+if (v) {
+  v.x; // Float64Array: the distance of each station from the start node, m
+  v.My; // Float64Array: the bending moment about local y at each station, kN·m
+  v.extremes.My.max; // the largest My along the member, and v.extremes.My.maxX, where it is
+  v.deflectionGlobal[3 * i + 2]; // the deflection along global Z at station i, m
+}
+const shape = deflectedShape(model, result, "lc1", 100); // deflections drawn 100 times larger
+```
+
+#### The sign convention of the internal actions
+
+A figure in words. Stand at the start node and look along the member towards the end node: that direction
+is local x. Cut the member at the distance x from the start node. The **part before the cut** is the piece
+from the start node to the cut; the **part beyond the cut** is the piece from the cut to the end node. The
+cut face of the part before the cut looks along +x; it is called the positive face. Local y and local z are
+the member's other two axes (`memberLocalAxes`); the section has a −y side and a +y side, a −z side and a
++z side. All six values are in these local axes.
+
+| Value | What it is                                     | Positive when                                                                                           | Unit |
+| ----- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ---- |
+| `N`   | axial force                                    | the member is in tension at the cut                                                                     | kN   |
+| `Vy`  | shear along local y                            | the forces on the part before the cut (start end force and loads up to the cut) sum to a force along +y | kN   |
+| `Vz`  | shear along local z                            | the same, along +z                                                                                      | kN   |
+| `T`   | torque                                         | the part beyond the cut applies, to the positive face, a moment about +x by the right-hand rule         | kN·m |
+| `My`  | bending moment about local y (x-z plane, E·Iy) | the fibre on the **−z side** is in tension                                                              | kN·m |
+| `Mz`  | bending moment about local z (x-y plane, E·Iz) | the fibre on the **−y side** is in tension                                                              | kN·m |
+
+- **The two bending planes read alike.** With d the deflection along the plane's transverse axis (local z
+  for `My` and `Vz`, local y for `Mz` and `Vy`), p the load per unit length along that axis and EI the
+  plane's stiffness, in a stretch without a point load: M = EI·d″, V = dM/dx and dV/dx = p. A positive moment
+  bends the member concave towards the positive transverse axis.
+- **The same along the member.** These are internal actions: a state of stress has one sign wherever the
+  cut is, also at the two ends. The end forces of `solve` do not have that property (a sagging moment M is
+  `my` = +M as a start end force and −M as an end end force).
+- **Drawing on the tension side.** Draw the ordinate `My` from the member's axis towards −z (a negative
+  value then falls on the +z side) and the ordinate `Mz` towards −y. As vectors in global axes: the
+  ordinate of `My` at a station is −`My` · (local z) and that of `Mz` is −`Mz` · (local y); `axes` of the
+  result holds the local unit vectors.
+- **"Sagging positive".** A member that is not vertical and has roll 0 has its local z in the vertical
+  plane through the member, pointing upward. For such a member the −z side is the lower side, so a positive
+  `My` is a sagging moment and a negative one a hogging moment. The simply supported beam fixture (6 m
+  along +X, 10 kN/m downward) has `My` = +wL²/8 = +45 kN·m at mid-span, `Vz` = +30 kN at its start and
+  −30 kN at its end, and `Mz` = 0.
+- **Columns and rolled members: sagging has no meaning; the local axes decide.** A vertical member with
+  roll 0 that runs upward has local z = global −X, and one that runs downward has local z = global +X
+  (`packages/model`). A cantilever column fixed at its base under wind along +X has its tension on the −X
+  face at the base, moment wH²/2: the upward column reports `My` = −wH²/2 there and the downward one
+  `My` = +wH²/2. Drawn by the rule above, both diagrams are on the −X side. With a roll of 90 degrees a
+  beam along +X has local y = global +Z, so gravity bends it about local z and a sagging moment is a
+  positive `Mz`; with a roll of 180 degrees local z points downward and a sagging moment is a negative
+  `My`. An interface that wants the words "sagging" and "hogging" may use them for `My` only, and only
+  where local z points upward.
+- **`Mz` of a beam with roll 0 is sideways bending and has no sagging or hogging.** Its local y is
+  horizontal and turns with the member's direction (global +Y for a beam along +X, global −Y for one along
+  −X), so the same sideways load on the same beam gives `Mz` of opposite signs for the two directions of
+  the member (tested: +wL²/8 and −wL²/8 at mid-span of a simply supported beam under a load along −Y).
+  The drawing rule above puts both ordinates on the same side, the tension side.
+- **At a rigid joint** the moments of the members balance as vectors; the signs of `My` of two members that
+  meet there are equal or opposite depending on their local axes. In the portal frame fixture (columns
+  running upward, beam along +X) the column's `My` at its top equals the beam's `My` at the left joint and
+  is its opposite at the right joint.
+
+**The relation to the member end forces.** With (fx, fy, fz, mx, my, mz) the end forces of `solve`:
+
+| Value | At the start node (x = 0) | At the end node (x = L) |
+| ----- | ------------------------- | ----------------------- |
+| `N`   | −`start.fx`               | +`end.fx`               |
+| `Vy`  | +`start.fy`               | −`end.fy`               |
+| `Vz`  | +`start.fz`               | −`end.fz`               |
+| `T`   | −`start.mx`               | +`end.mx`               |
+| `My`  | +`start.my`               | −`end.my`               |
+| `Mz`  | −`start.mz`               | +`end.mz`               |
+
+**How they are computed.** By statics of the part before the cut, from the start end force and the member's
+loads of the load case, resolved into local axes with `memberLoadLocalComponents` as `solve` does. With
+(px, py, pz) a load at the distance ξ from the start (per unit length for a uniform load) and the sums
+taken over the loads before the cut:
+
+    N  = −fx₁ − Σ px                         T  = −mx₁
+    Vy = +fy₁ + Σ py                         Vz = +fz₁ + Σ pz
+    My = +my₁ + x·fz₁ + Σ pz·(x − ξ)         Mz = −mz₁ + x·fy₁ + Σ py·(x − ξ)
+
+For a uniform load w over the whole member Σ p = w·x and Σ p·(x − ξ) = w·x²/2. The derivation (the
+equilibrium of forces and of moments about the cut, and which fibre is in tension) is in the header of
+`src/memberValues.ts`. No interpolation is involved, so the values are those of statics for the uniform and
+point loads the solver has, up to floating-point rounding; the values at the end node are computed from
+the start and agree with the end node's end force up to rounding.
+
+**Worked example.** The simply supported beam fixture: `start` = { `fz`: +30, `my`: 0 }, pz = −10 kN/m. At
+x = 3 m: `Vz` = 30 − 10·3 = 0 and `My` = 0 + 3·30 − 10·3²/2 = +45 kN·m. At x = 6 m: `Vz` = 30 − 60 = −30,
+which is −`end.fz` (`end.fz` = +30), and `My` = 180 − 180 = 0.
+
+#### Stations
+
+- `stations` equally spaced positions from 0 to the member's length, both included; the default is 21. A
+  number below 2 is taken as 2, a number above `MAX_STATIONS` (1001) is taken as 1001, a fraction is
+  rounded down, and a value that is not finite is taken as 21. The length of `at` is not limited.
+- Each position of `at` (m from the start node) gets a station; a position outside the member is taken as
+  the nearer end, and one that is not a finite number is left out.
+- **At a point load there are two stations with the same `x`**: first the values just before the load, then
+  the values just after it, so the jump of the shear (or of the axial force) is in the arrays. A point
+  load's position past an end is taken as that end, as in `solve`; several point loads at one position
+  act together between the same two stations.
+- Positions that are equal as numbers are one position: an equally spaced station or a position of `at`
+  that is exactly at a point load adds nothing to the two stations there. Positions that differ by rounding
+  only stay separate stations.
+- **A point load at position 0 or at the length is on the member, not on the node.** The end forces of
+  `solve` do not hold it, so there are two stations at that end: the one on the node's side has the values
+  of the table above, and the other differs by the load. A nodal load on the node is not part of the
+  member's values at all.
+- `count` is the number of stations. `x`, `N`, `Vy`, `Vz`, `T`, `My`, `Mz` are `Float64Array`s of that length.
+
+#### Deflections
+
+`deflectionLocal` and `deflectionGlobal` are `Float64Array`s with three numbers per station (station i at
+3i, 3i + 1, 3i + 2): the displacement of the point of the member's axis, in m, along local x, y, z and along
+global X, Y, Z. The twist of the section about the axis is not reported.
+
+The deflection at x is the sum of two parts:
+
+1. the element's interpolation of the displacements of its two ends, turned into local axes: the cubic
+   shape functions of `src/element.ts` for local y (with the slope +rz) and for local z (with the slope
+   −ry), and a straight line for local x;
+2. the deflection that the member's own loads give a member fixed at both ends. With b = L − a and
+   r = L − x:
+
+| Load                           | Deflection of the member fixed at both ends                                                  |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| uniform w, transverse          | w·x²·(L − x)²/(24EI)                                                                         |
+| point P at a, transverse       | P·b²·x²·(3aL − (3a + b)·x)/(6EI·L³) for x ≤ a; P·a²·r²·(3bL − (3b + a)·r)/(6EI·L³) for x ≥ a |
+| uniform w, along the member    | w·x·(L − x)/(2EA)                                                                            |
+| point P at a, along the member | P·b·x/(EA·L) for x ≤ a; P·a·r/(EA·L) for x ≥ a                                               |
+
+EI is E·Iz for a load along local y and E·Iy for a load along local z. The first part alone is the shape of
+a member without loads; with a load on the member it is not the deflection between the nodes. With both
+parts a simply supported beam modelled as one member has the mid-span deflection 5wL⁴/(384EI) under a
+uniform load (tested at relative 1e-12 in both planes).
+
+**Limit.** These formulas are those of a frame member rigidly connected to its nodes at both ends. `solve`
+refuses a model with a truss member or an end release today (card S5). For a member of kind `truss` or with
+any end release `memberValues` returns `undefined`, and `deflectedShape` draws the straight line between
+its two displaced ends.
+
+#### Extreme values
+
+`extremes` has one entry per name of `MEMBER_QUANTITIES` (`N`, `Vy`, `Vz`, `T`, `My`, `Mz`, `dLocalX`,
+`dLocalY`, `dLocalZ`, `dGlobalX`, `dGlobalY`, `dGlobalZ`): `{ min, minX, max, maxX }`, the smallest (most
+negative) and the largest value and the distance from the start node where each occurs (of equal values,
+the first position along the member). The largest magnitude is the larger of |min| and |max|.
+
+- `N`, `Vy`, `Vz`, `T`: taken over the stations. Between two neighbouring point-load positions or member
+  ends each of them is linear in x, and those positions are stations.
+- `My`, `Mz`: taken over the stations and over every point between two consecutive stations where the
+  shear of that plane is zero. Between two consecutive stations the shear is linear (there is no point
+  load between them), so that point is found by one division, x = (station's x) − V/w, and the moment
+  there is M − V²/(2w), with V and M the station's shear and moment and w the uniform load of that plane.
+  Where the shear changes sign by a jump at a point load, the two stations there hold the moment.
+- The six deflection components: taken over the stations and, for each pair of consecutive stations at
+  different positions, over one more point when the derivative of that component has opposite signs at
+  the two ends of the pair: the point where it changes sign, found by bisection of the derivative
+  (computed from the formulas, not from differences). The derivative at an end of the pair is the one
+  computed at that station, unless its size is at most 1e-12 times the largest size of that derivative
+  over the member's stations, as at a fixed end, where it is exactly zero: then the derivative at 2⁻²⁰ of
+  the pair's length inside the pair is taken in its place, and the bisection starts from that point. So
+  an extreme between a fixed end and the next station is found (two tests). What is not found: the
+  points of a pair in which the derivative changes sign an even number of times (twice, for example), and
+  a change of sign within that 2⁻²⁰ of the pair's length next to such a station; more stations make the
+  pairs shorter. Every value taken is the deflection at a point of the member, so a reported largest
+  value is never above the true one and a reported smallest never below it.
+
+#### `memberValues` returns `undefined`
+
+when `result` is not an `ok` result; when it has no load case `loadCaseId`; when the model has no member
+`memberId`; when the member's nodes, section or material are not in the model, or its nodes or end forces
+not in the result; and for a member of kind `truss` or with an end release.
+
+#### `deflectedShape`
+
+Returns `{ loadCaseId, scale, stations, memberIds, points }`. `memberIds` are the member ids in the model's
+order. `points` is one `Float64Array` with three global coordinates per point and `stations` points per
+member, from the start node to the end node, equally spaced along the member: point s of member number m
+(from 0) starts at index 3·(m·`stations` + s). A point is the point of the undeformed axis plus `scale`
+times the deflection there (the deflection of "Deflections" above, the member's loads included); with
+`scale` 0 the points are on the undeformed members. `stations` is read as in `memberValues`; there are no
+extra points at point loads, because the deflection has no jump. The first and the last point of a member
+are its nodes' positions plus `scale` times the nodes' displacements, up to rounding. It returns `undefined`
+when `result` is not an `ok` result, when it has no load case `loadCaseId`, or when a member cannot be
+computed for one of the reasons above other than its kind or a release.
+
+#### Size and cost
+
+The result of `memberValues` holds 7 arrays of `count` numbers and 2 of 3·`count`, the twelve extremes, the
+axes and two ids. For 200 members at 21 stations without point loads that is 200 · 273 numbers, 436 800
+bytes of `Float64Array`s in all; the deflected shape of 200 members at 21 points is one array of 100 800
+bytes (both asserted in `src/memberValues.test.ts`).
+
+Measured, not guaranteed: for the 200-member building frame of "Speed" below (load case `gravity`, 21
+stations), calling `memberValues` for every member took 3.7 ms (median of 20 runs after 3 that were not
+timed; smallest 3.4, largest 7.6) and one `deflectedShape` took 0.3 ms, on an Apple M4 Pro, macOS, Node
+v22.23.4, on 2026-11-18, inside the test runner. The test suite asserts only a loose bound: both together
+in under 1 second. Each call of `memberValues` searches the model's lists of members, nodes, sections,
+materials and member loads; `deflectedShape` indexes them once per call.
+
 ## In a Web Worker
 
 `solve` is synchronous: while it runs, the thread that called it does nothing else. An application calls it
@@ -708,6 +933,58 @@ Member loads and member end forces: `src/memberLoads.test.ts`. The tolerances ar
 - Load cases (a member load acts in its own load case only; a case with all the loads is the sum of the
   others), plain data and `structuredClone`, a member id that is a name of `Object.prototype`, the
   smallest pivot ratio, an overflowing member load.
+
+Values along a member (card S6): `src/memberValues.test.ts`. The tolerances are stated in the tests;
+"relative 1e-12" and the zero rule are as above. The section and material are those of the fixtures.
+
+- Stations and shape of the result: 21 stations by default; how the number is read; two stations at a
+  point load between stations, on a station, at position 0, at the length and within the slack past an
+  end; loads at one position merged; the positions of `at`; `structuredClone`; the arguments unchanged;
+  the cases that return `undefined`.
+- The simply supported beam fixture as one member, at relative 1e-12: `My` = wL²/8 at mid-span and 3wL²/32
+  at the quarter points, `Vz` = ±wL/2 at the ends, deflections 5wL⁴/(384EI) and 57wL⁴/(6144EI), and the
+  formulas of M, V and the deflection at every station; the same in the other plane (load along −Y:
+  positive `Mz`, E·Iz); a load along +Y and an upward load (negative moments); the beam drawn from right
+  to left and along +Y; roll angles of 90 and 180 degrees; the mid-span extremes found with 4 stations.
+- Cantilevers at every station: under a uniform load and under a tip load given as a nodal load and as a
+  point load at the length; a tip load in the other plane; an axial pull, a push and a torque; an axial
+  uniform load.
+- A beam fixed at both ends (no node moves, so the deflection is the second part alone): uniform load
+  (−wL²/12, +wL²/24, zero moment at L(1/2 ± √3/6), deflection at every station); the deflection at 1e-6 · L
+  from each end equals M·h²/(2EI) with M the end moment, at relative 1e-5, in both planes, for uniform and
+  point loads (zero value and zero slope at the ends); an off-centre point load in both planes; a bar held
+  at both ends under an axial uniform load and an axial point load.
+- Extremes next to a fixed end, where the derivative of the deflection is zero at the station: a
+  cantilever with a tip load of 10 kN down and 3.4 kN/m upward (largest uz 6.27785e-7 m at 0.236884 m,
+  with 21, 5 and 2 stations, and with the member reversed) and a fixed-fixed member with a point load
+  0.336 m from an end, both at relative 1e-9 against the hand formulas; a fixed end that is itself the
+  extreme (value 0 at position 0). The clamp of `stations` at 1001.
+- Extremes between stations: a simply supported beam with a point load at 4 m of 6 m (shear jump, largest
+  moment Pab/L under the load, largest deflection Pb(L² − b²)^1.5/(9√3·L·EI) at √((L² − b²)/3) from the far
+  end, position at relative 1e-9) and its mirror; a propped cantilever under a uniform load (largest
+  sagging moment 9wL²/128 at 5L/8 from the fixed end, largest deflection at 0.4215 L from the roller), in
+  both planes; a uniform load with a point load.
+- Inclined members and columns: the member from (0, 0, 0) to (3, 0, 4) under a global vertical load (`N`
+  from −20 to +20 kN, `My` = 15x − 3x²); a cantilever column running upward and one running downward under
+  wind along +X (opposite signs of `My`, the same side when drawn, the same sway) and along +Y; a column
+  under vertical loads (compression whichever way it runs).
+- The ends against the end forces: the table of "The relation to the member end forces" on a space frame
+  of three skew members with roll angles of 40, −25 and 110 degrees, with point loads at position 0 and at
+  the length; a nodal load against a point load at position 0.
+- Frames: on the portal frame fixture with a beam load, a wind load and three point loads, and on the
+  space frame, every station of every member is in equilibrium with the end node's end force and the loads
+  beyond the station (within 1e-12 · 300 kN·m; `memberValues` computes from the start, so this uses the
+  other end), and a check that this fails for an end force changed by 1e-6; moment continuity at the two
+  joints of the portal; the portal under a beam load alone (hogging at the joints, sagging at mid-span,
+  tension on the outer face at the column tops).
+- Against a finer model, at 1e-9 of the largest value: for a skew rolled member with uniform and point
+  loads in local and global axes, the deflections and the six actions at its eighth points equal the node
+  displacements and the end forces of the same member cut into eight pieces (the reference carries the
+  point loads as nodal loads).
+- `deflectedShape`: the beam fixture with 5 points and a scale of 100, and with a scale of 0; the space
+  frame (order, ends at the displaced nodes, agreement with `memberValues`); load cases kept apart; a
+  truss member drawn as a straight line.
+- Size and a loose time bound for 200 members ("Size and cost").
 
 Worker (card S9), four files:
 

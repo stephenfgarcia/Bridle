@@ -5,6 +5,9 @@
  * reactions and member end forces). Theory, units and sign conventions are in ../README.md,
  * ./element.ts and ./memberLoads.ts.
  *
+ * Card S6: the values along a member (./memberValues.ts): internal actions, deflections, extremes
+ * and the deflected shape.
+ *
  * Card S9: the messages, the handler and the client for running `solve` in a worker. The worker
  * entry is not exported here: it is `@bridle/solver/worker` (./worker.ts), and the client is also
  * `@bridle/solver/client` (./client.ts), which does not import the solver's code.
@@ -61,6 +64,17 @@ export {
   type MemberLoad,
   memberLoadLocalComponents,
 } from "./memberLoads";
+export {
+  DEFAULT_STATIONS,
+  type DeflectedShape,
+  deflectedShape,
+  MAX_STATIONS,
+  MEMBER_QUANTITIES,
+  type MemberExtreme,
+  type MemberQuantity,
+  type MemberValues,
+  memberValues,
+} from "./memberValues";
 export {
   isSolveRequest,
   isSolveResponse,
