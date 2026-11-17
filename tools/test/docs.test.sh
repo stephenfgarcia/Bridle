@@ -326,7 +326,7 @@ for f in "$ROOT"/tools/monitor/test/*.test.*; do [ -f "$f" ] && nmt=$((nmt + 1))
 ntf=0
 for f in "$ROOT"/tools/test/*; do
   [ -f "$f" ] || continue
-  sed -n '2p' "$f" | grep -o -E 'card (P[0-9]-[0-9]{2}(\.[0-9])?|PLAN-[0-9]{2})' > "$tmp/test-card" || true
+  sed -n '2p' "$f" | grep -o -E 'card (P[0-9X]-[0-9]{2}(\.[0-9]{1,2})?|PLAN-[0-9]{2})' > "$tmp/test-card" || true
   id="$(sed -n '1p' "$tmp/test-card" | sed 's/^card //')"
   [ -n "$id" ] || fail "tools/test/${f##*/} names no card in its second line; README.md says each file of tools/test is the test of one card"
   case "$id" in
@@ -457,7 +457,7 @@ for s in 'One entry per shipped card and per recorded commit without a card' \
   grep -q -F -- "$s" "$tmp/log.flat" || fail "the shape line of the ## Log section of docs/plan/progress.md does not say '$s'"
 done
 bad="$(grep '^- ' "$tmp/log" \
-        | grep -v -E '^- 20[0-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}, ((P[0-9]-[0-9]{2}(\.[0-9])?|PLAN-[0-9]{2})|no card), commit [0-9a-f]{7}[ :(]' \
+        | grep -v -E '^- 20[0-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}, ((P[0-9X]-[0-9]{2}(\.[0-9]{1,2})?|PLAN-[0-9]{2})|no card), commit [0-9a-f]{7}[ :(]' \
         | grep -v -E '^- Paused 20[0-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2} ' || true)"
 [ -z "$bad" ] || fail "entries under ## Log that are neither '- <date> <time>, <card id or \"no card\">, commit <hash>...' nor '- Paused <date> <time> ...'" "$bad"
 for s in '0e2e2cf' 'run URL' 'dfd0b72' 'd8d8b7e' '8e0e550'; do
@@ -493,7 +493,7 @@ done
 # the `Cards: <id> shipped` commit with the board and the log entry.
 awk '/^[|] Item [|]/{exit} {print}' "$tmp/owner-block" | tr '\n' ' ' | sed 's/  */ /g' > "$tmp/inflight.flat"
 newest="$(sort "$tmp/done-updated" | tail -n 1 | cut -d' ' -f2)"
-CARD_ID='(P[0-9]-[0-9]{2}(\.[0-9])?|PLAN-[0-9]{2})'
+CARD_ID='(P[0-9X]-[0-9]{2}(\.[0-9]{1,2})?|PLAN-[0-9]{2})'
 for id in $(grep -o -E "last shipped card is $CARD_ID" "$tmp/inflight.flat" | sed 's/.* //' | sort -u); do
   [ "$id" = "$newest" ] \
     || fail "the in-flight block of docs/plan/progress.md says the last shipped card is $id; the done card with the newest 'updated' is $newest (rewrite the block in the Cards: <id> shipped commit)"
@@ -665,7 +665,7 @@ while IFS= read -r p; do
   [ -e "$ROOT/$p" ] || fail "docs/decisions/log.md names '$p', which does not exist"
   npath=$((npath + 1))
 done < "$tmp/dec-paths"
-grep -o -E 'card (P[0-9]-[0-9]{2}(\.[0-9])?|PLAN-[0-9]{2})' "$DEC" | sed 's/^card //' | sort -u > "$tmp/dec-cards" || true
+grep -o -E 'card (P[0-9X]-[0-9]{2}(\.[0-9]{1,2})?|PLAN-[0-9]{2})' "$DEC" | sed 's/^card //' | sort -u > "$tmp/dec-cards" || true
 ncard=0
 while IFS= read -r id; do
   [ -n "$id" ] || continue
@@ -674,7 +674,7 @@ while IFS= read -r id; do
   [ "$c" -eq 1 ] || fail "docs/decisions/log.md cites card $id, which has $c files factory/cards/$id-*.md"
   ncard=$((ncard + 1))
 done < "$tmp/dec-cards"
-grep -o -E 'card (P[0-9]-[0-9]{2}(\.[0-9])?|PLAN-[0-9]{2}) history [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z' "$DEC" | sort -u > "$tmp/dec-hist" || true
+grep -o -E 'card (P[0-9X]-[0-9]{2}(\.[0-9]{1,2})?|PLAN-[0-9]{2}) history [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z' "$DEC" | sort -u > "$tmp/dec-hist" || true
 nhist=0
 while IFS= read -r h; do
   [ -n "$h" ] || continue
