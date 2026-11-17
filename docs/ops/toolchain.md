@@ -125,8 +125,8 @@ toolchain list` shows the channel (and sets `RUSTUP_AUTO_INSTALL=0`), the pnpm p
      the `corepack install` line. Nothing compares them with this file.
    - Comments that say the node major: the header of `.github/workflows/check.yml`, the corepack comment of the
      `Dockerfile`, the docstring of `check_node_version` in `tools/doctor.sh` (its examples), and the `nvm use 22`
-     line of the header of `tools/test/compose.test.sh`, `tools/test/image.test.sh`, `tools/test/web.test.sh` and
-     `tools/test/workspace.test.sh`.
+     line of the header of `tools/test/compose.test.sh`, `tools/test/i18n.test.sh`, `tools/test/image.test.sh`,
+     `tools/test/web.test.sh` and `tools/test/workspace.test.sh`.
    - `playwright.version` into `devDependencies["@playwright/test"]` of the root `package.json`, typed there too
      since card P0-02.5 (`pnpm e2e:smoke` runs that package), then `pnpm install` so that `pnpm-lock.yaml` follows.
      The doctor does not read this mirror; the `smoke` case of `tools/test/web.test.sh` compares the two. That

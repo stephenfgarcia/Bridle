@@ -4,8 +4,10 @@
 #               apps/web/package.json and as installed (`pnpm ls --filter web --depth 0 --json`); src/app exists and
 #               there is no `pages` directory (the App Router); tsconfig.json extends the base, the base is strict
 #               and `tsc --showConfig` resolves strict = true; `pnpm --filter web typecheck` exits 0; turbo's dry
-#               run lists web#typecheck; the root `lint` script is `biome ci .`, tools/check.sh runs `pnpm lint`
-#               and `pnpm typecheck`, and `pnpm exec biome ci apps/web` exits 0 having checked at least 7 files;
+#               run lists web#typecheck; the root `lint` script is `biome ci . && node
+#               packages/i18n/lint/lint-strings.mjs` (the string lint since card P0-02.6), tools/check.sh runs
+#               `pnpm lint` and `pnpm typecheck`, and `pnpm exec biome ci apps/web` exits 0 having checked at
+#               least 7 files;
 #               `pnpm --filter web build` exits 0 with `ƒ /` and `ƒ /api/v1/health`; `pnpm --filter web dev
 #               --hostname 127.0.0.1 --port <free>` answers fixture H within 60 s (200, content-type
 #               application/json, the body byte for byte) and `GET /` is 200 with `<h1>Bridle</h1>`, the sha in
@@ -17,7 +19,9 @@
 #               is `playwright test`; devDependencies["@playwright/test"] equals tools.playwright.version of
 #               tools/toolchain.json and `pnpm exec playwright --version` prints it; `playwright test --list` ends
 #               `Total: 2 tests in 1 file` with two test lines, each `[chromium]`; the config names no firefox or
-#               webkit and one project; the spec requests /api/v1/health and navigates to / (ruling 7). Against
+#               webkit and one project; the spec requests /api/v1/health and navigates to / (ruling 7); it reads
+#               its strings from packages/i18n/messages by NEXT_PUBLIC_LOCALE and holds no copy of fixture N, and
+#               `home.notice` of packages/i18n/messages/en.json equals fixture N (card P0-02.6). Against
 #               the running dev server, screenshot removed: `PORT=<its port> pnpm e2e:smoke` exits 0 with
 #               `2 passed`, the same pid still listens (the reuse path), the PNG exists (signature 89 50 4e 47,
 #               over 1,000 bytes), `git check-ignore` accepts it and .bridle/playwright/. Server stopped,
@@ -26,7 +30,8 @@
 #               GIT_SHA=feedbee answers `{"ok":true,"sha":"feedbee"}`, and the smoke run without that variable
 #               exits non-zero against it, naming feedbee (the sha is asserted, not echoed). The tree is as it was
 #   plain  AC3  apps/web holds no .css, .scss, .sass, .less or .module.* file and no `components` directory; its
-#               dependencies are exactly next, react, react-dom; packages/ui does not exist; the HTML of `/` has
+#               dependencies are exactly @bridle/i18n, next, react, react-dom; packages/ui does not exist; the
+#               HTML of `/` has
 #               no rel="stylesheet", no <style, none of <nav, <header, <aside, <footer, <button, <form, <a, and
 #               its one <main> is the h1 and the two paragraphs, byte for byte
 #   docs   AC4  docs/ops/local-dev.md has `## Web application and the smoke test` before "Other local ports", naming
@@ -45,7 +50,8 @@
 # sed, od, cmp, shasum, mktemp, and the Chromium build of `npx playwright@<pin> install chromium`.
 # Ports: every server listens on a free loopback port taken from node, never 3000. The test refuses to start while
 # http://127.0.0.1:3000/api/v1/health answers 200 (a dev server of this checkout is running there and the build
-# would break it: the two write apps/web/.next). GIT_SHA and PORT of the calling shell are unset first.
+# would break it: the two write apps/web/.next). GIT_SHA, PORT and NEXT_PUBLIC_LOCALE of the calling shell are
+# unset first, so the cases run in the `en` locale.
 # Writes: apps/web/.next and apps/web/next-env.d.ts (the build and the dev server), .bridle/screenshots/ and
 # .bridle/playwright/ (the smoke), all gitignored; the copy and the logs live in `mktemp -d`. An EXIT trap stops
 # the servers it started (by pid, and whatever listens on a port it took) and removes the directory.
@@ -54,7 +60,7 @@ set -u
 set -o pipefail
 export DO_NOT_TRACK=1 # turbo: no telemetry and no first-run banner
 export NEXT_TELEMETRY_DISABLED=1
-unset GIT_SHA PORT
+unset GIT_SHA PORT NEXT_PUBLIC_LOCALE
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WEB="$ROOT/apps/web"
@@ -66,11 +72,13 @@ CASE=setup
 # Fixture N, the notice (literal).
 NOTICE='Educational use only. Not for construction, permitting, or professional engineering use. Results are not a substitute for analysis and design by a licensed engineer.'
 # Fixture F, the files of apps/web a clone holds (literal; sorted as `LC_ALL=C sort` sorts them).
-FIXTURE_F='apps/web/next.config.mjs
+FIXTURE_F='apps/web/i18n-allowlist.json
+apps/web/next.config.mjs
 apps/web/package.json
 apps/web/src/app/api/v1/health/route.ts
 apps/web/src/app/layout.tsx
 apps/web/src/app/page.tsx
+apps/web/src/i18n.ts
 apps/web/src/sha.ts
 apps/web/tsconfig.json'
 
@@ -285,14 +293,15 @@ run_in "$ROOT" pnpm --filter web exec tsc --showConfig -p tsconfig.json
 printf '%s\n' "$OUT" > "$tmp/tsconfig.json"
 [ "$(json "$tmp/tsconfig.json" 'j.compilerOptions.strict')" = "true" ] \
   || fail "apps/web's resolved TypeScript configuration is not strict (tsc --showConfig)" "$OUT"
-echo "# apps/web: fixture F (7 files); installed:$INSTALLED; src/app, no pages directory; tsconfig extends the base, strict = true resolved"
+echo "# apps/web: fixture F (9 files); installed:$INSTALLED; src/app, no pages directory; tsconfig extends the base, strict = true resolved"
 
 run_in "$ROOT" pnpm --filter web typecheck
 [ "$RC" -eq 0 ] || fail "pnpm --filter web typecheck: exit $RC" "$OUT"
 run_in "$ROOT" pnpm exec turbo run typecheck --dry=json
 [ "$RC" -eq 0 ] || fail "pnpm exec turbo run typecheck --dry=json: exit $RC" "$OUT"
 printf '%s\n' "$OUT" | grep -q -E '"taskId": *"web#typecheck"' || fail "turbo's dry run of typecheck does not list web#typecheck" "$OUT"
-[ "$(json "$ROOT/package.json" 'j.scripts.lint')" = "biome ci ." ] || fail "the root lint script is not 'biome ci .'"
+[ "$(json "$ROOT/package.json" 'j.scripts.lint')" = "biome ci . && node packages/i18n/lint/lint-strings.mjs" ] \
+  || fail "the root lint script is not 'biome ci . && node packages/i18n/lint/lint-strings.mjs'"
 [ "$(json "$ROOT/package.json" 'j.scripts.typecheck')" = "turbo run typecheck" ] || fail "the root typecheck script is not 'turbo run typecheck'"
 grep -q -E '^run_step 1 lint pnpm lint$' "$ROOT/tools/check.sh" || fail "tools/check.sh does not run 'pnpm lint' as step 1"
 grep -q -E '^run_step 2 typecheck pnpm typecheck$' "$ROOT/tools/check.sh" || fail "tools/check.sh does not run 'pnpm typecheck' as step 2"
@@ -393,8 +402,15 @@ grep -q -E 'name: *["'"'"']chromium["'"'"']' "$CFG" || fail "playwright.config.t
 # Ruling 7: the spec requests the health route and navigates to the page.
 grep -q -E '\.get\( *["'"'"'`]/api/v1/health["'"'"'`] *\)' "$SPEC" || fail "e2e/smoke.spec.ts does not request /api/v1/health"
 grep -q -E '\.goto\( *["'"'"'`]/["'"'"'`] *\)' "$SPEC" || fail "e2e/smoke.spec.ts does not navigate to /"
-grep -q -F -- "$NOTICE" "$SPEC" || fail "e2e/smoke.spec.ts does not hold the notice (fixture N) it asserts"
-echo "# playwright.config.ts at the root, e2e/smoke.spec.ts; @playwright/test $pw_dep = the pin, 'Version $PW_PIN'; --list: 2 tests, both [chromium], '$last'; one project; the spec gets /api/v1/health and goes to /"
+# Card P0-02.6: the spec reads the strings it asserts from the catalog of the locale, and the catalog holds fixture N.
+for needle in packages i18n messages NEXT_PUBLIC_LOCALE; do
+  grep -q -F -- "$needle" "$SPEC" || fail "e2e/smoke.spec.ts does not name '$needle': it must read its strings from packages/i18n/messages by NEXT_PUBLIC_LOCALE"
+done
+grep -q -F -- "$NOTICE" "$SPEC" && fail "e2e/smoke.spec.ts holds a copy of the notice (fixture N); it reads it from the catalog"
+CATALOG="$ROOT/packages/i18n/messages/en.json"
+[ -f "$CATALOG" ] || fail "packages/i18n/messages/en.json does not exist"
+[ "$(json "$CATALOG" 'j["home.notice"]')" = "$NOTICE" ] || fail "home.notice of packages/i18n/messages/en.json is not fixture N"
+echo "# playwright.config.ts at the root, e2e/smoke.spec.ts; @playwright/test $pw_dep = the pin, 'Version $PW_PIN'; --list: 2 tests, both [chromium], '$last'; one project; the spec gets /api/v1/health and goes to /, reads its strings from packages/i18n/messages; home.notice of en.json = fixture N"
 
 STATE="$(tree_state)" || fail "cannot read the state of the tree"
 # The reuse path: against the dev server that is already running.
@@ -458,7 +474,7 @@ styled="$(cd "$ROOT" && { git ls-files --cached --others --exclude-standard -- a
 comp="$(cd "$ROOT" && find apps/web \( -name node_modules -o -name .next \) -prune -o -type d -name components -print)"
 [ -z "$comp" ] || fail "apps/web holds a components directory; no design-system work and no shell in this card" "$comp"
 deps="$(json "$WEB/package.json" 'Object.keys(j.dependencies).sort().join(" ")')"
-[ "$deps" = "next react react-dom" ] || fail "apps/web's dependencies are '$deps', expected exactly 'next react react-dom'"
+[ "$deps" = "@bridle/i18n next react react-dom" ] || fail "apps/web's dependencies are '$deps', expected exactly '@bridle/i18n next react react-dom'"
 [ ! -e "$ROOT/packages/ui" ] || fail "packages/ui exists; the design system is P4-06"
 ensure_dev
 http_get "http://127.0.0.1:$DEV_PORT/"

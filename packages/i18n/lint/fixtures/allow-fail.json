@@ -1,0 +1,39 @@
+{
+  "allow": [
+    {
+      "file": "fail/page.tsx",
+      "text": "Course settings",
+      "reason": "fixture: the property rule"
+    },
+    {
+      "file": "fail/page.tsx",
+      "text": "Gradebook",
+      "reason": "fixture: the jsx-constant rule"
+    },
+    {
+      "file": "fail/page.tsx",
+      "text": "Submitted after the deadline",
+      "reason": "fixture: the prose rule"
+    },
+    {
+      "file": "fail/page.tsx",
+      "text": "Welcome back",
+      "reason": "fixture: the jsx-text rule"
+    },
+    {
+      "file": "fail/page.tsx",
+      "text": "Late",
+      "reason": "fixture: the jsx-expression rule"
+    },
+    {
+      "file": "fail/page.tsx",
+      "text": "Beam diagram",
+      "reason": "fixture: the jsx-attribute rule (alt)"
+    },
+    {
+      "file": "fail/page.tsx",
+      "text": "Search",
+      "reason": "fixture: the jsx-attribute rule (placeholder)"
+    }
+  ]
+}

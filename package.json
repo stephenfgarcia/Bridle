@@ -7,10 +7,11 @@
   },
   "scripts": {
     "check": "bash tools/check.sh",
-    "lint": "biome ci .",
+    "lint": "biome ci . && node packages/i18n/lint/lint-strings.mjs",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "e2e:smoke": "playwright test",
+    "i18n:pseudo": "pnpm --filter @bridle/i18n pseudo",
     "fmt": "biome check --write . && cargo fmt --all",
     "dev": "bash tools/dev.sh up",
     "dev:down": "bash tools/dev.sh down",

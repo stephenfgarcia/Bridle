@@ -129,15 +129,21 @@ linguistic ordering matching between local and staging; where order matters, sor
 `apps/web` is the Next.js 15 application (React 19, the App Router, TypeScript strict; card P0-02.5). It is a
 skeleton: one page, `/`, that says Bridle with the git sha and the educational-use notice as plain text, and one
 route handler, `GET /api/v1/health`, that answers 200 `application/json` `{"ok":true,"sha":"<sha>"}`. There is no
-stylesheet, no component and no shell: the design system is P4-06.
+stylesheet, no component and no shell: the design system is P4-06. The page's title, heading and notice come from
+the message catalog of `packages/i18n` through `t("id")` (`apps/web/src/i18n.ts`; card P0-02.6), in the locale
+`NEXT_PUBLIC_LOCALE` names at build time: `en` when it is unset or empty, `en-XA` for the pseudo-locale, and any
+other value fails the build. The catalog, the string lint and the allowlist are in [i18n.md](i18n.md).
 
 | Command | Does |
 |---|---|
 | `pnpm --filter web dev` | `next dev` on port 3000 (Next's default; `pnpm --filter web dev --port 3001` moves it). Without `--hostname`, Next listens on every interface of the machine; `--hostname 127.0.0.1` keeps it on loopback. Writes `apps/web/.next/` and `apps/web/next-env.d.ts`, both gitignored. |
 | `pnpm --filter web build` | `next build` into `apps/web/.next/`. Stop a dev server of this checkout first: the two write the same directory. |
 | `pnpm --filter web start` | `next start`: serves the last build on port 3000 (`--port`). |
+| `NEXT_PUBLIC_LOCALE=en-XA pnpm --filter web build` | the same build in the pseudo-locale: Next inlines the variable, so one build is one locale, and `pnpm --filter web start` serves that locale whatever the variable says then. Run `rm -rf apps/web/.next` afterwards, or a later `next start` serves the `en-XA` build. |
 | `pnpm e2e:smoke` | `playwright test`: the smoke test below. |
+| `NEXT_PUBLIC_LOCALE=en-XA pnpm e2e:smoke` | the smoke test against the pseudo-locale: the server Playwright starts inherits the variable, the test reads the strings it expects from `packages/i18n/messages/en-XA.json`, and the screenshot is `.bridle/screenshots/smoke-home-en-XA.png`. |
 | `bash tools/test/web.test.sh` | the tests of card P0-02.5 (never part of `pnpm test`: they start servers and a browser, on free loopback ports, never 3000; they refuse to start while a server answers on 3000). |
+| `bash tools/test/i18n.test.sh` | the tests of card P0-02.6 (the catalog, the string lint, the pseudo-locale build and its smoke; never part of `pnpm test`, for the same reasons). |
 
 Where the sha comes from (`apps/web/src/sha.ts`, read at every request and never cached, so a dev server follows
 HEAD): `GIT_SHA` when it is set and not empty (the application image sets it), else `git rev-parse --short HEAD`
@@ -147,8 +153,12 @@ HEAD): `GIT_SHA` when it is set and not empty (the application image sets it), e
 tests of `e2e/smoke.spec.ts`. It starts `pnpm --filter web dev --hostname 127.0.0.1 --port $PORT` (`PORT`, default
 3000) and stops it when the tests end, or reuses the server that already answers
 `http://127.0.0.1:$PORT/api/v1/health`. The first test asserts the health route: 200, `application/json`, a body
-equal to `{ok: true, sha}`. The second opens `/`: 200, the heading `Bridle`, the sha, the notice, then a full-page
-screenshot to `.bridle/screenshots/smoke-home.png` (1280 x 720). Failure output goes to `.bridle/playwright/`; both
+equal to `{ok: true, sha}`. The second opens `/`: 200, `<html lang>` equal to the locale, the title and the heading
+(`app.name` of that locale's catalog: `Bridle` in `en`), the sha, the notice (`home.notice`), then a full-page
+screenshot to `.bridle/screenshots/smoke-home.png` (1280 x 720; `smoke-home-<locale>.png` for another locale than
+`en`). The locale is `NEXT_PUBLIC_LOCALE` of the shell that runs the smoke, `en` when unset, so against a running
+server of another locale the second test fails at `lang`: run it with the server's locale, or on another `PORT`.
+Failure output goes to `.bridle/playwright/`; both
 directories are gitignored. The sha the tests expect is `GIT_SHA` when the shell that runs the smoke has it, else
 `git rev-parse --short HEAD`, so a server started with another `GIT_SHA` fails the smoke: the sha is asserted, not
 echoed. It took 3 to 4 s here when Playwright started the server and under 1 s against a running one (card
@@ -164,15 +174,20 @@ otherwise or not at all (the image's `--serve` stub answers 404 there), Playwrig
 with `EADDRINUSE` and does not move to another port. Either way run the smoke elsewhere: `PORT=3001 pnpm
 e2e:smoke`.
 
-TypeScript: `apps/web` pins typescript 6.0.3 while the rest of the workspace keeps 7.0.2. Next.js 15.5.29 refuses
+TypeScript: `apps/web` and `packages/i18n` pin typescript 6.0.3 while `packages/units` keeps 7.0.2.
+`packages/i18n` follows `apps/web` for two reasons: its source is compiled and typechecked by `apps/web`, and its
+string lint (`packages/i18n/lint/lint-strings.mjs`) needs the compiler API (`typescript.js`), which typescript
+6.0.3 ships and 7.0.2 does not (card P0-02.6). Next.js 15.5.29 refuses
 TypeScript 7 (`next build` exits 1 with "TypeScript 7.0.2 is not supported by this version of Next.js", found at
 the card's plan station); Next.js 16.2.11 or later accepts it, and that move changes the architecture's
 "Next.js 15", so it is the owner's decision (card P0-02.5, open question 2). `apps/web/tsconfig.json` extends
 `tsconfig.base.json` (strict) with the options Next asks for, so a build does not rewrite it. If `tsc` fails on a
 file under `apps/web/.next/types` after a route was removed, the directory is stale: `rm -rf apps/web/.next`.
 
-`pnpm check` covers `apps/web` in two of its steps: lint (`biome ci .`; there is no ESLint) and typecheck (`turbo
-run typecheck` runs `web#typecheck`, `tsc --noEmit`). `pnpm --filter web build` and `pnpm e2e:smoke` are separate
+`pnpm check` covers `apps/web` in two of its steps: lint (`biome ci .`, then the string lint, `node
+packages/i18n/lint/lint-strings.mjs`, which fails on a hard-coded user-facing string under `apps/web/src`; there is
+no ESLint) and typecheck (`turbo run typecheck` runs `web#typecheck`, `tsc --noEmit`, where a `t("id")` whose id is
+not in the catalog is a type error). `pnpm --filter web build` and `pnpm e2e:smoke` are separate
 commands, not steps of `pnpm check`; the test, review and ship stations run the smoke for cards that touch
 `apps/web` (factory/line.md). Actions runs neither: Playwright's browsers reach the runners with P0-09.
 
@@ -248,9 +263,11 @@ probe of `http://127.0.0.1:$PORT/healthz` every 30 s, 3 s timeout, 5 s start per
 in the image) is honest for every process. Docker honours it (`docker ps` shows `(healthy)`); ECS ignores image
 healthchecks, and the task definition gets its own in P0-05.
 
-Build context (`.dockerignore`): the pnpm workspace and the entrypoint, 20 files and 68 KB today: `package.json`,
+Build context (`.dockerignore`): the pnpm workspace and the entrypoint, 37 files and 106 KB today (card P0-02.6,
+2026-11-17): `package.json`,
 `pnpm-workspace.yaml`, `pnpm-lock.yaml`, `turbo.json`, `biome.json`, `tsconfig.base.json`, `.editorconfig`,
-`.node-version`, `packages/*/{package.json,tsconfig.json,src/}`, `apps/web/{package.json,tsconfig.json,next.config.mjs,src/}`,
+`.node-version`, `packages/*/{package.json,tsconfig.json,src/}`, `packages/i18n/{lint,messages,scripts}/`,
+`apps/web/{package.json,tsconfig.json,next.config.mjs,i18n-allowlist.json,src/}`,
 `tools/entrypoint.sh`. Everything else stays out:
 `.git*` (`.git`, `.github`, `.gitignore`, `.gitattributes`), `node_modules` and `**/node_modules` (the host's macOS
 tree must never reach a Linux image), `**/.turbo`, `**/dist`, `**/*.tsbuildinfo`, `**/.next` and
@@ -268,9 +285,12 @@ Measured on this machine (M4, OrbStack, docker 29.8.2, the base image already pu
 (`downloaded 0`) and `turbo run build` (`next build`) 9.8 s; `docker build --no-cache` 19 s, of which corepack's
 pnpm download 2.6 s, `pnpm install` 5.4 s, `turbo run build` 9.4 s and the prune 0.4 s; a warm rebuild with nothing
 changed 0.6 s, every step `CACHED`; a new `GIT_SHA` alone 0.5 s. Any change under `apps/web` or `packages` now
-re-runs the install and the Next build. Image size (`docker image inspect bridle:dev --format '{{.Size}}'`)
-343,946,809 bytes = 344 MB, of which 343,893,906 bytes is the base image: the workspace adds 53 KB, because the
-prune leaves `apps/web` out. One cold build on 2026-11-03 failed at
+re-runs the install and the Next build. Image size (`docker image inspect bridle:dev --format '{{.Size}}'`),
+measured again by card P0-02.6 on 2026-11-17: 344,690,273 bytes = 345 MB, of which 343,893,906 bytes is the base
+image: the workspace adds 796 KB. The prune leaves `apps/web` out; since card P0-02.6 it installs
+`intl-messageformat` for `packages/i18n` (four entries under `/app/node_modules/.pnpm`: `intl-messageformat`,
+`@formatjs/icu-messageformat-parser`, `@formatjs/icu-skeleton-parser`, `@formatjs/fast-memoize`), which the web
+process will need; the card that puts Next.js behind `web` revisits what the image installs. One cold build on 2026-11-03 failed at
 `corepack install -g pnpm@12.16.1` with `Error when performing the request to https://registry.npmjs.org/...`
 after 4 s (a transient registry fetch; the probe of the same step passed seconds later): run the build again,
 a failed step is never cached.

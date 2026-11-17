@@ -7,7 +7,8 @@
 #                          and cargo on PATH, at the pins of tools/toolchain.json (`bash tools/doctor.sh`)
 #
 # Runs, in this order and stopping at the first failure:
-#   1 lint          pnpm lint        biome ci . : format, lint and import order, writes nothing
+#   1 lint          pnpm lint        biome ci . : format, lint and import order, writes nothing; then the string
+#                                    lint of apps/web, node packages/i18n/lint/lint-strings.mjs (docs/ops/i18n.md)
 #   2 typecheck     pnpm typecheck   turbo run typecheck : tsc --noEmit per package
 #   3 test          pnpm test        turbo run test : vitest run per package
 #   4 cargo-fmt     cargo fmt --all --check

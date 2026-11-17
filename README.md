@@ -21,11 +21,11 @@ what only the owner can do); [docs/decisions/log.md](docs/decisions/log.md) (the
 - [docs/architecture](docs/architecture/README.md): architecture.md, decisions.md, build-sequence.md.
 - [docs/ux](docs/ux/README.md): ux-spec.md, screen-inventory.md, tokens.css.
 - [docs/decisions](docs/decisions): [ADR 0001](docs/decisions/0001-mvp-scope-resolutions.md), [ADR 0002](docs/decisions/0002-architecture-amendments.md), [log.md](docs/decisions/log.md) (the owner's operational decisions).
-- [docs/ops](docs/ops): [github.md](docs/ops/github.md), [local-dev.md](docs/ops/local-dev.md), [permissions.md](docs/ops/permissions.md), [secrets.md](docs/ops/secrets.md), [toolchain.md](docs/ops/toolchain.md).
+- [docs/ops](docs/ops): [github.md](docs/ops/github.md), [i18n.md](docs/ops/i18n.md), [local-dev.md](docs/ops/local-dev.md), [permissions.md](docs/ops/permissions.md), [secrets.md](docs/ops/secrets.md), [toolchain.md](docs/ops/toolchain.md).
 - [docs/plan](docs/plan): [roadmap.md](docs/plan/roadmap.md), [monitor-v4.md](docs/plan/monitor-v4.md), [progress.md](docs/plan/progress.md).
 - [factory](factory/README.md): README.md, [line.md](factory/line.md) (stations, workers, exit criteria), [cards/](factory/cards) (one markdown file per work item).
 - [tools](tools): [check.sh](tools/check.sh) (`pnpm check`), [doctor.sh](tools/doctor.sh), [dev.sh](tools/dev.sh), [monitor/](tools/monitor/README.md) (the Bridle Build Monitor and `card.py`), [test/](tools/test) (one test file per shipped P0-02 and P0-06 sub-card, plus `docs.test.sh` for P0-11; the monitor's tests are in `tools/monitor/test`).
-- [apps](apps): [web](apps/web), the Next.js application, and [e2e](e2e), its Playwright smoke test (`pnpm e2e:smoke`); [packages](packages): [units](packages/units), the first TypeScript package; [crates](crates): [bridle-canon](crates/bridle-canon), the first Rust crate.
+- [apps](apps): [web](apps/web), the Next.js application, and [e2e](e2e), its Playwright smoke test (`pnpm e2e:smoke`); [packages](packages): [units](packages/units), the first TypeScript package, and [i18n](packages/i18n) (the message catalog, `t()`, the string lint); [crates](crates): [bridle-canon](crates/bridle-canon), the first Rust crate.
 - Root: [compose.yaml](compose.yaml) (`pnpm dev`), [Dockerfile](Dockerfile), [.github/workflows/check.yml](.github/workflows/check.yml) (CI, the required check `check`), [.claude](.claude): [skills/factory/SKILL.md](.claude/skills/factory/SKILL.md) (the foreman), [agents/](.claude/agents) (the four station agents).
 - `tools/agent-hq/`: another session's standalone app (committed in `aac9cca`, excluded from root Biome by `049b0fd`), not part of the pnpm workspace or the factory.
 
