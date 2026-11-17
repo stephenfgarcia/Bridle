@@ -114,7 +114,7 @@ marks the cards that get a separate review station (see Process).
 
 | Card | What |
 |---|---|
-| C1 | Hosting on Google Cloud Run in the project `comm360-sandbox`: the container image of the repository's `Dockerfile` with Next.js behind its `web` entrypoint, the database, the secrets (the Anthropic API key in Secret Manager), a budget alert, a health check; nothing billable is created before the owner confirms the list of resources |
+| C1 | Hosting on Google Cloud Run in the project `comm360-sandbox`: the container image of the repository's `Dockerfile` with Next.js behind its `web` entrypoint, the database on Cloud SQL for PostgreSQL in the same project (the owner's decision of 2026-11-18: everything stays on Google Cloud), the secrets (the Anthropic API key in Secret Manager), a budget alert, a health check; nothing billable is created before the owner confirms the list of resources |
 | C2 | Local presentation mode: one command, seeded data, a reset button |
 | C3 | Introduction page for the panel |
 | C4 | Visual pass: empty, loading and error states |
