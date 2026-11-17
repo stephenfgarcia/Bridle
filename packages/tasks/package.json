@@ -1,0 +1,23 @@
+{
+  "name": "@bridle/tasks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "docs": "vitest run --config vitest.docs.config.ts"
+  },
+  "dependencies": {
+    "@bridle/model": "workspace:*",
+    "@bridle/solver": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}
