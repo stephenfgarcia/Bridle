@@ -1,11 +1,18 @@
 // The state of the drawing tools of the workspace (card PX-02.4): the active tool, the work plane, the snap
 // step, the Member tool's start node, the cursor of the active tool, a node drag in progress and the last
-// notice. The pure parts are ./workPlane.ts and ./drawTools.ts; ./toolActions.ts changes this store together
+// notice; since card PX-02.5 also the Support tool's choice, the Load tool's form and the chosen load case.
+// The pure parts are ./workPlane.ts, ./drawTools.ts and ./supportLoadTools.ts; ./toolActions.ts changes this store together
 // with the model store. The model and the selection are not here (../model/modelStore.ts,
 // ../viewport/viewportStore.ts).
 import { create } from "zustand";
 import type { Point3 } from "../viewport/scene";
 import type { ToolNotice } from "./drawTools";
+import {
+  DEFAULT_LOAD_FORM,
+  DEFAULT_SUPPORT_CHOICE,
+  type LoadToolForm,
+  type SupportChoice,
+} from "./supportLoadTools";
 import {
   DEFAULT_SNAP_STEP,
   DEFAULT_WORK_PLANE,
@@ -15,9 +22,9 @@ import {
   type WorkPlane,
 } from "./workPlane";
 
-export type Tool = "select" | "node" | "member";
+export type Tool = "select" | "node" | "member" | "support" | "load";
 
-export const TOOLS: readonly Tool[] = ["select", "node", "member"];
+export const TOOLS: readonly Tool[] = ["select", "node", "member", "support", "load"];
 
 export const DEFAULT_TOOL: Tool = "select";
 
@@ -45,7 +52,20 @@ export interface ToolState {
   cursorProblem: CursorProblem;
   drag: NodeDrag | null;
   notice: ToolNotice | null;
+  /** The support the Support tool places (card PX-02.5). */
+  supportChoice: SupportChoice;
+  /** What the Load tool places on a node. */
+  loadForm: LoadToolForm;
+  /**
+   * The load case the person chose to see and to add loads to; `null` until one is chosen. Read it through
+   * `activeLoadCaseId(model, ...)` of ../viewport/loads.ts: an id the model does not hold means its first.
+   */
+  loadCaseId: string | null;
 
+  setSupportChoice: (choice: SupportChoice) => void;
+  /** Changes the given fields of the Load tool's form. */
+  setLoadForm: (form: Partial<LoadToolForm>) => void;
+  setLoadCaseId: (id: string | null) => void;
   /** Makes a tool the active one. It ends a member in progress and clears the cursor and the notice. */
   setTool: (tool: Tool) => void;
   setPlane: (plane: WorkPlane) => void;
@@ -56,7 +76,10 @@ export interface ToolState {
   /** Keeps the state object when the drag is the one it has. */
   setDrag: (drag: NodeDrag | null) => void;
   setNotice: (notice: ToolNotice | null) => void;
-  /** For another model: no member in progress, no cursor, no drag, no notice. Tool, plane and snap stay. */
+  /**
+   * For another model: no member in progress, no cursor, no drag, no notice, no chosen load case. The tool, the
+   * plane, the snap step, the support choice and the Load tool's form stay.
+   */
   resetSession: () => void;
 }
 
@@ -79,7 +102,14 @@ export const useToolStore = create<ToolState>((set) => ({
   plane: DEFAULT_WORK_PLANE,
   snapStep: DEFAULT_SNAP_STEP,
   ...SESSION,
+  supportChoice: DEFAULT_SUPPORT_CHOICE,
+  loadForm: DEFAULT_LOAD_FORM,
+  loadCaseId: null,
 
+  setSupportChoice: (supportChoice) => set({ supportChoice }),
+  setLoadForm: (form) => set((state) => ({ loadForm: { ...state.loadForm, ...form } })),
+  setLoadCaseId: (loadCaseId) =>
+    set((state) => (state.loadCaseId === loadCaseId ? state : { loadCaseId })),
   setTool: (tool) => set({ tool, ...SESSION }),
   setPlane: (plane) => set({ plane, cursor: null, cursorProblem: null }),
   setSnapStep: (snapStep) => set({ snapStep, cursor: null, cursorProblem: null }),
@@ -93,5 +123,5 @@ export const useToolStore = create<ToolState>((set) => ({
     ),
   setDrag: (drag) => set((state) => (sameDrag(state.drag, drag) ? state : { drag })),
   setNotice: (notice) => set((state) => (state.notice === notice ? state : { notice })),
-  resetSession: () => set({ ...SESSION }),
+  resetSession: () => set({ ...SESSION, loadCaseId: null }),
 }));

@@ -16,16 +16,27 @@ import { isAt, nodeAt, type ToolCursor } from "./workPlane";
  * - `duplicate-member`: the two nodes already have a member between them;
  * - `no-section`: the model has no section or no material for a new member;
  * - `occupied`: a node would be moved to the place of another node;
+ * - `needs-node`: the Support or the Load tool was clicked where there is no node;
+ * - `no-load-case`: the model has no load case for a new load;
+ * - `position-outside`: a point load would stand before its member's start or beyond its end;
  * - `refused`: the model store refused for another reason.
  */
-export type ToolNotice = "same-node" | "duplicate-member" | "no-section" | "occupied" | "refused";
+export type ToolNotice =
+  | "same-node"
+  | "duplicate-member"
+  | "no-section"
+  | "occupied"
+  | "needs-node"
+  | "no-load-case"
+  | "position-outside"
+  | "refused";
 
 function hasNode(model: Model, id: string | null): id is string {
   return id !== null && model.nodes.some((node) => node.id === id);
 }
 
 /** The node a cursor means: the node the pointer picked, if the model holds it, else the node at its point. */
-function nodeOf(model: Model, cursor: ToolCursor): string | null {
+export function nodeOf(model: Model, cursor: ToolCursor): string | null {
   return hasNode(model, cursor.nodeId) ? cursor.nodeId : nodeAt(model, cursor.point);
 }
 
@@ -178,11 +189,13 @@ const NO_PREVIEW: ToolPreview = { marker: null, segments: [] };
  *   each member of that node.
  * - Node or Member tool with a cursor: the marker at the cursor; for the Member tool with a member begun, a
  *   line from the start node to the cursor, unless the cursor is the start node itself.
+ * - Support or Load tool: the marker on the node the cursor is at, and no marker away from a node (these
+ *   tools act on nodes only).
  * - Otherwise nothing.
  */
 export function toolPreview(
   tools: {
-    tool: "select" | "node" | "member";
+    tool: "select" | "node" | "member" | "support" | "load";
     cursor: ToolCursor | null;
     memberStart: string | null;
     drag: { nodeId: string; point: Point3 } | null;
@@ -214,6 +227,9 @@ export function toolPreview(
     return NO_PREVIEW;
   }
   const { cursor } = tools;
+  if (tools.tool === "support" || tools.tool === "load") {
+    return cursor.nodeId === null ? NO_PREVIEW : { marker: cursor.point, segments: [] };
+  }
   const start =
     tools.tool === "member" && tools.memberStart !== null && tools.memberStart !== cursor.nodeId
       ? place(tools.memberStart)

@@ -7,14 +7,20 @@ import { isTextField, type KeyLike } from "../model/shortcuts";
 import type { Tool } from "./toolStore";
 
 /** The one-key shortcut of each tool, as shown in its tooltip. */
-export const TOOL_KEYS: Record<Tool, string> = { select: "V", node: "N", member: "M" };
+export const TOOL_KEYS: Record<Tool, string> = {
+  select: "V",
+  node: "N",
+  member: "M",
+  support: "S",
+  load: "L",
+};
 
 export type ToolKeyAction = { type: "tool"; tool: Tool } | { type: "escape" } | { type: "delete" };
 
 /**
  * What a key press asks of the tools:
  * - Escape: back to the Select tool, ending a member in progress (also from a text field);
- * - V, N, M, in either case: the Select, Node and Member tool;
+ * - V, N, M, S, L, in either case: the Select, Node, Member, Support and Load tool;
  * - Delete, Backspace: delete what is selected.
  * `null` for any other key, for any key with Ctrl, Cmd or Alt, for a letter, Delete or Backspace pressed in
  * a text field, and for a letter pressed on a `<select>` (where it picks an option).

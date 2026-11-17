@@ -1,9 +1,12 @@
 /* Laid out for 1280 by 720 and larger: the viewport takes what the side panel leaves, and the two fill the
-   height under the top bar. No narrower layout. The two areas are styled in
+   height under the top bar. The height is fixed (the element does not grow with its content) and the one row
+   is that height, so a long side panel scrolls inside itself and does not make the page taller. No narrower
+   layout. The two areas are styled in
    components/workspace/WorkspaceView.module.css. */
 .workspace {
   display: grid;
-  flex: 1;
+  flex: none;
+  grid-template-rows: minmax(0, 1fr);
   grid-template-columns: minmax(0, 1fr) var(--layout-panel-w);
   height: calc(100vh - var(--shell-topbar-h));
   min-height: 0;

@@ -23,7 +23,9 @@ import {
   GRID_MAX_CELLS,
   gridFor,
   gridLines,
+  LOAD_ROOM_RATIO,
   type Point3,
+  roomForLoads,
   type SceneBounds,
   supportGlyph,
 } from "./scene";
@@ -50,10 +52,20 @@ describe("supportGlyph", () => {
     ["uy uz", "roller"],
     ["ux uz", "roller"],
     ["uz", "roller"],
-    ["uy", "generic"],
+    // A roller of a planar frame after "Restrain out of plane": rx and rz held, the in-plane ry free.
+    ["uy uz rx rz", "roller"],
+    ["uz rx rz", "roller"],
+    ["ux uy uz rx rz", "pinned"],
+    // Out-of-plane restraints only: the small mark.
+    ["uy", "plane"],
+    ["uy rx rz", "plane"],
+    ["rx rz", "plane"],
+    ["rx", "plane"],
     ["ux uy", "generic"],
     ["uz rx", "generic"],
     ["uy uz ry", "generic"],
+    ["uy uz rx ry rz", "generic"],
+    ["uy ry", "generic"],
     ["rx ry rz", "generic"],
     ["", "generic"],
   ])("restraints '%s' give the %s glyph", (restrained, glyph) => {
@@ -115,10 +127,10 @@ describe("buildScene", () => {
     expect(scene.members[3]).toEqual({ id: "t4", kind: "truss", start: [0, 0, 0], end: [3, 0, 4] });
     expect(scene.supports.map((item) => [item.nodeId, item.glyph])).toEqual([
       ["n1", "pinned"],
-      ["n2", "generic"],
+      ["n2", "plane"],
       ["n3", "roller"],
-      ["n4", "generic"],
-      ["n5", "generic"],
+      ["n4", "plane"],
+      ["n5", "plane"],
     ]);
     expect(scene.bounds).toEqual({ min: [0, 0, 0], max: [12, 0, 4], center: [6, 0, 2] });
   });
@@ -324,5 +336,52 @@ describe("the camera", () => {
     const placement = placeCamera(point, [0, -2, 0], VIEW_FOV_DEG["3d"], 1.5);
     expect(placement.distance).toBe(MIN_FIT_DISTANCE);
     expect(placement.position).toEqual([2, 3 - MIN_FIT_DISTANCE, 4]);
+  });
+});
+
+describe("the loads of a scene (card PX-02.5)", () => {
+  it("are those of the model's first load case unless another one is asked for", () => {
+    const base = portalFrame();
+    const model = {
+      ...base,
+      loadCases: [...base.loadCases, { id: "lc2", name: "Wind" }],
+      nodalLoads: [
+        ...base.nodalLoads,
+        {
+          ...(base.nodalLoads[0] as (typeof base.nodalLoads)[number]),
+          id: "nl2",
+          loadCaseId: "lc2",
+          fx: -5,
+        },
+      ],
+    };
+    expect(buildScene(model).loads.map((load) => load.key)).toEqual(["nl1:fx"]);
+    expect(buildScene(model, "lc1").loads.map((load) => load.key)).toEqual(["nl1:fx"]);
+    expect(buildScene(model, "lc2").loads.map((load) => load.key)).toEqual(["nl2:fx"]);
+    // A load case the model does not hold (one that an undo removed) falls back to the first.
+    expect(buildScene(model, "gone").loads.map((load) => load.key)).toEqual(["nl1:fx"]);
+    expect(buildScene(emptyModel()).loads).toEqual([]);
+  });
+
+  it("do not change the bounds or the counts", () => {
+    const scene = buildScene(simplySupportedBeam());
+    expect(scene.loads).toHaveLength(1);
+    expect(scene.bounds).toEqual({ min: [0, 0, 0], max: [6, 0, 0], center: [3, 0, 0] });
+    expect(scene.counts).toEqual({ nodes: 2, members: 1, supports: 2 });
+  });
+
+  it("roomForLoads widens the box on every side by a share of its largest dimension", () => {
+    const { bounds } = buildScene(portalFrame());
+    const room = 6 * LOAD_ROOM_RATIO;
+    const wider = roomForLoads(bounds);
+    expect(wider.center).toEqual([3, 0, 2]);
+    wider.min.forEach((value, axis) => {
+      expect(value).toBeCloseTo((bounds.min[axis] as number) - room, 12);
+    });
+    wider.max.forEach((value, axis) => {
+      expect(value).toBeCloseTo((bounds.max[axis] as number) + room, 12);
+    });
+    const point: SceneBounds = { min: [2, 3, 4], max: [2, 3, 4], center: [2, 3, 4] };
+    expect(roomForLoads(point)).toEqual(point);
   });
 });

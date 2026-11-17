@@ -141,7 +141,13 @@ three pages and one route handler:
   and M; Escape returns to Select), a work plane (X-Z at a chosen Y, or X-Y at a chosen Z) and a snap step
   (0.1, 0.25, 0.5 or 1 m). The Node tool places a node at the snapped point of the work plane under the
   pointer, the Member tool draws members from click to click, and the Select tool drags the selected node;
-  "New model" in the side panel starts an empty model with the fixtures' section and material. The canvas
+  "New model" in the side panel starts an empty model with the fixtures' section and material. Supports and
+  loads (card PX-02.5): the Support tool (key S) sets Fixed, Pinned or Roller on a clicked node and removes
+  it on a second click, and the Load tool (key L) adds a force or a moment to a clicked node; the side panel
+  has the sections Model (with "Restrain out of plane" for a frame in one X-Z plane), Loads (the load cases
+  and the choice of the active one), Issues and Properties, where a selected node shows six checkboxes for its
+  support and its loads, and a selected member its loads with "Add uniform load" and "Add point load". The
+  viewport draws the loads of the active load case as arrows with their values. The canvas
   (three.js through `@react-three/fiber`) is loaded in the browser only.
 - `/tasks` is a "Coming soon" state.
 - `GET /api/v1/health` answers 200 `application/json` `{"ok":true,"sha":"<sha>"}`.
@@ -169,7 +175,7 @@ Where the sha comes from (`apps/web/src/sha.ts`, read at every request and never
 HEAD): `GIT_SHA` when it is set and not empty (the application image sets it), else `git rev-parse --short HEAD`
 (where git and the repository exist: development and the smoke test), else `unknown`.
 
-`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the six
+`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the seven
 tests of `e2e/smoke.spec.ts`. It starts `pnpm --filter web dev --hostname 127.0.0.1 --port $PORT` (`PORT`, default
 3000) and stops it when the tests end, or reuses the server that already answers
 `http://127.0.0.1:$PORT/api/v1/health`. The first test asserts the health route: 200, `application/json`, a body
@@ -187,14 +193,18 @@ that member, then clicks on nothing and checks that the selection is gone. The s
 the front view, places two nodes with the Node tool and a member between them with the Member tool (it moves the
 pointer until the viewport's `data-cursor` attribute reads the wanted point, then clicks), reads the counts 2
 and 1 from the side panel, checks that a second member between the two nodes is refused with a message, takes
-`.bridle/screenshots/smoke-tools.png`, and undoes the member. The locale is `NEXT_PUBLIC_LOCALE` of
-the shell that runs the smoke, `en` when unset, so against a running server of another locale the five tests that
+`.bridle/screenshots/smoke-tools.png`, and undoes the member. The seventh takes the portal frame in the front
+view, places a nodal load on the node `n3` with the Load tool and reads it back from the side panel's list,
+selects the beam `b1`, adds a uniform load from the side panel and reads it back from the member's list, takes
+`.bridle/screenshots/smoke-loads.png`, checks that a point load beyond the member's length is refused with a
+message, then edits and removes the uniform load and undoes the removal. The locale is `NEXT_PUBLIC_LOCALE` of
+the shell that runs the smoke, `en` when unset, so against a running server of another locale the six tests that
 open a page fail at `lang`: run it with the server's locale, or on another `PORT`.
 Failure output goes to `.bridle/playwright/`; both
 directories are gitignored. The sha the tests expect is `GIT_SHA` when the shell that runs the smoke has it, else
 `git rev-parse --short HEAD`, so a server started with another `GIT_SHA` fails the smoke: the sha is asserted, not
-echoed. With its six tests it took 12 to 15 s here when Playwright started the server and 7 to 13 s against a
-running one (card PX-02.4, 2026-11-18).
+echoed. With its seven tests it took 16 to 21 s here when Playwright started the server and about 14 s
+against a running one (card PX-02.5, 2026-11-18).
 
 The browser: `@playwright/test` 1.64.1 (the pin of `tools/toolchain.json`, also typed in the root `package.json`)
 drives the Chromium build that `npx playwright@1.64.1 install chromium` puts in `~/Library/Caches/ms-playwright`

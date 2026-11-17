@@ -1,9 +1,10 @@
 // The smoke test of apps/web (card P0-02.5; the locale since card P0-02.6; the shell since card PX-02.1; the
-// 3D viewport since card PX-02.2; the model store since card PX-02.3; the tools since card PX-02.4): the health
-// route, then the home page and its screenshot, then the workspace route with the navigation, then the
+// 3D viewport since card PX-02.2; the model store since card PX-02.3; the tools since card PX-02.4; supports and
+// loads since card PX-02.5): the health route, then the home page and its screenshot, then the workspace route with the navigation, then the
 // viewport with the side panel's counts, the Undo and Redo buttons, the issues and the fixture switch, then
 // hovering and selecting a member in the viewport, then a new model with two nodes and a member drawn with
-// the Node and the Member tool.
+// the Node and the Member tool, then a nodal load placed with the Load tool and a uniform load added to the
+// beam of the portal frame from the side panel.
 // The health test is first: when a foreign process holds the port, its failure names the cause.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -362,5 +363,144 @@ test("/workspace draws two nodes and a member in a new model, and undoes the mem
   await expectCounts(page, 2, 1, 0);
   await history("undo").click();
   await expectCounts(page, 2, 0, 0);
+  expect(problems).toEqual([]);
+});
+
+test("/workspace adds a nodal load with the Load tool and a uniform load on the beam from the side panel", async ({
+  page,
+}, testInfo) => {
+  const problems: string[] = [];
+  page.on("pageerror", (error) => problems.push(`page error: ${error.message}`));
+  await openViewport(page);
+  const viewport = page.getByTestId("viewport");
+  const surface = page.getByTestId("viewport-surface");
+  const panel = page.getByTestId("side-panel");
+  const label = (key: string) => viewport.locator(`[data-testid="load-label"][data-load="${key}"]`);
+  const row = (id: string) => panel.locator(`[data-testid="load-row"][data-load="${id}"]`);
+  const value = (id: string, text: string) => message(id).replace("{value}", text);
+  // The portal frame example: its one load, 20 kN along X at n2, is drawn with its value.
+  await expect(panel.getByLabel(message("workspace.fixture.label"), { exact: true })).toHaveValue(
+    "portal",
+  );
+  await expect(surface).toHaveAttribute("data-loads", "1");
+  await expect(label("nl1:fx")).toHaveText(value("workspace.loads.valueKN", "20"));
+  await expect(panel.getByTestId("load-case")).toHaveCount(1);
+  await expect(panel.getByTestId("load-case")).toHaveAttribute("data-active", "true");
+  await viewport
+    .getByRole("button", { name: message("workspace.viewport.viewFront"), exact: true })
+    .click();
+
+  // The Load tool: 15 kN downward (-15 in Z), placed on the node n3 at (6, 0, 4).
+  const loadTool = viewport.getByRole("button", {
+    name: message("workspace.tools.load"),
+    exact: true,
+  });
+  await loadTool.click();
+  await expect(loadTool).toHaveAttribute("aria-pressed", "true");
+  await expect(surface).toHaveAttribute("data-tool", "load");
+  await expect(viewport.getByTestId("load-tool-component")).toHaveValue("fz");
+  await viewport.getByTestId("load-tool-value").fill("-15");
+  await viewport.getByTestId("load-tool-value").press("Enter");
+  const node = await movePointerTo(page, 6, 4);
+  await expect(surface).toHaveAttribute("data-hover", "node:n3");
+  await page.mouse.click(node.x, node.y);
+  await expect(surface).toHaveAttribute("data-loads", "2");
+  await expect(label("nl2:fz")).toHaveText(value("workspace.loads.valueKN", "15"));
+  await expect(label("nl2:fz")).toBeVisible();
+  // The node is selected, and the side panel lists the load: its component and its signed value.
+  await expect(panel.getByTestId("selection")).toContainText("n3");
+  const nodal = row("nl2");
+  await expect(nodal).toHaveCount(1);
+  await expect(nodal.getByTestId("load-component")).toHaveValue("fz");
+  await expect(nodal.getByTestId("load-value")).toHaveValue("-15");
+  await expect(panel.getByTestId("node-loads").getByTestId("load-row")).toHaveCount(1);
+  // A click of the Load tool away from every node adds nothing and says why.
+  const nowhere = await movePointerTo(page, 3, 2);
+  await page.mouse.click(nowhere.x, nowhere.y);
+  await expect(viewport.getByTestId("tool-notice")).toHaveText(
+    message("workspace.notice.needsNode"),
+  );
+  await expect(surface).toHaveAttribute("data-loads", "2");
+  await page.keyboard.press("Escape");
+  await expect(surface).toHaveAttribute("data-tool", "select");
+
+  // The beam b1, selected in the viewport as in the test above.
+  const box = await viewport.boundingBox();
+  if (box === null) {
+    throw new Error("the viewport area has no box");
+  }
+  const x = box.x + box.width / 2;
+  let y = box.y + 8;
+  for (; y < box.y + box.height / 2; y += 3) {
+    await page.mouse.move(x, y);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+    if ((await surface.getAttribute("data-hover")) === "member:b1") {
+      break;
+    }
+  }
+  await expect(surface).toHaveAttribute("data-hover", "member:b1");
+  await page.mouse.click(x, y);
+  await expect(panel.getByTestId("selection")).toContainText("b1");
+  const memberLoads = panel.getByTestId("member-loads");
+  await expect(memberLoads.getByTestId("load-list-empty")).toHaveText(
+    message("workspace.loads.none"),
+  );
+
+  // "Add uniform load": 12 kN/m downward in global axes.
+  await memberLoads
+    .getByRole("button", { name: message("workspace.loads.addUniform"), exact: true })
+    .click();
+  await expect(memberLoads.getByTestId("new-load-axes")).toHaveValue("global");
+  await expect(memberLoads.getByTestId("new-load-direction")).toHaveValue("z");
+  await memberLoads.getByTestId("new-load-value").fill("-12");
+  await memberLoads
+    .getByRole("button", { name: message("workspace.loads.add"), exact: true })
+    .click();
+  // It is read back from the list of the member's loads, and it is drawn.
+  const uniform = row("ul1");
+  await expect(uniform).toHaveCount(1);
+  await expect(uniform.getByTestId("load-axes")).toHaveValue("global");
+  await expect(uniform.getByTestId("load-direction")).toHaveValue("z");
+  await expect(uniform.getByTestId("load-value")).toHaveValue("-12");
+  await expect(memberLoads.getByTestId("new-load")).toHaveCount(0);
+  await expect(surface).toHaveAttribute("data-loads", "3");
+  await expect(label("ul1")).toHaveText(value("workspace.loads.valueKNPerM", "12"));
+  await expect(label("ul1")).toBeVisible();
+  await page.screenshot({ path: screenshotPath(testInfo, "smoke-loads") });
+
+  // A point load beyond the 6 m of the beam is refused with a message; the model keeps its three loads.
+  await memberLoads
+    .getByRole("button", { name: message("workspace.loads.addPoint"), exact: true })
+    .click();
+  await expect(memberLoads.getByTestId("new-load-length")).toHaveText(
+    message("workspace.loads.memberLength").replace("{length}", "6"),
+  );
+  await expect(memberLoads.getByTestId("new-load-position")).toHaveValue("3");
+  await memberLoads.getByTestId("new-load-position").fill("7");
+  await memberLoads
+    .getByRole("button", { name: message("workspace.loads.add"), exact: true })
+    .click();
+  await expect(viewport.getByTestId("tool-notice")).toHaveText(
+    message("workspace.notice.positionOutside"),
+  );
+  await expect(memberLoads.getByTestId("load-row")).toHaveCount(1);
+  await expect(surface).toHaveAttribute("data-loads", "3");
+  await memberLoads
+    .getByRole("button", { name: message("workspace.loads.cancel"), exact: true })
+    .click();
+
+  // An edit of the value in the list changes the label; Remove takes the load away and Undo brings it back.
+  await uniform.getByTestId("load-value").fill("-8");
+  await uniform.getByTestId("load-value").press("Enter");
+  await expect(label("ul1")).toHaveText(value("workspace.loads.valueKNPerM", "8"));
+  await expect(viewport.getByTestId("tool-notice")).toHaveCount(0);
+  await uniform.getByTestId("load-remove").click();
+  await expect(row("ul1")).toHaveCount(0);
+  await expect(surface).toHaveAttribute("data-loads", "2");
+  await viewport
+    .getByRole("button", { name: message("workspace.history.undo"), exact: true })
+    .click();
+  await expect(row("ul1").getByTestId("load-value")).toHaveValue("-8");
+  await expect(surface).toHaveAttribute("data-loads", "3");
   expect(problems).toEqual([]);
 });

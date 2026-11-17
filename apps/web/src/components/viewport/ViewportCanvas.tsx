@@ -20,8 +20,9 @@ import { ToolStatus } from "../tools/ToolStatus";
 import { useToolStore } from "../tools/toolStore";
 import { drawingBounds, emptyModelBounds, pointText, workPlaneGrid } from "../tools/workPlane";
 import { placeCamera, SCENE_UP, VIEW_DIRECTIONS, VIEW_FOV_DEG, type ViewPreset } from "./camera";
+import { createLabelLinks, LoadLabels, Loads } from "./LoadGlyphs";
 import { type CanvasColors, ModelScene } from "./ModelScene";
-import { buildScene, gridFor, type Point3, type SceneBounds } from "./scene";
+import { buildScene, gridFor, type Point3, roomForLoads, type SceneBounds } from "./scene";
 import { ToolLayer } from "./ToolLayer";
 import styles from "./Viewport.module.css";
 import { useViewportStore } from "./viewportStore";
@@ -47,6 +48,8 @@ function readPalette(): Palette {
     supportFill: token("--canvas-grid-major"),
     selection: token("--canvas-selection"),
     hover: token("--canvas-hover"),
+    // A colour of the data palette that neither the members, the supports nor the selection use.
+    load: token("--viz-case-E"),
     axes: [token("--viz-axis-x"), token("--viz-axis-y"), token("--viz-axis-z")],
   };
 }
@@ -155,16 +158,18 @@ function CameraRig({
 }
 
 /**
- * The element around the canvas. It shows a pointing hand over a node or a member and a crosshair with the Node
- * and the Member tool, and it says, for a test or a script, what the pointer and the tools are at:
+ * The element around the canvas. It shows a pointing hand over a node or a member and a crosshair with every
+ * tool but Select, and it says, for a test or a script, what the pointer and the tools are at:
  * - `data-hover`: the item under the pointer, as `member:b1` or `node:n2`, or empty;
- * - `data-tool`: the active tool, `select`, `node` or `member`;
- * - `data-cursor`: where the Node or Member tool would act, or where a dragged node would land, as `x,y,z` in
+ * - `data-tool`: the active tool, `select`, `node`, `member`, `support` or `load`;
+ * - `data-cursor`: where a tool other than Select would act, or where a dragged node would land, as `x,y,z` in
  *   metres (`pointText`), or empty;
  * - `data-member-start`: the id of the node the Member tool's next member starts at, or empty;
- * - `data-dragging`: the id of the node being dragged, or empty.
+ * - `data-dragging`: the id of the node being dragged, or empty;
+ * - `data-loads`: how many load symbols the scene draws (one per force, moment and uniform load of the active
+ *   load case).
  */
-function HoverSurface({ children }: { children: ReactNode }) {
+function HoverSurface({ children, loads }: { children: ReactNode; loads: number }) {
   const hover = useViewportStore((state) => state.hover);
   const tool = useToolStore((state) => state.tool);
   const cursor = useToolStore((state) => state.cursor);
@@ -178,6 +183,7 @@ function HoverSurface({ children }: { children: ReactNode }) {
       data-cursor={point ? pointText(point) : ""}
       data-dragging={drag ? drag.nodeId : ""}
       data-hover={hover ? `${hover.kind}:${hover.id}` : ""}
+      data-loads={loads}
       data-member-start={memberStart ?? ""}
       data-testid="viewport-surface"
       data-tool={tool}
@@ -194,30 +200,37 @@ const PRESETS: { preset: ViewPreset; label: string }[] = [
 ];
 
 /**
- * The 3D canvas of the viewport and its toolbar (the tool palette with the work plane and the snap step, Fit
- * and the three view presets), with the tools' status lines in the bottom left corner. Only ever rendered in the
+ * The 3D canvas of the viewport (the model and the loads of the active load case) and its toolbar (the tool
+ * palette with the active tool's options, the work plane and the snap step, Fit and the three view presets), with the tools' status lines in the bottom left corner. Only ever rendered in the
  * browser (Viewport.tsx). The canvas draws a frame when something changed (`frameloop="demand"`): the camera
  * moved, or React committed a change to the scene.
  */
 export default function ViewportCanvas({ model, frameKey }: { model: Model; frameKey: string }) {
-  const built = useMemo(() => buildScene(model), [model]);
+  // The loads drawn are those of the load case chosen in the side panel (the model's first by default).
+  const loadCaseId = useToolStore((state) => state.loadCaseId);
+  const built = useMemo(() => buildScene(model, loadCaseId), [model, loadCaseId]);
   const plane = useToolStore((state) => state.plane);
-  // The grids cover the model and the drawing area of an empty model; the camera frames the model, or that
-  // drawing area while the model has no node.
+  // The grids cover the model and the drawing area of an empty model; the camera frames the model (with room
+  // around it for the load symbols when the scene has any), or that drawing area while the model has no node.
   const { scene, planeGrid, frameBounds } = useMemo(() => {
     const hasNodes = built.nodes.length > 0;
     const covered = drawingBounds(built.bounds, hasNodes, plane);
     return {
       scene: { ...built, grid: gridFor(covered) },
       planeGrid: workPlaneGrid(plane, covered),
-      frameBounds: hasNodes ? built.bounds : emptyModelBounds(plane),
+      frameBounds: !hasNodes
+        ? emptyModelBounds(plane)
+        : built.loads.length > 0
+          ? roomForLoads(built.bounds)
+          : built.bounds,
     };
   }, [built, plane]);
   const [palette] = useState(readPalette);
   const rig = useRef<CameraRigHandle>(null);
+  const [labelLinks] = useState(createLabelLinks);
   return (
     <>
-      <HoverSurface>
+      <HoverSurface loads={scene.loads.length}>
         <Canvas
           // `SCENE_UP` makes the model's Z axis the screen's up for the camera and, through it, the controls.
           camera={{ fov: VIEW_FOV_DEG["3d"], up: [SCENE_UP[0], SCENE_UP[1], SCENE_UP[2]] }}
@@ -238,6 +251,7 @@ export default function ViewportCanvas({ model, frameKey }: { model: Model; fram
           <directionalLight intensity={2.2} position={[6, -10, 14]} />
           <CameraRig bounds={frameBounds} frameKey={frameKey} ref={rig} />
           <ModelScene colors={palette} scene={scene} workPlane={planeGrid} />
+          <Loads color={palette.load} links={labelLinks} loads={scene.loads} />
           <ToolLayer colors={palette} />
           <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
             <GizmoViewport
@@ -248,6 +262,7 @@ export default function ViewportCanvas({ model, frameKey }: { model: Model; fram
             />
           </GizmoHelper>
         </Canvas>
+        <LoadLabels links={labelLinks} loads={scene.loads} />
       </HoverSurface>
       <div className={styles.toolbar}>
         <ToolPalette />

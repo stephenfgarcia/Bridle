@@ -6,12 +6,13 @@
  * screen's up direction (./camera.ts, `SCENE_UP`).
  */
 import type { Member, Model, Support } from "@bridle/model";
+import { activeLoadCaseId, buildLoads, type DrawnLoad } from "./loads";
 
 /** A point or a vector as `[x, y, z]` in the model's global axes. */
 export type Point3 = readonly [number, number, number];
 
 /** The symbol a support is drawn with (`supportGlyph`). */
-export type SupportGlyph = "fixed" | "pinned" | "roller" | "generic";
+export type SupportGlyph = "fixed" | "pinned" | "roller" | "plane" | "generic";
 
 export interface DrawnNode {
   id: string;
@@ -59,6 +60,8 @@ export interface SceneDescription {
   nodes: DrawnNode[];
   members: DrawnMember[];
   supports: DrawnSupport[];
+  /** The loads of the active load case (./loads.ts). */
+  loads: DrawnLoad[];
   counts: SceneCounts;
   bounds: SceneBounds;
   grid: GridSpec;
@@ -75,17 +78,24 @@ export const GRID_MAX_CELLS = 200;
  * - `fixed`: the three translations and the three rotations are restrained;
  * - `pinned`: the three translations are restrained and at least one rotation is free;
  * - `roller`: the translation along Z is restrained, at least one of the translations along X and Y is free,
- *   and no rotation is restrained;
+ *   and of the rotations either none is restrained or exactly `rx` and `rz` are (a roller of a frame in an
+ *   X-Z plane that "Restrain out of plane" was applied to; `ry`, the rotation in that plane, is free);
+ * - `plane`: something is restrained, and only among `uy`, `rx` and `rz`: the restraints that hold a frame in
+ *   its X-Z plane and carry none of its in-plane loads. Drawn as a small mark, not as a support symbol;
  * - `generic`: any other combination.
  */
 export function supportGlyph(support: Support): SupportGlyph {
-  const translations = support.ux && support.uy && support.uz;
-  const rotations = [support.rx, support.ry, support.rz].filter(Boolean).length;
+  const { ux, uy, uz, rx, ry, rz } = support;
+  const translations = ux && uy && uz;
+  const rotations = [rx, ry, rz].filter(Boolean).length;
   if (translations) {
     return rotations === 3 ? "fixed" : "pinned";
   }
-  if (support.uz && rotations === 0) {
+  if (uz && (rotations === 0 || (rotations === 2 && rx && rz))) {
     return "roller";
+  }
+  if (!ux && !uz && !ry && (uy || rx || rz)) {
+    return "plane";
   }
   return "generic";
 }
@@ -106,6 +116,28 @@ function boundsOf(points: readonly Point3[]): SceneBounds {
     min,
     max,
     center: [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2],
+  };
+}
+
+/** `roomForLoads` widens a box by this fraction of its largest dimension, on every side. */
+export const LOAD_ROOM_RATIO = 0.12;
+
+/**
+ * The box the camera frames for a model that has loads drawn: `bounds` widened on every side by
+ * `LOAD_ROOM_RATIO` of its largest dimension, so that arrows and their values around the model have room in
+ * the picture. The centre stays; a box without extent stays as it is.
+ */
+export function roomForLoads(bounds: SceneBounds): SceneBounds {
+  const room =
+    Math.max(
+      bounds.max[0] - bounds.min[0],
+      bounds.max[1] - bounds.min[1],
+      bounds.max[2] - bounds.min[2],
+    ) * LOAD_ROOM_RATIO;
+  return {
+    min: [bounds.min[0] - room, bounds.min[1] - room, bounds.min[2] - room],
+    max: [bounds.max[0] + room, bounds.max[1] + room, bounds.max[2] + room],
+    center: bounds.center,
   };
 }
 
@@ -168,10 +200,12 @@ export function gridLines(grid: GridSpec): { minor: number[]; major: number[] } 
  *   node, the first.
  * - `counts` are the lengths of the model's lists, so they also count an entry that is not drawn.
  * - `bounds` is the box around the drawn nodes (the origin for a model without one).
+ * - `loads` are the loads of one load case, as `buildLoads` of ./loads.ts draws them: the load case with the
+ *   id `loadCaseId` when the model holds it, else the model's first load case (`activeLoadCaseId`).
  *
  * The model is not validated here and is not changed.
  */
-export function buildScene(model: Model): SceneDescription {
+export function buildScene(model: Model, loadCaseId: string | null = null): SceneDescription {
   const nodes: DrawnNode[] = [];
   const positions = new Map<string, Point3>();
   for (const node of model.nodes) {
@@ -207,6 +241,7 @@ export function buildScene(model: Model): SceneDescription {
     nodes,
     members,
     supports,
+    loads: buildLoads(model, activeLoadCaseId(model, loadCaseId)),
     counts: {
       nodes: model.nodes.length,
       members: model.members.length,

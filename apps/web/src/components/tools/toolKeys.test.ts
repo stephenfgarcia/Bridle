@@ -12,8 +12,10 @@ const key = (k: string, extra: Record<string, unknown> = {}) => ({
 });
 
 describe("toolKeyAction", () => {
-  it("has one key per tool: V, N and M, in either case", () => {
-    expect(TOOL_KEYS).toEqual({ select: "V", node: "N", member: "M" });
+  it("has one key per tool: V, N, M, S and L, in either case", () => {
+    expect(TOOL_KEYS).toEqual({ select: "V", node: "N", member: "M", support: "S", load: "L" });
+    expect(toolKeyAction(key("s"))).toEqual({ type: "tool", tool: "support" });
+    expect(toolKeyAction(key("L"))).toEqual({ type: "tool", tool: "load" });
     expect(toolKeyAction(key("v"))).toEqual({ type: "tool", tool: "select" });
     expect(toolKeyAction(key("V"))).toEqual({ type: "tool", tool: "select" });
     expect(toolKeyAction(key("n"))).toEqual({ type: "tool", tool: "node" });

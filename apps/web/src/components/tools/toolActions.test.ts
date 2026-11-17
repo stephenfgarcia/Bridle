@@ -6,14 +6,19 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { selectCanRedo, selectCanUndo, selectModel, useModelStore } from "../model/modelStore";
 import { useViewportStore } from "../viewport/viewportStore";
 import { NEW_MODEL_SOURCE, newModel } from "./newModel";
+import { DEFAULT_LOAD_FORM, DEFAULT_SUPPORT_CHOICE } from "./supportLoadTools";
 import {
+  addLoadCaseAction,
   chooseTool,
   deleteSelection,
+  editLoad,
   escapeTool,
   hasChanges,
   loadModel,
   moveNodeAction,
+  restrainOutOfPlaneAction,
   runToolKey,
+  setRestraintAction,
   startNewModel,
   toolClick,
   toolDoubleClick,
@@ -44,6 +49,9 @@ beforeEach(() => {
     cursorProblem: null,
     drag: null,
     notice: null,
+    supportChoice: DEFAULT_SUPPORT_CHOICE,
+    loadForm: DEFAULT_LOAD_FORM,
+    loadCaseId: null,
   });
 });
 
@@ -310,5 +318,233 @@ describe("loading a model and New model", () => {
     expect(counts()).toEqual([0, 0]);
     expect(model().sections).toHaveLength(1);
     expect(model().materials).toHaveLength(1);
+  });
+});
+
+describe("the Support tool on the stores (card PX-02.5)", () => {
+  const held = (nodeId: string) => model().supports.find((support) => support.nodeId === nodeId);
+
+  it("a click on a node sets the chosen support as one undo step and selects the node", () => {
+    runToolKey({ type: "tool", tool: "support" });
+    expect(tools().tool).toBe("support");
+    tools().setSupportChoice("pinned");
+    toolClick(at(0, 0, 4, "n2"));
+    expect(held("n2")).toEqual({
+      nodeId: "n2",
+      ux: true,
+      uy: true,
+      uz: true,
+      rx: false,
+      ry: false,
+      rz: false,
+    });
+    expect(steps()).toBe(1);
+    expect(selection()).toEqual({ kind: "node", id: "n2" });
+    expect(tools().notice).toBeNull();
+    useModelStore.getState().undo();
+    expect(model()).toEqual(portalFrame());
+  });
+
+  it("a click on a node that has the same support removes it, as one undo step", () => {
+    chooseTool("support");
+    expect(tools().supportChoice).toBe("fixed");
+    toolClick(at(0, 0, 0, "n1"));
+    expect(held("n1")).toBeUndefined();
+    expect(model().supports).toHaveLength(1);
+    expect(steps()).toBe(1);
+    toolClick(at(0, 0, 0, "n1"));
+    expect(held("n1")?.rz).toBe(true);
+    expect(steps()).toBe(2);
+  });
+
+  it("a click away from a node leaves the model and the undo steps and shows a notice", () => {
+    chooseTool("support");
+    const before = model();
+    toolClick(at(3, 0, 2));
+    expect(model()).toBe(before);
+    expect(steps()).toBe(0);
+    expect(tools().notice).toBe("needs-node");
+    expect(selection()).toBeNull();
+    // The next click that works clears the notice.
+    toolClick(at(6, 0, 4, "n3"));
+    expect(tools().notice).toBeNull();
+  });
+
+  it("a checkbox of the side panel sets one restraint as one undo step", () => {
+    expect(setRestraintAction("n2", "uz", true)).toBe(true);
+    expect(held("n2")).toMatchObject({ ux: false, uz: true, ry: false });
+    expect(steps()).toBe(1);
+    expect(setRestraintAction("n1", "ry", false)).toBe(true);
+    expect(held("n1")).toMatchObject({ ux: true, ry: false, rz: true });
+    expect(steps()).toBe(2);
+    // Clearing the last restraint removes the support.
+    expect(setRestraintAction("n2", "uz", false)).toBe(true);
+    expect(held("n2")).toBeUndefined();
+    // A node the model does not hold: refused, with the notice.
+    const before = model();
+    expect(setRestraintAction("gone", "ux", true)).toBe(false);
+    expect(model()).toBe(before);
+    expect(tools().notice).toBe("refused");
+  });
+});
+
+describe("Restrain out of plane on the stores", () => {
+  it("is one undo step, and one undo takes it all back", () => {
+    const result = restrainOutOfPlaneAction();
+    expect(result.outcome).toBe("done");
+    expect(result.changed).toBe(2);
+    expect(result.model).toBe(model());
+    expect(model().supports).toHaveLength(4);
+    expect(steps()).toBe(1);
+    useModelStore.getState().undo();
+    expect(model()).toEqual(portalFrame());
+  });
+
+  it("a refusal records no step and returns the model as it was", () => {
+    useModelStore.getState().moveNode({ id: "n3", x: 6, y: 1, z: 4 });
+    const before = model();
+    const result = restrainOutOfPlaneAction();
+    expect(result.outcome).toBe("not-planar");
+    expect(result.model).toBe(before);
+    expect(model()).toBe(before);
+    expect(steps()).toBe(1);
+  });
+});
+
+describe("the Load tool on the stores", () => {
+  it("a click on a node adds the form's load as one undo step and selects the node", () => {
+    runToolKey({ type: "tool", tool: "load" });
+    expect(tools().tool).toBe("load");
+    tools().setLoadForm({ value: -25 });
+    expect(tools().loadForm).toEqual({ kind: "force", direction: "z", value: -25 });
+    toolClick(at(6, 0, 4, "n3"));
+    expect(model().nodalLoads).toHaveLength(2);
+    expect(model().nodalLoads[1]).toMatchObject({
+      id: "nl2",
+      nodeId: "n3",
+      loadCaseId: "lc1",
+      fz: -25,
+    });
+    expect(steps()).toBe(1);
+    expect(selection()).toEqual({ kind: "node", id: "n3" });
+    useModelStore.getState().undo();
+    expect(model()).toEqual(portalFrame());
+  });
+
+  it("the load goes into the active load case", () => {
+    const id = addLoadCaseAction({ name: "Wind" });
+    expect(id).toBe("lc2");
+    expect(tools().loadCaseId).toBe("lc2");
+    chooseTool("load");
+    tools().setLoadForm({ kind: "moment", direction: "y", value: 15 });
+    toolClick(at(0, 0, 4, "n2"));
+    expect(model().nodalLoads[1]).toMatchObject({ loadCaseId: "lc2", nodeId: "n2", my: 15, fz: 0 });
+    // The chosen load case was undone away: the next load goes into the model's first.
+    useModelStore.getState().undo();
+    useModelStore.getState().undo();
+    expect(model().loadCases).toHaveLength(1);
+    toolClick(at(0, 0, 4, "n2"));
+    expect(model().nodalLoads[1]).toMatchObject({ loadCaseId: "lc1", my: 15 });
+  });
+
+  it("a click away from a node, and a model without a load case, change nothing and show a notice", () => {
+    chooseTool("load");
+    const before = model();
+    toolClick(at(3, 0, 2));
+    expect(model()).toBe(before);
+    expect(steps()).toBe(0);
+    expect(tools().notice).toBe("needs-node");
+    useModelStore.getState().replaceModel({ ...portalFrame(), loadCases: [], nodalLoads: [] }, "x");
+    const bare = model();
+    toolClick(at(0, 0, 4, "n2"));
+    expect(model()).toBe(bare);
+    expect(tools().notice).toBe("no-load-case");
+    expect(selection()).toBeNull();
+  });
+
+  it("another model drops the chosen load case and keeps the form and the support choice", () => {
+    addLoadCaseAction({ name: "Wind" });
+    tools().setLoadForm({ value: 7 });
+    tools().setSupportChoice("roller");
+    loadModel(portalFrame(), "portal");
+    expect(tools().loadCaseId).toBeNull();
+    expect(tools().loadForm.value).toBe(7);
+    expect(tools().supportChoice).toBe("roller");
+  });
+});
+
+describe("load edits from the side panel", () => {
+  it("adds, changes and removes member loads, one undo step each, clearing the notice", () => {
+    tools().setNotice("refused");
+    expect(
+      editLoad((store) =>
+        store.addMemberUniformLoad({ memberId: "b1", loadCaseId: "lc1", value: -12 }),
+      ),
+    ).toBe(true);
+    expect(tools().notice).toBeNull();
+    expect(model().memberUniformLoads).toEqual([
+      { id: "ul1", loadCaseId: "lc1", memberId: "b1", axes: "global", direction: "z", value: -12 },
+    ]);
+    expect(
+      editLoad((store) =>
+        store.addMemberPointLoad({ memberId: "b1", loadCaseId: "lc1", value: -30, position: 4.5 }),
+      ),
+    ).toBe(true);
+    expect(
+      editLoad((store) => store.updateMemberUniformLoad({ id: "ul1", axes: "local", value: -8 })),
+    ).toBe(true);
+    expect(model().memberUniformLoads[0]).toMatchObject({ axes: "local", value: -8 });
+    expect(editLoad((store) => store.updateMemberPointLoad({ id: "pl1", position: 2 }))).toBe(true);
+    expect(model().memberPointLoads[0]?.position).toBe(2);
+    expect(steps()).toBe(4);
+    expect(editLoad((store) => store.removeMemberUniformLoad({ id: "ul1" }))).toBe(true);
+    expect(editLoad((store) => store.removeMemberPointLoad({ id: "pl1" }))).toBe(true);
+    expect(editLoad((store) => store.removeNodalLoad({ id: "nl1" }))).toBe(true);
+    expect(steps()).toBe(7);
+    expect(model().nodalLoads).toEqual([]);
+  });
+
+  it("a point load outside its member is refused: the model stays and the notice says why", () => {
+    const before = model();
+    expect(
+      editLoad(
+        (store) =>
+          store.addMemberPointLoad({
+            memberId: "b1",
+            loadCaseId: "lc1",
+            value: -30,
+            position: 6.5,
+          }),
+        "position-outside",
+      ),
+    ).toBe(false);
+    expect(model()).toBe(before);
+    expect(steps()).toBe(0);
+    expect(tools().notice).toBe("position-outside");
+    editLoad((store) =>
+      store.addMemberPointLoad({ memberId: "b1", loadCaseId: "lc1", value: -30, position: 3 }),
+    );
+    expect(tools().notice).toBeNull();
+    const added = model();
+    expect(
+      editLoad(
+        (store) => store.updateMemberPointLoad({ id: "pl1", position: -1 }),
+        "position-outside",
+      ),
+    ).toBe(false);
+    expect(model()).toBe(added);
+    expect(tools().notice).toBe("position-outside");
+  });
+
+  it("any other refusal shows the general notice", () => {
+    const before = model();
+    expect(editLoad((store) => store.updateNodalLoad({ id: "gone", fx: 1 }))).toBe(false);
+    expect(editLoad((store) => store.removeNodalLoad({ id: "gone" }))).toBe(false);
+    expect(editLoad((store) => store.addMemberUniformLoad({ memberId: "gone", value: 1 }))).toBe(
+      false,
+    );
+    expect(model()).toBe(before);
+    expect(steps()).toBe(0);
+    expect(tools().notice).toBe("refused");
   });
 });

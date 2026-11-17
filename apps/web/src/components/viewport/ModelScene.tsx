@@ -47,6 +47,8 @@ export interface CanvasColors {
   supportFill: string;
   selection: string;
   hover: string;
+  /** The arrows of the loads (./LoadGlyphs.tsx). */
+  load: string;
 }
 
 // Sizes on screen, in CSS pixels. Members are drawn as lines of a fixed width; node markers and support glyphs
@@ -56,6 +58,9 @@ const MEMBER_HIGHLIGHT_PX = 5;
 const NODE_PX = 10;
 const NODE_HIGHLIGHT_PX = 15;
 const GLYPH_PX = 34;
+// The mark of a `plane` support (out-of-plane restraints only) is this fraction of a glyph: a small diamond
+// around the node marker, 16 px across at the glyph size above.
+const PLANE_MARK_SCALE = 0.42;
 // A click is a press and a release at most this many pixels apart; a longer one was a drag of the camera.
 export const CLICK_SLOP_PX = 2;
 
@@ -419,7 +424,9 @@ function Part({
 /**
  * The symbol of one support: a block for `fixed`, a pyramid on a plate for `pinned` (a triangle on a line, seen
  * from the front), a pyramid on two rollers on a plate for `roller`, the edges of an octahedron around the node
- * for `generic`. The symbol always points down; it does not show which direction a roller leaves free.
+ * for `generic`, and for `plane` (a node held out of its X-Z plane only) the same edges much smaller and in
+ * the node colour, so that it does not read as a support that carries load. The symbol always points down; it
+ * does not show which direction a roller leaves free.
  */
 function Glyph({ kind, style }: { kind: SupportGlyph; style: GlyphStyle }) {
   if (kind === "fixed") {
@@ -445,6 +452,17 @@ function Glyph({ kind, style }: { kind: SupportGlyph; style: GlyphStyle }) {
           z={-ROLLER_HEIGHT - 2 * ROLLER_RADIUS - PLATE_THICKNESS / 2}
         />
       </>
+    );
+  }
+  if (kind === "plane") {
+    return (
+      <lineSegments
+        geometry={style.geometries.generic}
+        raycast={noRaycast}
+        scale={PLANE_MARK_SCALE}
+      >
+        <lineBasicMaterial color={style.colors.node} />
+      </lineSegments>
     );
   }
   return (

@@ -3,7 +3,9 @@
 // viewport (../viewport/ToolLayer.tsx), the key handler of the workspace and the buttons call these; they are
 // tested against the application's stores without a browser (./toolActions.test.ts).
 import type { Model } from "@bridle/model";
-import { selectCanUndo, selectModel, useModelStore } from "../model/modelStore";
+import type * as commands from "../model/commands";
+import { type ModelState, selectCanUndo, selectModel, useModelStore } from "../model/modelStore";
+import { activeLoadCaseId } from "../viewport/loads";
 import type { Point3 } from "../viewport/scene";
 import { useViewportStore } from "../viewport/viewportStore";
 import {
@@ -13,8 +15,17 @@ import {
   moveNodeTo,
   type NodeToolResult,
   nodeToolClick,
+  type ToolNotice,
 } from "./drawTools";
 import { NEW_MODEL_SOURCE, newModel } from "./newModel";
+import {
+  loadToolClick,
+  type OutOfPlaneResult,
+  type RestraintKey,
+  restrainOutOfPlane,
+  supportToolClick,
+  withRestraint,
+} from "./supportLoadTools";
 import type { ToolKeyAction } from "./toolKeys";
 import { type Tool, useToolStore } from "./toolStore";
 import type { ToolCursor } from "./workPlane";
@@ -44,7 +55,10 @@ function memberEvent(event: MemberToolEvent): MemberToolResult {
 /**
  * A click of the active tool at a cursor. Node tool: places a node (one undo step) or finds the one that is
  * there, and selects it. Member tool: one step of `memberToolStep` (a member with a node it needed is one undo
- * step). Select tool: nothing; the viewport's own handlers select.
+ * step). Support tool: sets, replaces or removes the support of the node at the cursor (`supportToolClick`).
+ * Load tool: adds the form's nodal load to that node, in the active load case (`loadToolClick`). Both are one
+ * undo step, select the node they acted on, and leave a notice when they changed nothing. Select tool: nothing;
+ * the viewport's own handlers select.
  */
 export function toolClick(cursor: ToolCursor): void {
   const tools = useToolStore.getState();
@@ -56,7 +70,84 @@ export function toolClick(cursor: ToolCursor): void {
     }
   } else if (tools.tool === "member") {
     memberEvent({ type: "click", cursor });
+  } else if (tools.tool === "support" || tools.tool === "load") {
+    const result = run((model) =>
+      tools.tool === "support"
+        ? supportToolClick(model, cursor, tools.supportChoice)
+        : loadToolClick(model, cursor, tools.loadForm, activeLoadCaseId(model, tools.loadCaseId)),
+    );
+    tools.setNotice(result.notice);
+    if (result.nodeId !== null && result.notice === null) {
+      useViewportStore.getState().select({ kind: "node", id: result.nodeId });
+    }
   }
+}
+
+/**
+ * Sets or clears one restraint of a node (a checkbox of the side panel) as one undo step; clearing the last
+ * one removes the support. `false`, with the notice `refused`, when the model did not change.
+ */
+export function setRestraintAction(
+  nodeId: string,
+  key: RestraintKey,
+  restrained: boolean,
+): boolean {
+  const changed = useModelStore
+    .getState()
+    .apply((model) => withRestraint(model, nodeId, key, restrained));
+  useToolStore.getState().setNotice(changed ? null : "refused");
+  return changed;
+}
+
+/**
+ * "Restrain out of plane" (`restrainOutOfPlane`) on the model of the store, as one undo step. It returns the
+ * outcome with the model the store then holds; a refusal leaves the store as it was.
+ */
+export function restrainOutOfPlaneAction(): OutOfPlaneResult {
+  const result = run((model) => restrainOutOfPlane(model));
+  useToolStore.getState().setNotice(null);
+  return result;
+}
+
+/** The model store's actions that edit a load or a load case. */
+type LoadEdits = Pick<
+  ModelState,
+  | "addNodalLoad"
+  | "updateNodalLoad"
+  | "removeNodalLoad"
+  | "addMemberUniformLoad"
+  | "updateMemberUniformLoad"
+  | "removeMemberUniformLoad"
+  | "addMemberPointLoad"
+  | "updateMemberPointLoad"
+  | "removeMemberPointLoad"
+>;
+
+/**
+ * Runs one load action of the model store from the side panel (one undo step). When the store refuses, the
+ * model is unchanged and the viewport shows `refusal` as the notice; when it does not, the notice is cleared.
+ * Returns whether the model changed.
+ */
+export function editLoad(
+  edit: (store: LoadEdits) => boolean | string | null,
+  refusal: ToolNotice = "refused",
+): boolean {
+  const result = edit(useModelStore.getState());
+  const changed = result !== false && result !== null;
+  useToolStore.getState().setNotice(changed ? null : refusal);
+  return changed;
+}
+
+/**
+ * Adds a load case with a name and makes it the active one (one undo step; an undo leaves the active load
+ * case to fall back to the model's first). Returns the new id.
+ */
+export function addLoadCaseAction(args: commands.AddLoadCaseArgs): string | null {
+  const id = useModelStore.getState().addLoadCase(args);
+  if (id !== null) {
+    useToolStore.getState().setLoadCaseId(id);
+  }
+  return id;
 }
 
 /** A double click in the viewport: with the Member tool, the chain of members ends; the tool stays. */
@@ -122,8 +213,9 @@ export function runToolKey(action: ToolKeyAction): void {
 }
 
 /**
- * Loads another model into the model store: the undo steps, the selection, the hover, a member in progress
- * and the notice are dropped; the tool, the work plane and the snap step stay.
+ * Loads another model into the model store: the undo steps, the selection, the hover, a member in progress,
+ * the notice and the chosen load case are dropped; the tool, its settings, the work plane and the snap step
+ * stay.
  */
 export function loadModel(model: Model, source: string): void {
   useViewportStore.getState().select(null);

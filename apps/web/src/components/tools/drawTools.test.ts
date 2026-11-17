@@ -306,6 +306,24 @@ describe("toolPreview", () => {
     });
   });
 
+  it("is the marker on a node only for the Support and the Load tool", () => {
+    for (const tool of ["support", "load"] as const) {
+      expect(toolPreview({ ...idle, tool, cursor: at(0, 0, 4, "n2") }, model)).toEqual({
+        marker: [0, 0, 4],
+        segments: [],
+      });
+      expect(toolPreview({ ...idle, tool, cursor: at(1, 0, 2) }, model)).toEqual({
+        marker: null,
+        segments: [],
+      });
+      // No line, whatever the start node says.
+      expect(
+        toolPreview({ ...idle, tool, cursor: at(0, 0, 4, "n2"), memberStart: "n1" }, model)
+          .segments,
+      ).toEqual([]);
+    }
+  });
+
   it("is the marker at the cursor for the Node tool and for the Member tool before its first click", () => {
     for (const tool of ["node", "member"] as const) {
       expect(toolPreview({ ...idle, tool, cursor: at(1, 0, 2) }, model)).toEqual({

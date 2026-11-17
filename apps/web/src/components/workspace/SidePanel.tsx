@@ -1,17 +1,29 @@
 "use client";
 
-import type { Model, ModelIssue, Node as ModelNode } from "@bridle/model";
+import { distance, type Model, type ModelIssue, type Node as ModelNode } from "@bridle/model";
 import { type ReactNode, useId } from "react";
 import { t } from "../../i18n";
 import { ISSUE_MESSAGE } from "../model/issueMessages";
 import { NumberField } from "../tools/NumberField";
 import { deleteSelection, moveNodeAction } from "../tools/toolActions";
+import { formatCoordinate } from "../tools/workPlane";
 import { type ItemRef, useViewportStore } from "../viewport/viewportStore";
+import { LoadCases, MemberLoads, NodeLoads } from "./LoadPanels";
+import { NodeSupport, PlanarHelper } from "./SupportPanels";
 import styles from "./WorkspaceView.module.css";
+
+/** The length of a member in m; `undefined` when the model does not hold it or one of its nodes. */
+function memberLength(model: Model, memberId: string): number | undefined {
+  const member = model.members.find((candidate) => candidate.id === memberId);
+  const start = member && model.nodes.find((node) => node.id === member.startNodeId);
+  const end = member && model.nodes.find((node) => node.id === member.endNodeId);
+  return start && end ? distance(start, end) : undefined;
+}
 
 /**
  * The read-only rows of the selected item, as label and value; `undefined` when the model does not hold it.
- * A node's coordinates are not among them: they are the fields of `NodeCoordinates`.
+ * A node's coordinates are not among them: they are the fields of `NodeCoordinates`. A member's rows include
+ * its length when both of its nodes are in the model.
  */
 function selectionRows(model: Model, selection: ItemRef | null): [string, string][] | undefined {
   if (selection?.kind === "node") {
@@ -32,7 +44,8 @@ function selectionRows(model: Model, selection: ItemRef | null): [string, string
       const found = list.find((candidate) => candidate.id === id);
       return found ? t("workspace.selection.named", { name: found.name, id }) : id;
     };
-    return [
+    const length = memberLength(model, member.id);
+    const rows: [string, string][] = [
       [t("workspace.selection.kind"), t("workspace.selection.kindMember")],
       [t("workspace.selection.id"), member.id],
       [t("workspace.selection.start"), member.startNodeId],
@@ -40,6 +53,10 @@ function selectionRows(model: Model, selection: ItemRef | null): [string, string
       [t("workspace.selection.section"), named(model.sections, member.sectionId)],
       [t("workspace.selection.material"), named(model.materials, member.materialId)],
     ];
+    if (length !== undefined) {
+      rows.splice(4, 0, [t("workspace.selection.length"), formatCoordinate(length)]);
+    }
+    return rows;
   }
   return undefined;
 }
@@ -84,13 +101,12 @@ function NodeCoordinates({ node }: { node: ModelNode }) {
 }
 
 /**
- * The issues of the model, under the counts: "No issues", or their number and one entry per issue with its
- * message from the catalog, the ids it concerns and, where the issue has one, its place in the model.
+ * The Issues section: "No issues", or their number and one entry per issue with its message from the catalog,
+ * the ids it concerns and, where the issue has one, its place in the model.
  */
 function Issues({ issues }: { issues: ModelIssue[] }) {
   return (
     <div className={styles.issues}>
-      <h3 className={styles.blockTitle}>{t("workspace.issues.title")}</h3>
       <p
         className={issues.length === 0 ? styles.issuesNone : styles.issuesSome}
         data-testid="issues-status"
@@ -121,10 +137,15 @@ function Issues({ issues }: { issues: ModelIssue[] }) {
 }
 
 /**
- * The side panel of the workspace: the model on screen (the "New model" button and the example switch, the
- * counts of its nodes, members and supports, and its issues) and the item selected in the viewport: its
- * read-only rows, for a node the fields of its X, Y and Z, and a Delete button that removes the node or the
- * member with what depends on it as one undo step.
+ * The side panel of the workspace, in four sections:
+ * - Model: the "New model" button and the example switch, the counts of the nodes, members and supports, and
+ *   "Restrain out of plane";
+ * - Loads: the load cases with the number of their loads, the choice of the active one, "Add load case";
+ * - Issues: what `validateModel` reports;
+ * - Properties: the item selected in the viewport. Its read-only rows; for a node the fields of its X, Y and
+ *   Z, the six checkboxes of its support and its nodal loads; for a member its loads and the two buttons that
+ *   open the forms of a new uniform or point load; and a Delete button that removes the node or the member
+ *   with what depends on it as one undo step. The lists show the loads of the active load case.
  */
 export function SidePanel({
   model,
@@ -140,6 +161,10 @@ export function SidePanel({
   const selectedNode =
     selection?.kind === "node"
       ? model.nodes.find((candidate) => candidate.id === selection.id)
+      : undefined;
+  const selectedMember =
+    selection?.kind === "member"
+      ? model.members.find((candidate) => candidate.id === selection.id)
       : undefined;
   const counts: [string, string, number][] = [
     ["count-nodes", t("workspace.counts.nodes"), model.nodes.length],
@@ -165,6 +190,22 @@ export function SidePanel({
             </div>
           ))}
         </dl>
+        <PlanarHelper model={model} />
+      </section>
+      <section
+        aria-labelledby="workspace-loads-title"
+        className={styles.block}
+        data-testid="loads-section"
+      >
+        <h2 className={styles.blockTitle} id="workspace-loads-title">
+          {t("workspace.loadCases.title")}
+        </h2>
+        <LoadCases model={model} />
+      </section>
+      <section aria-labelledby="workspace-issues-title" className={styles.block}>
+        <h2 className={styles.blockTitle} id="workspace-issues-title">
+          {t("workspace.issues.title")}
+        </h2>
         <Issues issues={issues} />
       </section>
       <section aria-labelledby="workspace-panel-title" aria-live="polite" className={styles.block}>
@@ -181,7 +222,21 @@ export function SidePanel({
                 </div>
               ))}
             </dl>
-            {selectedNode ? <NodeCoordinates node={selectedNode} /> : null}
+            {selectedNode ? (
+              <>
+                <NodeCoordinates node={selectedNode} />
+                <NodeSupport model={model} nodeId={selectedNode.id} />
+                <NodeLoads model={model} nodeId={selectedNode.id} />
+              </>
+            ) : null}
+            {selectedMember ? (
+              <MemberLoads
+                key={selectedMember.id}
+                length={memberLength(model, selectedMember.id)}
+                memberId={selectedMember.id}
+                model={model}
+              />
+            ) : null}
             <button
               className={styles.danger}
               data-testid="delete-selection"

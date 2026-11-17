@@ -77,8 +77,8 @@ function setSegments(line: LineSegments2, positions: number[]) {
  * and the preview lines. The geometry and the tools' rules are pure functions of ../tools; this file gives
  * them the camera's ray and the nodes' places on screen.
  *
- * - Node and Member tool: the cursor follows the pointer (a node within reach of the pointer, else the snapped
- *   point of the work plane); a press and release at most `CLICK_SLOP_PX` apart is a click of the tool, and
+ * - Every tool but Select (Node, Member, Support, Load): the cursor follows the pointer (a node within
+ *   reach of the pointer, else the snapped point of the work plane); a press and release at most `CLICK_SLOP_PX` apart is a click of the tool, and
  *   a longer one is left to the orbit controls.
  * - Select tool: a press on the selected node (without Shift, Ctrl or the Command key) switches the orbit
  *   controls off until the release; once the pointer has moved more than `CLICK_SLOP_PX`, the node follows
