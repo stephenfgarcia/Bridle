@@ -8,6 +8,10 @@
  * Card S6: the values along a member (./memberValues.ts): internal actions, deflections, extremes
  * and the deflected shape.
  *
+ * Card S8: the illustrative member checks (./memberChecks.ts): the elastic normal stress against
+ * the yield strength, the deflection against span/n and the drift against height/n. They are not
+ * the checks of a design code.
+ *
  * Card S9: the messages, the handler and the client for running `solve` in a worker. The worker
  * entry is not exported here: it is `@bridle/solver/worker` (./worker.ts), and the client is also
  * `@bridle/solver/client` (./client.ts), which does not import the solver's code.
@@ -58,6 +62,31 @@ export {
   transpose,
   zeros,
 } from "./matrix";
+export {
+  COLLINEAR_TOLERANCE,
+  DEFAULT_ALLOWABLE_FACTOR,
+  DEFAULT_DEFLECTION_DIVISOR,
+  DEFAULT_DRIFT_DIVISOR,
+  type DeflectionCheck,
+  type DriftCheck,
+  type GoverningRatio,
+  governingChecks,
+  type MemberCheck,
+  type MemberCheckOptions,
+  type MemberChecks,
+  MIN_CHECK_STATIONS,
+  memberChecks,
+  NOT_CHECKED,
+  type NotChecked,
+  type SkippedReason,
+  type SpanDeflection,
+  type SpanDeflectionRefusal,
+  type StressAtCorner,
+  type StressCheck,
+  type StructureChecks,
+  spanDeflection,
+  structureChecks,
+} from "./memberChecks";
 export {
   equivalentNodalLoadsLocal,
   isMemberPointLoad,

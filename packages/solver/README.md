@@ -10,6 +10,10 @@ Card S6 added the values along a member ("Values along a member" below): `member
 shears, torque, bending moments and deflection at stations along a member with their extreme values, and
 `deflectedShape`, the deflected structure as polylines for drawing.
 
+Card S8 added the illustrative member checks ("Illustrative member checks" below): `memberChecks`,
+`structureChecks`, `governingChecks` and `spanDeflection`. They compare an elastic normal stress with the
+yield strength, a deflection with span/n and a drift with height/n. They are not the checks of a design code.
+
 Not yet: truss members and member end releases (card S5). `solve` refuses
 a model that has a truss member or an end release. A uniform load covers the whole member; there are no
 partial-length distributed loads, no moments applied along a member and no load combinations.
@@ -728,6 +732,257 @@ v22.23.4, on 2026-11-18, inside the test runner. The test suite asserts only a l
 in under 1 second. Each call of `memberValues` searches the model's lists of members, nodes, sections,
 materials and member loads; `deflectedShape` indexes them once per call.
 
+### Illustrative member checks
+
+Card S8, `src/memberChecks.ts`. Pure functions that take the model and what `solve` returned for it and
+return plain data (strings, numbers, booleans, `null`, plain objects and arrays). They compute from
+`memberValues` and from the node displacements of the result. None changes its arguments or keeps state;
+none checks that `result` is the result of that `model`.
+
+**These are not the checks of a design code.** They answer "how hard is each member working" with three
+simple ratios. No design code is the basis of a limit: the allowable factor and the two divisors are
+parameters of the caller with the defaults named below. Every result carries `kind: "illustrative"`.
+
+- `memberChecks(model, result, loadCaseId, options?)`: the three checks for every member.
+- `governingChecks(checks)`: the member with the largest ratio of each kind, from a `memberChecks` result.
+- `structureChecks(model, result, loadCaseId, options?)`: `governingChecks(memberChecks(...))`.
+- `spanDeflection(model, result, loadCaseId, memberIds, divisor = 360, stations = 21)`: the deflection of a
+  beam made of several members in one line.
+
+```ts
+const result = solve(model);
+const checks = memberChecks(model, result, "lc1", { allowableFactor: 1, deflectionDivisor: 360 });
+if (checks) {
+  checks.kind; // "illustrative"
+  checks.notChecked; // ["member-buckling", "plate-buckling", ...]: what these checks leave out
+  for (const member of checks.members) {
+    member.stress.ratio; // largest |σ| / (fy · allowableFactor)
+    member.stress.tension.value; // kN/m²; divide by 1000 for MPa
+    member.deflection?.ratio; // a member that is not vertical
+    member.drift?.ratio; // a vertical member
+  }
+  const governing = governingChecks(checks); // { stress, deflection, drift }, each { memberId, ratio, passes } or null
+}
+const span = spanDeflection(model, result, "lc1", ["AC", "CB"]); // { ok: true, value, ratio, ... } or { ok: false, reason }
+```
+
+#### What is not checked
+
+`NOT_CHECKED` is the list, as stable codes for the interface to translate; `memberChecks` and
+`structureChecks` return a copy of it as `notChecked`. In full:
+
+| Code                          | Not checked                                                              |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| `member-buckling`             | buckling of members (a column in compression is compared with `fy` only) |
+| `plate-buckling`              | buckling of the plates of a section (local buckling)                     |
+| `lateral-torsional-buckling`  | lateral-torsional buckling of beams                                      |
+| `shear-stress`                | shear stress                                                             |
+| `torsion-stress`              | torsion stress                                                           |
+| `design-code-interaction`     | the interaction formulas of a design code                                |
+| `load-and-resistance-factors` | load factors and resistance factors, other than the one allowable factor |
+| `connections`                 | connections                                                              |
+| `fatigue`                     | fatigue                                                                  |
+| `other-serviceability`        | serviceability criteria other than the two limits (deflection and drift) |
+
+The loads are used as the model gives them. The analysis behind the numbers has the limits of "Theory and
+limits" above (linear-elastic, small displacements, no shear deformation).
+
+#### Units
+
+All values are in the model's units: a stress in **kN/m²**, a deflection, a drift, a length, a limit and a
+position in **m**. Ratios have no unit. Nothing is converted: the interface divides a stress by 1000 for MPa
+and multiplies a length by 1000 for mm.
+
+#### Which members
+
+Every member of kind `frame` without an end release that `memberValues` has values for gets one entry in
+`members`, in the model's order. Every other member is in `skipped` with a reason: `"truss"`, `"release"`
+(a frame member with any end release), or `"no-values"` (its nodes, section or material are not in the
+model, or its nodes or end forces are not in the result). `memberChecks` returns `undefined` when `result`
+is not an `ok` result or has no load case `loadCaseId`.
+
+#### Options
+
+| Option              | Default | Meaning                                                             |
+| ------------------- | ------- | ------------------------------------------------------------------- |
+| `allowableFactor`   | 1       | the allowable stress is the material's `fy` times this              |
+| `deflectionDivisor` | 360     | n of the deflection limit span/n                                    |
+| `driftDivisor`      | 300     | n of the drift limit height/n                                       |
+| `stations`          | 21      | the number of equally spaced stations per member for `memberValues` |
+
+A factor or divisor that is not a finite number greater than zero is replaced by its default. `stations` is
+rounded down; a number below 5 is taken as 5, one above 1001 as 1001, and a value that is not finite as 21.
+The values used are in the result (`allowableFactor`, `deflectionDivisor`, `driftDivisor`, `stations`).
+
+#### The stress
+
+The normal stress at the point (y, z) of a cross-section, in the member's local axes measured from its
+axis, positive in tension:
+
+σ = N/A − My·z/Iy − Mz·y/Iz
+
+Where the signs come from: `N` is positive in tension. A positive `My` puts the −z side in tension ("The
+sign convention of the internal actions"), and −My·z/Iy is positive for a negative z. A positive `Mz` puts
+the −y side in tension, and −Mz·y/Iz is positive for a negative y. The formula holds for a section whose
+centroid is on the member's axis and whose local y and z are principal axes, which "Theory and limits"
+already assumes.
+
+- **Where on the section.** At the four corners of the section's bounding rectangle, y = ±`depthY`/2 and
+  z = ±`depthZ`/2: the section is taken as symmetric about both local axes. σ is linear in y and z, so its
+  largest and smallest values over that rectangle are at corners. For a section that reaches its corners
+  (a rectangle, the flange tips of an I-shape) these are stresses of the section. For one that does not (a
+  round tube) no point of the section has them: where both moments act, the largest corner value is above
+  every stress of the section and the smallest below.
+- **Where along the member.** Over the whole length, not only at the stations. Between two consecutive
+  stations the stress of one corner is a polynomial of degree two in x, because `N` is linear and the
+  moments are of degree two there (the loads are uniform or at points, and every point load has stations).
+  Its derivative, (dN/dx)/A − Vz·z/Iy − Vy·y/Iz, is linear; where it has opposite signs at the two
+  stations, the point where it is zero and the stress there are computed in closed form and taken together
+  with the station values. So the two extremes do not depend on the number of stations beyond rounding
+  (tested with 5, 21 and 1001 stations at 1e-10), and the mid-span stress of a simply supported beam under
+  a uniform load is M/W also when mid-span is not a station (tested at relative 1e-12).
+- `stress.tension` is the largest value of σ and `stress.compression` the smallest, each as
+  `{ value, x, y, z }`: the stress, the distance from the start node, and the corner's local coordinates.
+  Of equal values the first position along the member is given, and there the first corner in the order
+  (−y, −z), (+y, −z), (−y, +z), (+y, +z). So with bending about one axis only, the corner given is one of
+  the two that share the value; in a bar under pure tension all corners and positions share it.
+  `tension.value` is negative when no corner is in tension anywhere along the member, and
+  `compression.value` is positive when none is in compression.
+- `stress.largest` is the larger of |`tension.value`| and |`compression.value`|; `stress.allowable` is
+  `fy` times the allowable factor; `stress.ratio` is `largest`/`allowable`; `stress.passes` is
+  `ratio <= 1`. Tension and compression are compared with the same allowable stress.
+- The corner is in local axes. Which side that is in space depends on the member's direction and roll:
+  a corner (y, z) is at y·(local y) + z·(local z) from the axis, with the axes of `memberLocalAxes`.
+
+#### The deflection of a member
+
+For a member that is **not vertical**. With d(x) the deflection of the member's axis in local axes
+(`memberValues`), the relative deflection is
+
+r(x) = d(x) − [d(0) + (x/L)·(d(L) − d(0))]
+
+which is what remains when the straight line between the member's two displaced ends (the chord) is taken
+away. `deflection.value` is the largest, over the stations, of √(r_y² + r_z²): the part perpendicular to
+the member's undeformed axis. `deflection.x` is the station that has it (the first of equal ones), and
+`deflection.localY`, `deflection.localZ` are r_y and r_z there. `span` is the member's length, `limit` is
+`span`/`divisor`, `ratio` is `value`/`limit`, and `passes` is `ratio <= 1`.
+
+- **A movement of the whole member is not in it**: the sway of a frame, the settlement of both ends, and a
+  rotation of the member as a rigid body leave r unchanged. What is left is the bending of the member
+  between its two ends.
+- **It is taken at stations only.** The value is never above the true largest value of √(r_y² + r_z²)
+  along the member, and it is below it by at most h²·κ/8, with h the largest distance between two
+  consecutive stations and κ the largest curvature along the member, √((My/(E·Iy))² + (Mz/(E·Iz))²). With
+  the default 21 stations the mid-span of a member is a station, so the simply supported beam under a
+  uniform load has exactly 5wL⁴/(384EI) (tested at relative 1e-12).
+- **For a cantilever it is not the tip deflection.** The chord of a cantilever runs from the fixed end to
+  the displaced tip, and the value is the distance of the bent axis from that line, which is zero at both
+  ends. For a tip load it is PL³/(9√3·EI) at 0.42 L from the fixed end, 0.192 of the tip deflection
+  PL³/(3EI); for a uniform load it is 0.0197·wL⁴/(EI) at 0.37 L, 0.1575 of the tip deflection wL⁴/(8EI). So
+  for a cantilever the ratio of this check is far below the ratio of the tip deflection to the limit. These
+  functions do not report a tip deflection relative to the fixed end; the node displacements of `solve` hold
+  it.
+- **It is the member's own length.** For a beam that is modelled as several members between its supports,
+  each member is measured from its own chord over its own length, and that is smaller than the deflection of
+  the span: for one half of a simply supported beam cut at mid-span it is between 0.2 and 0.3 of the span's
+  mid-span deflection (tested). Use `spanDeflection` for such a beam.
+- An inclined member is not vertical and gets this check, over its own length along the incline.
+
+#### The drift of a vertical member
+
+A member is **vertical** by the rule of `memberLocalAxes` (`packages/model/src/geometry.ts`): the horizontal
+projection of its length is at most `VERTICAL_TOLERANCE` (1e-9) times its length. `MemberCheck.vertical`
+says which a member is; a vertical member has `drift` and `deflection: null`, any other member `deflection`
+and `drift: null`.
+
+`drift.dX` and `drift.dY` are the end node's displacement minus the start node's along global X and Y, from
+the result of `solve`; `drift.value` is √(dX² + dY²). `height` is the member's length, `limit` is
+`height`/`divisor`, `ratio` is `value`/`limit`, `passes` is `ratio <= 1`. It is the drift of one member
+between its two nodes: a column modelled as several members has one drift per member, and no drift of a
+whole storey or building is computed.
+
+#### `passes`
+
+`passes` is `ratio <= 1` on the computed number, with no tolerance: a ratio that rounding puts just above 1
+does not pass.
+
+#### The governing ratios
+
+`governingChecks(checks)` returns `{ kind, loadCaseId, notChecked, stress, deflection, drift }`. Each of the
+last three is `{ memberId, ratio, passes }` for the member with the largest ratio of that kind (of equal
+ratios, the first member in the model's order), or `null` when no checked member has that ratio: `drift`
+is `null` for a model without vertical members. The deflection ratio is that of single members;
+`spanDeflection` is separate. `structureChecks` returns `undefined` when `memberChecks` does.
+
+#### `spanDeflection`
+
+For a beam made of several members in one straight line: a span between supports modelled with intermediate
+nodes. `memberIds` are its members in order from one end to the other. Each member may be drawn either
+way: the walk goes from member to member through the node they share, and the span's start node is the end
+of the first member that the second does not share (the first member's start node when it is the only one).
+
+At each station of each member (`stations` equally spaced ones per member, read as in "Options", plus those
+`memberValues` adds at point loads), the straight line between the displacements of the span's two end
+nodes, D0 + (s/S)·(D1 − D0), is subtracted from the deflection in global axes; s is the station's distance
+from the start node along the span and S the span, the distance between the two end nodes. `value` is the
+largest size of the part of that difference perpendicular to the span. It is taken at stations only, so it
+is never above the true largest value. The result also has `memberId` and `x` (the member and the distance
+from its start node of the station with the value; of equal values the first station along the span),
+`distance` (s of that station), `span`, `divisor`, `limit` = `span`/`divisor`, `ratio`, `passes`,
+`startNodeId`, `endNodeId`, `memberIds` and `kind: "illustrative"`. A `divisor` that is not a finite number
+greater than zero is taken as 360.
+
+The span may have any direction; for a span that is not horizontal the deflection is still measured
+perpendicular to it. The function does not look at the supports: it measures between the two end nodes of
+the list it is given, whether or not they are supported. Given one member that is not vertical, `value` is
+the `deflection.value` of that member's own check, up to rounding.
+
+It refuses with `{ ok: false, reason, memberId? }`:
+
+| `reason`          | When                                                                                                 |
+| ----------------- | ---------------------------------------------------------------------------------------------------- |
+| `no-result`       | `result` is not an `ok` result or has no load case `loadCaseId`                                      |
+| `no-members`      | `memberIds` is empty                                                                                 |
+| `repeated-member` | an id is in the list twice (`memberId`: that id)                                                     |
+| `unknown-member`  | the model has no member with that id (`memberId`)                                                    |
+| `no-values`       | `memberValues` has no values for a member: a truss member, an end release, missing data (`memberId`) |
+| `not-connected`   | a member has neither end at the node where the member before it ended (`memberId`: the later member) |
+| `not-collinear`   | the members are connected but not in one straight line running one way (`memberId` below)            |
+
+Collinear means: no node of the span is further than `COLLINEAR_TOLERANCE` (1e-9) times the span from the
+line between its two end nodes, and each node is further along that line than the node before it. The
+`memberId` of `not-collinear` is the first member whose far node fails this, or the second member (the only
+one, for a list of one) when the walk ends where it started.
+
+#### A worked example
+
+The simply supported beam fixture: 6 m, 10 kN/m downward, the section of the fixtures (`Iy` = 8.4e-5 m⁴,
+`depthZ` = 0.3 m), `fy` = 3.55e5 kN/m², E = 2.1e8 kN/m². The stress, the deflection, the limit and the two
+ratios of this table are asserted in `src/memberChecks.test.ts`.
+
+| Quantity                         | By hand                         | Model units     | Display units |
+| -------------------------------- | ------------------------------- | --------------- | ------------- |
+| mid-span moment                  | wL²/8                           | 45 kN·m         | 45 kN·m       |
+| section modulus W                | Iy/(depthZ/2) = 8.4e-5/0.15     | 5.6e-4 m³       |               |
+| `stress.tension.value` (bottom)  | M/W                             | 80 357.1 kN/m²  | 80.36 MPa     |
+| `stress.compression.value` (top) | −M/W                            | −80 357.1 kN/m² | −80.36 MPa    |
+| `stress.ratio`                   | 80 357.1/355 000                | 0.2264          |               |
+| `deflection.value`               | 5wL⁴/(384EI) = 64 800/6 773 760 | 9.566e-3 m      | 9.57 mm       |
+| `deflection.limit`               | 6/360                           | 1.6667e-2 m     | 16.67 mm      |
+| `deflection.ratio`               | 9.566e-3/1.6667e-2              | 0.5740          |               |
+
+The tension is at x = 3 m at the corner z = −0.15 m, which is the bottom face for this member (local z is
+global Z); the compression is at z = +0.15 m.
+
+#### Cost
+
+Measured, not guaranteed: `memberChecks` for the 200-member building frame of "Speed" below (load case
+`gravity`, 21 stations) took 4.4 ms (median of 20 runs after 3 that were not timed; smallest 3.8, largest
+9.1), on an Apple M4 Pro, macOS, Node v22.23.4, on 2026-11-18, inside the test runner. `governingChecks` of
+that result took about 0.01 ms. The test suite asserts only a loose bound: `memberChecks` and
+`structureChecks` together in under 1 second. `memberChecks` calls `memberValues` once per member, and each
+of those calls searches the model's lists.
+
 ## In a Web Worker
 
 `solve` is synchronous: while it runs, the thread that called it does nothing else. An application calls it
@@ -985,6 +1240,48 @@ Values along a member (card S6): `src/memberValues.test.ts`. The tolerances are 
   frame (order, ends at the displaced nodes, agreement with `memberValues`); load cases kept apart; a
   truss member drawn as a straight line.
 - Size and a loose time bound for 200 members ("Size and cost").
+
+Illustrative member checks (card S8): `src/memberChecks.test.ts`. The tolerances are stated in the tests;
+"relative 1e-12" and the zero rule are as above. The section and material are those of the fixtures unless
+a test says otherwise.
+
+- The result: the `illustrative` marker, the ten codes of `notChecked`, the parameters used and their
+  defaults, options that are not valid, plain data, arguments unchanged, the cases that return `undefined`,
+  the three reasons of `skipped`.
+- The simply supported beam fixture: σ = M/W at mid-span with tension at the bottom and compression at the
+  top, and the deflection ratio (5wL⁴/384EI)/(L/360), at relative 1e-12; the same stress with 6, 8 and 1000
+  stations, where mid-span is not a station; the other bending plane (a load along −Y, `Iz`); a roll of 90
+  degrees (the weak axis governs, the tension corner is below the axis); the beam drawn both ways with
+  five roll angles under gravity and under a load along +Y (the tension corner is on the side the load
+  pushes towards).
+- The largest stress between stations: a beam with a uniform transverse load and a uniform load along its
+  axis (the extremes are at L/2 ∓ p·Iy/(A·w·c), exact with 5, 21 and 200 stations); a point load between
+  stations; a skew rolled member fixed at both ends under six loads (5, 21 and 1001 stations agree at
+  1e-10, and bound a calculation in the test from `N`, `My`, `Mz` at 1001 stations).
+- Cantilevers: tension at the top at the fixed end under a uniform load; the deflection from the chord for
+  a tip load against P(2L²x − 3Lx² + x³)/(6EI) at the stations, against the true largest value PL³/(9√3·EI)
+  with the bound h²·κ/8, and for a uniform load; axial force and bending together (the two extremes differ
+  by 2M/W and their mean is N/A); a push larger than the bending; a bar in pure tension; eight cantilevers
+  along X, along Y, skew, inclined and vertical with roll angles under a tip force in a general direction
+  (the stresses at the fixed end and the side of the tension corner, at 1e-9).
+- Biaxial bending: the governing corner and its value, and the deflection as the hypotenuse of the two
+  planes' values.
+- The portal frame fixture with a beam load: the drift of each column equals the solver's displacement of
+  its top node; the beam's deflection from the chord against the deflection of a simply supported beam
+  under the load and the solver's two end moments (1e-9); `structureChecks` and `governingChecks`.
+- Vertical members: a cantilever column with tip forces along X and Y, running upward and downward; the
+  vertical rule at a lean of 5e-10 and of 2e-9 of the length; the stress of a column.
+- The ratio at exactly 1: a yield strength and a depth chosen by hand (1e-12); `fy` set to the reported
+  stress (exactly 1, passes) and one bit below (does not pass); the allowable factor; the divisors.
+- `spanDeflection`: two collinear members with the load across both against 5wL⁴/(384EI), for both
+  directions of each member and both orders of the list; a node at a third of the span; a member's own
+  check against its own chord; one member; the portal's beam cut in three unequal pieces, one of them
+  reversed, against the uncut beam at the same stations; a vertical span; the seven reasons of a refusal.
+- The reference models of the three seeded tasks, rebuilt in the test without importing `packages/tasks`
+  (the generic I-sections' formulas and dimensions are typed in the test from
+  `packages/tasks/src/sections.ts`): the 7 m beam with "I 400x180" under 25 kN/m (bending stress
+  135 253.65 kN/m², span deflection ratio 0.845), the 6 m beam, and the portal frame.
+- The 200-member frame: every member checked in both load cases, and the loose time bound.
 
 Worker (card S9), four files:
 
