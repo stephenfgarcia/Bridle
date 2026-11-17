@@ -10,8 +10,15 @@ Not yet: truss members and member end releases (card S5), values along a member 
 a model that has a truss member or an end release. A uniform load covers the whole member; there are no
 partial-length distributed loads, no moments applied along a member and no load combinations.
 
-Plain TypeScript; the one runtime dependency is `@bridle/model`. The functions are pure and keep no state
-between calls, and the source uses no browser or Node API.
+Card S9 added what runs `solve` off the main thread ("In a Web Worker" below): the messages, the function
+that handles one request, the worker entry `@bridle/solver/worker`, the client `createSolverClient`, and a
+speed test (`pnpm --filter @bridle/solver bench`, "Speed" below).
+
+Plain TypeScript; the one runtime dependency is `@bridle/model`. The solver's functions are pure and keep no
+state between calls. The source that an application loads uses no Node API and no DOM API; of the browser
+it uses only the worker's own `self.onmessage` and `postMessage` (`src/worker.ts`), the worker object that
+the caller gives the client (`src/client.ts`), and `performance.now()` in the speed test (`src/bench.ts`).
+The tests of the worker (`src/worker.test.ts`) and the bench script (`bench/run.mjs`) use Node and Vite.
 
 ```ts
 import { memberLocalAxes, portalFrame } from "@bridle/model";
@@ -70,7 +77,8 @@ if (solved.ok) {
 ```
 
 Run the tests with `pnpm --filter @bridle/solver test`, the type check with
-`pnpm --filter @bridle/solver typecheck`; `pnpm check` runs both through turbo.
+`pnpm --filter @bridle/solver typecheck`; `pnpm check` runs both through turbo. The speed test is
+`pnpm --filter @bridle/solver bench`; `pnpm check` does not run it.
 
 ## Theory and limits
 
@@ -495,6 +503,135 @@ it is not a test of stability. The tests measure ε for an axial bar, 13 ε for 
 a value between 1e-4 and 1e-3 for the 10 m by 10 m portal frame with its area multiplied by 1e9, whose
 sway is off by less than 1e-4.
 
+## In a Web Worker
+
+`solve` is synchronous: while it runs, the thread that called it does nothing else. An application calls it
+in a worker so that the page stays responsive. The package has four parts for that, one file each.
+
+| File              | Import                                          | What it is                                                                  |
+| ----------------- | ----------------------------------------------- | --------------------------------------------------------------------------- |
+| `src/messages.ts` | `@bridle/solver` (types and guards)             | `SolveRequest`, `SolveResponse`, `isSolveRequest`, `isSolveResponse`.       |
+| `src/handler.ts`  | `@bridle/solver`                                | `handleSolveRequest(request)`: one request in, one response out; no worker. |
+| `src/worker.ts`   | `@bridle/solver/worker`                         | The worker entry: wires the handler to `self.onmessage` and `postMessage`.  |
+| `src/client.ts`   | `@bridle/solver/client` (also `@bridle/solver`) | `createSolverClient(makeWorker)`, for the main thread.                      |
+
+`@bridle/solver/client` imports types and one guard only, so importing it does not put the solver's code in
+the bundle of the main thread; importing the client from `@bridle/solver` leaves that to the bundler.
+
+### Use
+
+```ts
+import { createSolverClient } from "@bridle/solver/client";
+
+const client = createSolverClient(
+  () => new Worker(new URL("@bridle/solver/worker", import.meta.url), { type: "module" }),
+);
+
+const outcome = await client.solve(model); // never rejects
+if (outcome.status === "solved") {
+  outcome.result; // what solve(model) returns: results (`ok: true`) or a refusal (`ok: false`)
+} else if (outcome.status === "failed") {
+  outcome.failure; // "solve-threw", "worker-error" or "not-sent"
+} // else "superseded" (a newer call was made) or "disposed": nothing to show
+
+client.dispose(); // when the page or the component goes away
+```
+
+The package is TypeScript source (its `exports` name `src/*.ts`), like `@bridle/model`, so the application's
+bundler must compile it: in `apps/web`, `@bridle/solver` has to be added to the dependencies and to
+`transpilePackages` of `next.config.mjs`. **This card did not create a worker in `apps/web` or in a
+browser** (that is card W8). What is tested here: the entry bundled by Vite into one file with no import,
+run in a Node worker thread (`src/worker.test.ts`), and, by the type check, that a DOM `Worker` is accepted
+by `createSolverClient`. If the bundler of `apps/web` does not resolve a package name inside `new URL(...)`,
+put a one-line file next to the code that makes the worker, `solver.worker.ts` with
+`import "@bridle/solver/worker";`, and use `new Worker(new URL("./solver.worker.ts", import.meta.url), { type: "module" })`.
+
+### Messages
+
+- Request, main thread to worker: `{ type: "solve", id, model }`. `id` is a number chosen by the sender.
+- Response, worker to main thread, with the request's `id`: `{ type: "solve-result", id, result }`, where
+  `result` is what `solve(model)` returned (results or a refusal; a refusal is an answer, not an error), or
+  `{ type: "solve-error", id, error: { name, message } }` when `solve` threw. `solve` returns a refusal for
+  an invalid model and does not throw for it; it throws for a value that is not a model at all (a test
+  sends `{}`).
+- `handleSolveRequest(request)` returns `{ response, transfer }`. `transfer` lists the buffers of the two
+  `Float64Array`s of every load case of a solved result, each once, and is empty otherwise. The worker
+  entry posts the response with that list, so the vectors are moved to the main thread, not copied; the
+  records (`displacements`, `reactions`, `memberEndForces`) and the model in the request are copied by the
+  structured clone of `postMessage`.
+- The worker entry ignores a message that is not a request (`isSolveRequest`), and the client ignores one
+  that is not a response with the `id` of the request the worker has not answered yet (`isSolveResponse`).
+
+### The client
+
+`createSolverClient(makeWorker)` returns `{ solve(model), dispose() }`. `makeWorker` is called when a worker
+is needed, not before: at the first `solve` call and at the first one after a worker error.
+
+- **One worker at a time.** It is reused by every call. Its `onmessage`, `onerror` and `onmessageerror`
+  properties are set when it is made and set to `null` when the client lets go of it; the client adds no
+  other listener.
+- **Latest wins.** When `solve` is called while an older call has no answer yet, the older promise resolves
+  at once with `{ status: "superseded" }`, and the answer to its request, when it comes, is dropped.
+- **The worker is not terminated for a superseded request.** It finishes the request it is computing. The
+  client does not post the newer model while the worker is busy: it keeps only the newest one and posts it
+  when the worker answers. So, however many calls arrive while the worker is busy (a drag in the interface
+  could make one per pointer event), the worker computes at most one request that nobody waits for, and the newest
+  call waits at most for the rest of that one before its own starts. Why not terminate and start a new
+  worker: a new worker has to load and compile the solver again before it can start, and that would be
+  paid at every superseded call; with solves of the size in "Speed" below (medians of 7 to 76 ms measured), waiting
+  for the one in progress costs at most one such solve. The start time of a worker in a browser was not
+  measured in this card. What this choice does not cover: a `solve` call that never ends would block the
+  worker for good; the client has no timeout.
+- **Failures.** `{ status: "failed", failure }`, with `failure.kind`:
+  `"solve-threw"` (`error: { name, message }`; the worker answered with `solve-error`; the worker is kept);
+  `"worker-error"` (`message`; the worker reported an error or a message that could not be read, or
+  `makeWorker` threw; that worker is terminated and the next call makes a new one);
+  `"not-sent"` (`message`; `postMessage` threw, for example for a model that cannot be cloned; the worker is kept).
+  If the worker fails while it computes a superseded request, the newest call is not failed: it is posted
+  to a new worker.
+- **`dispose()`** terminates the worker and resolves a waiting call with `{ status: "disposed" }`. A
+  `solve` call made after it resolves with `disposed` and makes no worker. A second `dispose()` does
+  nothing.
+- A promise of `solve` never rejects.
+
+## Speed
+
+`pnpm --filter @bridle/solver bench` bundles `src/bench.ts` with Vite (not minified), runs it in Node and
+prints, for four models, the median, the smallest and the largest time of 15 calls of `solve` after 3 calls
+that are not timed. The models are generated without random numbers (`buildingFrame` and `cantilever` in
+`src/bench.ts`): two building frames with fixed column bases and two load cases (a uniform load on every
+beam; nodal wind loads), and a 10 m cantilever cut into 200 members with a tip load.
+
+Measured on one machine on one date: Apple M4 Pro, macOS (darwin arm64), Node v22.23.4, 2026-11-18, one run
+of the script. These are measurements, not guarantees; another machine, a browser, or the same machine
+under load gives other numbers.
+
+| model                                     | members | nodes | free dofs | load cases | median ms | min ms | max ms | smallest pivot ratio |
+| ----------------------------------------- | ------- | ----- | --------- | ---------- | --------- | ------ | ------ | -------------------- |
+| frame, 3 x 3 bays, 5 storeys              | 200     | 96    | 480       | 2          | 6.9       | 6.1    | 22.8   | 8.93e-4              |
+| frame, 3 x 3 bays, 10 storeys             | 400     | 176   | 960       | 2          | 30.4      | 28.9   | 31.8   | 5.47e-4              |
+| cantilever, 200 elements, along X         | 200     | 201   | 1200      | 1          | 11.5      | 10.3   | 42.3   | 3.12e-8              |
+| cantilever, 200 elements, along (2, 3, 6) | 200     | 201   | 1200      | 1          | 76.1      | 75.0   | 81.0   | 6.37e-9              |
+
+- The target of the pitch plan, a frame of 200 members in under 100 ms on the development machine, is met
+  by this measurement: 200 members took 6.9 ms (median).
+- **The cost grows steeply with the number of free degrees of freedom.** The matrices are dense (no band or
+  sparse storage): the memory grows with the square of the number of nodes (the assembled matrix alone is
+  8 · (6 · nodes)² bytes), and the time of a dense factorization grows, at worst, with the cube of the
+  number of free degrees of freedom. In the table, twice the degrees of freedom (480 to 960) took about
+  four times as long.
+- The number of members is not what decides the time: the two cantilevers have 200 members and the same
+  1200 free degrees of freedom, and the skew one took six to seven times as long as the one along X. This
+  card did not examine why; the review of card S3 put it down to how much the pivoted order fills the
+  factor. The skew cantilever, 201 nodes, is already near 100 ms; larger models were not measured, and a
+  model with more nodes than these (a member cut into many pieces, for example) can be expected to exceed
+  100 ms.
+- The time is that of `solve` alone. In a worker, the copy of the model to the worker and of the result
+  back is added; it was not measured.
+
+The test suite asserts only a loose bound, so that it cannot fail on a slow machine: the 200-member frame
+in under 2 seconds (median of 5 calls, `src/bench.test.ts`).
+
 ## Tests
 
 Element and assembly: `src/index.test.ts`. The tolerances are stated in the tests. Among them: the local matrix against the
@@ -571,3 +708,31 @@ Member loads and member end forces: `src/memberLoads.test.ts`. The tolerances ar
 - Load cases (a member load acts in its own load case only; a case with all the loads is the sum of the
   others), plain data and `structuredClone`, a member id that is a name of `Object.prototype`, the
   smallest pivot ratio, an overflowing member load.
+
+Worker (card S9), four files:
+
+- `src/handler.test.ts`, without a worker: the response has the request's id and equals a direct `solve`;
+  the transfer list has the two buffers of each of two load cases, each once; after
+  `structuredClone(response, { transfer })` the copy equals a direct `solve` and the sender's arrays are
+  empty; a refusal has nothing to transfer; a thrown `Error` and a thrown string become `solve-error`; the
+  real `solve` given `{}` throws and becomes `solve-error`; the request's model is not changed; the two
+  guards.
+- `src/client.test.ts`, with a fake worker object whose messages and errors the test delivers: no worker
+  before the first call; the request posted; one worker reused with ids 1, 2, 3; messages that are not the
+  awaited response ignored; the superseded outcome at once, the worker not terminated, the newer request
+  posted only after the older answer, and of 50 calls made while the worker is busy only the first and the
+  last posted; a response with another id does not free the worker; `solve-error`; a worker error (call
+  failed, worker terminated, handlers removed, a new worker at the next call); `messageerror`; a worker
+  error during a superseded request; a worker error with no call waiting; `makeWorker` throwing;
+  `postMessage` throwing; `dispose` with a waiting call, with a superseded and a waiting call, twice, and
+  before any call. The type check of this file checks that a DOM `Worker` is accepted.
+- `src/worker.test.ts`, across a real thread boundary: `src/worker.ts` is bundled with Vite and run in a
+  `node:worker_threads` worker, with a few lines of glue that give the thread `self`, `postMessage` and the
+  delivery to `self.onmessage`. The bundle is one file with no `import` and no `require`. Through the real
+  client: the portal frame fixture's result equals a direct `solve` (the vectors are `Float64Array`s with
+  the same numbers); one thread answers several calls, a refusal among them, and a superseded call; `{}`
+  as the model comes back as `solve-threw` and the thread still answers the next call.
+- `src/bench.test.ts`: the four models of the speed test are valid and have the sizes of the table; the
+  generators give equal models on every call; the 200-member frame is in equilibrium in both load cases
+  (sums of the reactions against the total loads, 1e-9); the cantilever's tip deflection is P L³/(3 E Iy)
+  along X and along (2, 3, 0), at relative 1e-7; the loose speed bound.

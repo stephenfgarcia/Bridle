@@ -4,17 +4,21 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./worker": "./src/worker.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench": "node bench/run.mjs"
   },
   "dependencies": {
     "@bridle/model": "workspace:*"
   },
   "devDependencies": {
     "typescript": "7.0.2",
+    "vite": "8.3.5",
     "vitest": "5.0.5"
   }
 }
