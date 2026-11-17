@@ -20,6 +20,11 @@ with a `dump` that writes a wrong text).
 Rework loop 3 (P0-08.1): WriterGuardTests `test_argument_that_is_not_utf8_writes_nothing`,
 `test_failed_write_leaves_the_card_and_no_temporary_file` (card.py's commands in this process with one step of the
 write made to fail, then a cards directory that takes no new file) and `test_write_keeps_the_mode_and_follows_a_link`.
+LaneKeyTests (P0-08.2, criterion 4, added at the build station): `move --lane` writes `lane:` after `owner:` and a later
+move keeps it; a second card is refused in a lane whose card is at plan, build, test or review, with its file and the
+events as they were; `--lane` values that are refused; `card.py lane <name>`. `test_move_rewrites_exactly` names its
+unknown key `track` since then (it was `lane`, which is now a key card.py orders). Added at the test station:
+`test_gates_and_bytes_hold_with_a_lane`.
 
 The cards and the .bridle directories the cases use are under temporary directories, removed afterwards; the cases
 read the scripts of this checkout and, for WorktreeTests, its git directory (to assert no worktree was added to it).
@@ -1003,7 +1008,7 @@ class GateEdgeTests(unittest.TestCase):
         """The reshaped cmd_move writes what a move always wrote: the four state lines replaced, one history line
         appended, every other byte kept (an unknown key, the gates line, earlier history, the body), and one event."""
         old = '  - 2026-01-01T00:00:00Z spec running orchestrator "Spec: a colon, [brackets] and \\"quotes\\""'
-        text = gate_card('X', old + '\n' + G_LINE + '\nlane: lane/x')
+        text = gate_card('X', old + '\n' + G_LINE + '\ntrack: lane/x')  # `lane` is a key card.py writes since P0-08.2
         text = text.replace('dependsOn: []\n', 'dependsOn: [A, B]\nestimate: 0.5\n') + '\n---\n\nmanualGates: [body]\n  - not history\n'
         root = os.path.join(self.tmp, 'exact')
         make_root(root, {'X': text})
@@ -1690,6 +1695,145 @@ class WriterGuardTests(unittest.TestCase):
         self.assertIn('manualGates: [[x] One, Three]', self.front('M'))
         self.assertIn('| X4 | P9 | backlog | planned | - |', read_bytes(progress).decode('utf-8'))
         self.assertTrue(read_bytes(progress).decode('utf-8').endswith(BELOW))
+
+
+class LaneKeyTests(unittest.TestCase):
+    """P0-08.2, criterion 4: the lane a card runs in is the frontmatter line `lane:`, written by `move --lane`; a second
+    card does not start in a lane whose card is at a station from plan to review."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix='bridle-lanekey-')
+        self.root = os.path.join(self.tmp, 'R')
+        make_root(self.root, {'A': gate_card('A'), 'B': gate_card('B'), 'G': gate_card('G', G_LINE)})
+        self.lanes = os.path.join(self.root, 'factory', 'lanes.json')
+        shutil.copy(os.path.join(REPO, 'factory', 'lanes.json'), self.lanes)
+        self.progress = os.path.join(self.root, '.bridle', 'progress')
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def card(self, *args):
+        return run_card(self.root, *args)
+
+    def front(self, cid):
+        return read_bytes(card_file(self.root, cid)).decode('utf-8').split('\n---\n')[0].split('\n')
+
+    def events(self):
+        n = 0
+        for d, _, names in os.walk(self.progress):
+            n += sum(len(jsonl(os.path.join(d, name))) for name in names)
+        return n
+
+    def refused(self, code, *args, says=()):
+        """Run a move that must be refused with `code`: the three cards and the event count stay as they were."""
+        before = {c: read_bytes(card_file(self.root, c)) for c in 'ABG'}
+        events = self.events()
+        r = self.card(*args)
+        self.assertEqual(r.returncode, code, (args, r.stderr))
+        for s in says:
+            self.assertIn(s, r.stderr)
+        self.assertEqual({c: read_bytes(card_file(self.root, c)) for c in 'ABG'}, before, args)
+        self.assertEqual(self.events(), events, args)
+        self.assertEqual(sorted(os.listdir(os.path.join(self.root, 'factory', 'cards'))),
+                         ['A-card-a.md', 'B-card-b.md', 'G-card-g.md'])
+        return r
+
+    def test_lane_written_kept_and_listed(self):
+        r = self.card('move', 'A', 'plan', '--lane', 'core')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        front = self.front('A')
+        self.assertEqual(front[front.index('owner: factory-planner') + 1], 'lane: core')
+        self.assertLess(front.index('lane: core'), front.index('history:'))
+        self.assertEqual(front.count('lane: core'), 1)
+        r = self.card('move', 'A', 'build')  # the card itself moves on in its lane; no --lane keeps the line
+        self.assertEqual(r.returncode, 0, r.stderr)
+        front = self.front('A')
+        self.assertEqual(front[front.index('owner: factory-builder') + 1], 'lane: core')
+        before = read_bytes(card_file(self.root, 'A'))
+        events = self.events()
+        r = self.card('lane', 'core')
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, 'A build running\n', ''))
+        r = self.card('lane', 'core', '--cards', os.path.join(self.root, 'factory', 'cards'))
+        self.assertEqual((r.returncode, r.stdout), (0, 'A build running\n'))
+        r = self.card('lane', 'web')
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, '', ''))
+        self.assertEqual(read_bytes(card_file(self.root, 'A')), before)
+        self.assertEqual(self.events(), events)
+        r = self.card('move', 'A', 'test', '--lane', 'web')  # --lane on a card that has one replaces it
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual([l for l in self.front('A') if l.startswith('lane:')], ['lane: web'])
+        self.assertEqual(self.card('lane', 'core').stdout, '')
+
+    def test_second_card_in_a_lane_refused(self):
+        self.assertEqual(self.card('move', 'A', 'plan', '--lane', 'core').returncode, 0)
+        for station in ('plan', 'build', 'test', 'review'):
+            r = self.card('move', 'A', station)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.refused(1, 'move', 'B', 'plan', '--lane', 'core',
+                         says=('lane core already has a card in flight', f'A at {station} (running)', 'nothing moved'))
+        self.assertEqual(self.card('move', 'A', 'build', '--status', 'blocked').returncode, 0)
+        self.refused(1, 'move', 'B', 'build', '--lane', 'core', says=('A at build (blocked)',))
+        r = self.card('move', 'B', 'plan', '--lane', 'web')  # another lane is free
+        self.assertEqual(r.returncode, 0, r.stderr)
+        r = self.card('move', 'B', 'spec', '--lane', 'core')  # spec is not a station that holds a lane
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('lane: core', self.front('B'))
+        self.refused(1, 'move', 'B', 'build', says=('A at build (blocked)',))  # the lane recorded on B is checked
+        self.assertEqual(self.card('move', 'A', 'ship').returncode, 0)
+        self.assertIn('lane: core', self.front('A'))
+        r = self.card('move', 'B', 'plan')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.card('lane', 'core').stdout, 'B plan running\n')
+
+    def test_lane_values_refused(self):
+        self.refused(2, 'move', 'A', 'plan', '--lane', 'nosuch', says=('--lane nosuch is not a lane', 'core, web, platform', 'nothing moved'))
+        for value in ('co\nre', 'core\r', 'core\nstatus: done', ' core', '12', 'true', '[core]', ''):
+            r = self.refused(1 if value != '' else 2, 'move', 'A', 'plan', '--lane', value)
+            self.assertIn('nothing', r.stderr, value)
+        # An open gate is refused with 3 before the lane name is looked at.
+        self.refused(3, 'move', 'G', 'ship', '--lane', 'nosuch')
+        os.rename(self.lanes, self.lanes + '.away')
+        self.refused(1, 'move', 'A', 'plan', '--lane', 'core', says=('could not read the lanes of',))
+        with open(self.lanes, 'w', encoding='utf-8') as f:
+            f.write('{"lanes": "core"}')
+        self.refused(1, 'move', 'A', 'plan', '--lane', 'core', says=('could not read the lanes of',))
+        r = self.card('move', 'A', 'plan')  # a move without --lane does not read the file
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual([l for l in self.front('A') if l.startswith('lane')], [])
+
+    def test_gates_and_bytes_hold_with_a_lane(self):
+        """Added at the test station (P0-08.2): with `--lane` in play an open manual gate still refuses ship and done
+        (exit 3), a `--lane` value with a line break or a byte that is not UTF-8 writes nothing, and a card that returns
+        to backlog gives its lane up."""
+        for lane in ('core', 'web', 'platform'):
+            self.refused(3, 'move', 'G', 'ship', '--lane', lane)
+            self.refused(3, 'move', 'G', 'ship', '--status', 'done', '--lane', lane)
+            self.refused(3, 'move', 'G', 'review', '--status', 'done', '--lane', lane)
+        for value in ('core\nmanualGates: []', 'core\nstatus: planned', 'co\rre', ''):
+            before = {c: read_bytes(card_file(self.root, c)) for c in 'ABG'}
+            for target in (('ship',), ('review', '--status', 'done')):
+                r = self.card('move', 'G', *target, '--lane', value)
+                self.assertNotEqual(r.returncode, 0, (value, target))
+                self.assertEqual({c: read_bytes(card_file(self.root, c)) for c in 'ABG'}, before, (value, target))
+        r = self.card('move', 'G', 'plan', '--lane', 'core')  # a lane on the gated card, at a station that is not ship
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.refused(3, 'move', 'G', 'ship')
+        self.refused(3, 'move', 'G', 'test', '--status', 'done')
+        before = {c: read_bytes(card_file(self.root, c)) for c in 'ABG'}
+        events = self.events()
+        for bad in (b'co\xffre', b'\xff'):
+            argv = [os.fsencode(sys.executable), os.fsencode(os.path.join(self.root, 'tools', 'monitor', 'card.py')),
+                    b'move', b'A', b'spec', b'--lane', bad]
+            r = subprocess.run(argv, capture_output=True, cwd=self.root, env=clean_env())
+            self.assertEqual((r.returncode, r.stdout), (1, b''), bad)
+            self.assertEqual({c: read_bytes(card_file(self.root, c)) for c in 'ABG'}, before, bad)
+        self.assertEqual(self.events(), events)
+        self.refused(1, 'move', 'A', 'plan', '--lane', 'core', says=('G at plan (running)',))
+        self.assertEqual(self.card('move', 'G', 'backlog').returncode, 0)
+        self.assertIn('lane: core', self.front('G'))
+        r = self.card('move', 'A', 'plan', '--lane', 'core')  # the lane is free once its card is back at backlog
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.card('lane', 'core').stdout, 'A plan running\n')
 
 
 if __name__ == '__main__':

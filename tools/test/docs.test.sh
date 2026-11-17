@@ -310,15 +310,15 @@ nx="$(sed -n 's/^Next up: //p' "$tmp/next.out")"
 [ "$nx" = 'Z1 Waits at backlog' ] \
   || fail "with $k cards in flight (every station from spec to review, statuses running, blocked, failed and review) ordered before one backlog card, card.py says next up is '$nx', not the backlog card; README.md says /factory next takes backlog cards only"
 # Third test station, ruling 3 (F3): the tools/test label of the repository map, against the files' own second lines and
-# the cards: every file of tools/test names one card there, no two name the same card, each named card is P0-11 or a
-# P0-02 or P0-06 sub-card, and every shipped (done) P0-02 or P0-06 sub-card has its file. A test file for a card of
+# the cards: every file of tools/test names one card there, no two name the same card, each named card is P0-11, P0-08.2
+# (lanes.test.sh, added by that card) or a P0-02 or P0-06 sub-card, and every shipped (done) P0-02 or P0-06 sub-card has its file. A test file for a card of
 # another row, or a P0-02 sub-card shipped without one, fails here: reword the label and this block in that commit.
-for s in 'one test file per shipped P0-02 and P0-06 sub-card, plus `docs.test.sh` for P0-11' \
+for s in 'one test file per shipped P0-02 and P0-06 sub-card, plus `docs.test.sh` for P0-11 and `lanes.test.sh` for P0-08.2' \
          "the monitor's tests are in \`tools/monitor/test\`"; do
   grep -q -F -- "$s" "$README" || fail "the tools/test label of README.md's repository map does not say '$s'"
 done
 grep -q -F -- 'one test per tooling card' "$README" \
-  && fail "README.md still labels tools/test 'one test per tooling card'; its files are the tests of the P0-02 and P0-06 sub-cards and of P0-11"
+  && fail "README.md still labels tools/test 'one test per tooling card'; its files are the tests of the P0-02 and P0-06 sub-cards, of P0-11 and of P0-08.2"
 nmt=0
 for f in "$ROOT"/tools/monitor/test/*.test.*; do [ -f "$f" ] && nmt=$((nmt + 1)); done
 [ "$nmt" -gt 0 ] || fail "tools/monitor/test holds no test file; README.md says the monitor's tests are there"
@@ -331,11 +331,16 @@ for f in "$ROOT"/tools/test/*; do
   [ -n "$id" ] || fail "tools/test/${f##*/} names no card in its second line; README.md says each file of tools/test is the test of one card"
   case "$id" in
     P0-11) [ "${f##*/}" = 'docs.test.sh' ] || fail "tools/test/${f##*/} names card P0-11; README.md says P0-11's test file is docs.test.sh" ;;
+    P0-08.2)
+      [ "${f##*/}" = 'lanes.test.sh' ] || fail "tools/test/${f##*/} names card P0-08.2; README.md says P0-08.2's test file is lanes.test.sh"
+      c=0
+      for g in "$ROOT/factory/cards/$id"-*.md; do [ -f "$g" ] && c=$((c + 1)); done
+      [ "$c" -eq 1 ] || fail "tools/test/${f##*/} names card $id, which has $c files factory/cards/$id-*.md" ;;
     P0-02.[0-9]|P0-06.[0-9])
       c=0
       for g in "$ROOT/factory/cards/$id"-*.md; do [ -f "$g" ] && c=$((c + 1)); done
       [ "$c" -eq 1 ] || fail "tools/test/${f##*/} names card $id, which has $c files factory/cards/$id-*.md" ;;
-    *) fail "tools/test/${f##*/} names card $id, which is neither a P0-02 or P0-06 sub-card nor P0-11; README.md says tools/test holds one test file per shipped P0-02 and P0-06 sub-card, plus docs.test.sh for P0-11" ;;
+    *) fail "tools/test/${f##*/} names card $id, which is neither a P0-02 or P0-06 sub-card nor P0-11 nor P0-08.2; README.md says tools/test holds one test file per shipped P0-02 and P0-06 sub-card, plus docs.test.sh for P0-11 and lanes.test.sh for P0-08.2" ;;
   esac
   printf '%s\n' "$id" >> "$tmp/test-cards"
   ntf=$((ntf + 1))

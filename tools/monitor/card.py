@@ -5,12 +5,15 @@
   card.py show <id>
   card.py new <id> "<title>" --phase P1 --order 3 [--deps A,B] [--estimate N] [--placeholder] [--no-op]
   card.py move <id> <station> [--status running|done|blocked|failed|review] [--agent name] [--note "..."] [--run factory]
+                                   [--lane <name>]   # the lane the card runs in, written as `lane:` (see Lanes below)
                                    # to ship, or to status done at any station, while a manual gate is open: exit 3,
                                    # the gates named, nothing moved; a newline or carriage return in --status, --agent
                                    # or --from, or a carriage return in --note: exit 2, nothing moved (a newline in
                                    # --note is written as a space)
   card.py gates <id>               # one line per manual gate (open, or ticked with who and when); exit 3 when one is open
   card.py gate <id> <gate> --by <who> [--evidence <path or url>]   # tick a gate; <gate> is its exact name or 1-based position
+  card.py lane <name> [--cards DIR]   # one line `<id> <station> <status>` per card with `lane: <name>` at plan, build,
+                                   # test or review; writes nothing, sends no event
   card.py sync-ops [id ...]        # db_write ops (set) for tasks docs; only for docs that do not exist yet
   card.py status [--cards DIR]     # the progress board (markdown table, next up) on stdout; no event, nothing from the clock
   card.py status --write FILE      # regenerate the <!-- board:start --> ... <!-- board:end --> section of FILE (docs/plan/progress.md)
@@ -23,7 +26,7 @@ quoted, a space before the colon, `manualgates`, `manual_gates`, `manualGate`) o
 card without gates. `gate` rewrites the entry as `[x] <name>` and appends the history line
 `<ts> <station> <status> <who> "gate ticked: <name>[; evidence: <e>]"`; a gate ticked by hand reads as ticked with no record.
 Exit codes: 0 ok, 1 an error (the message on stderr), 2 usage (among them a newline or carriage return in `--status`,
-`--agent` or `--from` of `move`, in `<gate>` or `--evidence` of `gate`, in `<id>`, `<title>`, `--phase`, `--deps` or
+`--agent` or `--from` of `move`, a `move --lane` name that is not in `factory/lanes.json`, in `<gate>` or `--evidence` of `gate`, in `<id>`, `<title>`, `--phase`, `--deps` or
 `--estimate` of `new`, and a carriage return in `move --note`; `gate --by` with any whitespace exits 1; `move --run` and
 `new --order` are not checked for one), 3 an open manual gate (`gates`, `move <id> ship`, `move <id> <station> --status
 done`). A `move` that two of these refuse exits 1 or 3 before 2; whichever it is, nothing is written and no event is sent.
@@ -36,6 +39,17 @@ UTF-8 (an argument written to the card that holds a byte that is not) exits 1 at
 The write itself (`write_whole`; also the progress file of `status --write`) puts the whole text in a temporary file
 `<name>.<random>.tmp` beside the target and renames it over the target, keeping the target's mode; when a step of it
 fails the temporary file is removed, the target is as it was, and the command exits 1.
+
+Lanes. `move --lane <name>` writes the frontmatter line `lane: <name>` after `owner:`; a later `move` without `--lane`
+keeps the line. The name must be one of `lanes` in `factory/lanes.json` of the checkout that holds this script; a missing
+or unreadable `factory/lanes.json` exits 1. A `--lane` value that is not one of those names is not written: the move
+exits 2 at the name check, unless an earlier check refuses it first, as the read-back does (exit 1) for a value that
+does not read back from the card as it was given (for example one with a newline or a leading space, or one `parse`
+reads as a number, a boolean or a list). When the moved card has a lane and its new station is plan, build, test or
+review, and another card (another `id`) of the cards directory has the same lane at one of those four stations,
+whatever its status, the move exits 1 naming that card: nothing written, no event. The cards
+compared are the ones of this checkout: two checkouts do not see each other's cards, and there is no lock, so two
+`move` commands run at the same moment in one checkout can both pass.
 
 Two roots. Cards are read and written in the checkout that holds this script: a lane calls its own worktree's copy by
 absolute path. Events are written by that checkout's log.sh to `.bridle/progress` of the main checkout; the rule for
@@ -54,6 +68,8 @@ GATES_FORMAT = 'card.py: manualGates must be a list on one line; write it on one
 GATES_KEY = re.compile(r'^\s*["\']?manual[ _-]?gates?["\']?\s*:', re.I)  # the key, or a spelling of it parse would not read
 EXIT_OPEN_GATE = 3
 EXIT_USAGE = 2  # argparse's own code for a usage error
+LANES_FILE = os.path.join(ROOT, 'factory', 'lanes.json')
+IN_FLIGHT = ('plan', 'build', 'test', 'review')  # the stations at which a card holds its lane
 CR = '\r'
 
 def now_iso():
@@ -94,7 +110,7 @@ def parse(text):
     return meta, body
 
 def dump(meta, body):
-    order = ['id', 'title', 'phase', 'order', 'dependsOn', 'estimate', 'station', 'status', 'owner', 'placeholder', 'updated', 'history']
+    order = ['id', 'title', 'phase', 'order', 'dependsOn', 'estimate', 'station', 'status', 'owner', 'lane', 'placeholder', 'updated', 'history']
     lines = ['---']
     for k in order + [k for k in meta if k not in order]:
         if k not in meta:
@@ -219,6 +235,30 @@ def write_whole(path, text):
         if isinstance(e, OSError):
             raise SystemExit(f'card.py: could not write {path} ({e.strerror or e}); nothing written')
         raise
+
+def lane_names():
+    """The lane names of factory/lanes.json (its `lanes` list); exit 1 when the file is missing or does not hold one."""
+    try:
+        with open(LANES_FILE, encoding='utf-8') as f:
+            names = json.load(f)['lanes']
+        if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
+            raise ValueError('`lanes` is not a list of names')
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise SystemExit(f'card.py: could not read the lanes of {LANES_FILE} ({e}); nothing moved')
+    return names
+
+def lane_cards(lane, cards_dir=CARDS, but=None):
+    """[(id, station, status)] of the cards under cards_dir whose `lane` is `lane` and whose station is one of IN_FLIGHT,
+    sorted by file name; the card whose id is `but` is left out. A card file parse refuses exits 1, naming the file."""
+    out = []
+    for path in sorted(glob.glob(os.path.join(cards_dir, '*.md'))):
+        try:
+            meta = parse(open(path, encoding='utf-8').read())[0]
+        except SystemExit as e:
+            raise SystemExit(f'card.py: {path} does not read as a card ({e}); the cards of lane {lane} are not known')
+        if meta.get('lane') == lane and meta.get('station') in IN_FLIGHT and (but is None or meta.get('id') != but):
+            out.append((str(meta.get('id', '')), meta['station'], str(meta.get('status', 'planned'))))
+    return out
 
 def slug(title):
     return re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-')[:40]
@@ -350,12 +390,19 @@ def cmd_move(a):
     agent = a.agent or WORKERS[st]
     ts = now_iso()
     meta['station'], meta['status'], meta['owner'], meta['updated'] = st, status, agent, ts
+    new_lane = getattr(a, 'lane', None)  # --lane; a caller's namespace without it means "not given"
+    if new_lane is not None:
+        meta['lane'] = new_lane
+    lane = meta.get('lane')
     note = a.note or f'Moved to {st}'
     meta.setdefault('history', []).append(f'{ts} {st} {status} {agent} "{note}"'.replace('\n', ' '))
     text = dump(meta, body)
-    # Three checks before the write, in this order; a move one of them refuses writes nothing and sends no event.
+    # Five checks before the write, in this order; a move one of them refuses writes nothing and sends no event.
     # 1. The new text is read back with parse, with or without gates on the card: a text parse refuses exits 1 here.
-    reads_done = read_back('move', text).get('status') == 'done'
+    #    A card with a lane must read back with that lane (for example a --lane value with a newline or a leading
+    #    space, or one parse reads as a number, a list or a boolean, does not; check 4 refuses the other values that
+    #    are not a lane name).
+    reads_done = read_back('move', text, {'lane': lane} if lane is not None else None).get('status') == 'done'
     # 2. An open manual gate refuses a move to ship, whatever the status asked for, and a move to any station whose new
     #    text reads back as done (the status that unblocks the card's dependants).
     if open_gates and (st == 'ship' or reads_done):
@@ -363,10 +410,23 @@ def cmd_move(a):
               f'  tick each with: python3 tools/monitor/card.py gate {a.id} "<gate>" --by <who> [--evidence <path or url>]',
               file=sys.stderr)
         sys.exit(EXIT_OPEN_GATE)
-    # 3. One argument is one line: --status and --agent are frontmatter values and part of the history line, --from goes
+    # 3. At most one card in flight per lane: a card with a lane does not move to plan, build, test or review while
+    #    another card of this checkout has that lane at one of those stations.
+    if lane is not None and st in IN_FLIGHT:
+        held = lane_cards(lane, but=meta.get('id'))
+        if held:
+            print(f'card.py move: lane {lane} already has a card in flight: '
+                  + '; '.join(f'{i} at {s} ({u})' for i, s, u in held) + '; nothing moved', file=sys.stderr)
+            sys.exit(1)
+    # 4. A --lane value is a lane of factory/lanes.json (the file missing or unreadable: exit 1; another name: exit 2).
+    if new_lane is not None and new_lane not in lane_names():
+        print(f'card.py move: --lane {new_lane} is not a lane of {os.path.relpath(LANES_FILE, ROOT)} '
+              f'({", ".join(lane_names())}); nothing moved', file=sys.stderr)
+        sys.exit(EXIT_USAGE)
+    # 5. One argument is one line: --status and --agent are frontmatter values and part of the history line, --from goes
     #    into the event. A newline in --note became a space above; its carriage return would end the history line at the
     #    next read (the card is read with universal newlines).
-    refuse_line_breaks('move', {'--status': a.status, '--agent': a.agent, '--from': a.from_station})
+    refuse_line_breaks('move', {'--status': a.status, '--agent': a.agent, '--from': a.from_station, '--lane': new_lane})
     refuse_line_breaks('move', {'--note': a.note}, breaks=CR)
     write_whole(path, text)
     progress = round(STATIONS.index(st) / (len(STATIONS) - 1) * 100)
@@ -377,6 +437,11 @@ def cmd_move(a):
     if out.returncode != 0:
         raise SystemExit('log.sh failed: ' + out.stderr)
     print(out.stdout.strip())
+
+def cmd_lane(a):
+    # Reads the cards, writes nothing, reports nothing: what lane.sh list asks for each lane's worktree.
+    for cid, station, status in lane_cards(a.name, a.cards):
+        print(f'{cid} {station} {status}')
 
 def cmd_gates(a):
     # Reads the card, writes nothing, reports nothing: the check a ship script calls (exit 3 while a gate is open).
@@ -448,7 +513,9 @@ def main():
     p.add_argument('--estimate', default='')
     p.add_argument('--no-op', action='store_true'); p.set_defaults(f=cmd_new)
     p = sub.add_parser('move'); p.add_argument('id'); p.add_argument('station'); p.add_argument('--status'); p.add_argument('--agent')
-    p.add_argument('--note'); p.add_argument('--run', default='factory'); p.add_argument('--from', dest='from_station'); p.set_defaults(f=cmd_move)
+    p.add_argument('--note'); p.add_argument('--run', default='factory'); p.add_argument('--from', dest='from_station'); p.add_argument('--lane')
+    p.set_defaults(f=cmd_move)
+    p = sub.add_parser('lane'); p.add_argument('name'); p.add_argument('--cards', default=CARDS, metavar='DIR'); p.set_defaults(f=cmd_lane)
     p = sub.add_parser('gates'); p.add_argument('id'); p.set_defaults(f=cmd_gates)
     p = sub.add_parser('gate'); p.add_argument('id'); p.add_argument('gate'); p.add_argument('--by', required=True)
     p.add_argument('--evidence', default=''); p.set_defaults(f=cmd_gate)
