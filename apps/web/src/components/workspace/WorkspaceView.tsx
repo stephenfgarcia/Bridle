@@ -4,6 +4,7 @@ import type { MessageId } from "@bridle/i18n";
 import { type Model, planarTruss, portalFrame, simplySupportedBeam } from "@bridle/model";
 import { useEffect, useId } from "react";
 import { t } from "../../i18n";
+import { LiveAnalysis } from "../analysis/LiveAnalysis";
 import { selectFrameKey, selectIssues, selectModel, useModelStore } from "../model/modelStore";
 import { handleHistoryKey } from "../model/shortcuts";
 import { NEW_MODEL_SOURCE } from "../tools/newModel";
@@ -34,7 +35,9 @@ function isFixtureId(value: string): value is FixtureId {
  * The two areas of the workspace: the viewport of the model in the model store, with the Undo and Redo buttons,
  * and the side panel about it. While it is mounted, the undo and redo shortcuts act on the store (Ctrl or Cmd
  * with Z; Ctrl or Cmd with Shift and Z, or Ctrl with Y), except when the key is pressed in a text field, and so
- * do the keys of the tools (../tools/toolKeys.ts: V, N, M, Escape, Delete and Backspace).
+ * do the keys of the tools (../tools/toolKeys.ts: V, N, M, Escape, Delete and Backspace). While it is mounted
+ * the model is analysed as it changes (../analysis/LiveAnalysis.tsx, card PX-02.8); the side panel shows the
+ * status of that analysis and its results.
  */
 export function WorkspaceView() {
   const model = useModelStore(selectModel);
@@ -60,6 +63,7 @@ export function WorkspaceView() {
   const switchId = useId();
   return (
     <>
+      <LiveAnalysis />
       <section
         aria-label={t("workspace.viewport.label")}
         className={styles.viewport}

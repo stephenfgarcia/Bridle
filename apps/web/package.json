@@ -13,6 +13,7 @@
   "dependencies": {
     "@bridle/i18n": "workspace:*",
     "@bridle/model": "workspace:*",
+    "@bridle/solver": "workspace:*",
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.2",
     "next": "15.5.29",

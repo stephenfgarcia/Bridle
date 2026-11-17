@@ -148,7 +148,12 @@ three pages and one route handler:
   and the choice of the active one), Issues and Properties, where a selected node shows six checkboxes for its
   support and its loads, and a selected member its loads with "Add uniform load" and "Add point load". The
   viewport draws the loads of the active load case as arrows with their values. The canvas
-  (three.js through `@react-three/fiber`) is loaded in the browser only.
+  (three.js through `@react-three/fiber`) is loaded in the browser only. Live analysis (card PX-02.8): while
+  the workspace is open, each model that has no issue is sent to the solver of `packages/solver`, which runs
+  in a Web Worker (`apps/web/src/components/analysis/solverWorker.ts`). The top of the side panel shows the
+  status (Analysing, Analysed with the time in ms, "Fix the issues first", Unstable, "Not supported yet",
+  "Analysis failed" with a Retry button), and a Results section shows, for the active load case, the
+  reactions, the displacement of the selected node and the end forces of the selected member.
 - `/tasks` is a "Coming soon" state.
 - `GET /api/v1/health` answers 200 `application/json` `{"ok":true,"sha":"<sha>"}`.
 
@@ -175,7 +180,7 @@ Where the sha comes from (`apps/web/src/sha.ts`, read at every request and never
 HEAD): `GIT_SHA` when it is set and not empty (the application image sets it), else `git rev-parse --short HEAD`
 (where git and the repository exist: development and the smoke test), else `unknown`.
 
-`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the seven
+`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the nine
 tests of `e2e/smoke.spec.ts`. It starts `pnpm --filter web dev --hostname 127.0.0.1 --port $PORT` (`PORT`, default
 3000) and stops it when the tests end, or reuses the server that already answers
 `http://127.0.0.1:$PORT/api/v1/health`. The first test asserts the health route: 200, `application/json`, a body
@@ -197,14 +202,23 @@ and 1 from the side panel, checks that a second member between the two nodes is 
 view, places a nodal load on the node `n3` with the Load tool and reads it back from the side panel's list,
 selects the beam `b1`, adds a uniform load from the side panel and reads it back from the member's list, takes
 `.bridle/screenshots/smoke-loads.png`, checks that a point load beyond the member's length is refused with a
-message, then edits and removes the uniform load and undoes the removal. The locale is `NEXT_PUBLIC_LOCALE` of
-the shell that runs the smoke, `en` when unset, so against a running server of another locale the six tests that
+message, then edits and removes the uniform load and undoes the removal. The eighth waits until the portal
+frame is analysed, reads the two horizontal reactions from the Results section and checks that they sum to the
+20 kN applied, takes `.bridle/screenshots/smoke-analysis.png`, removes one support and then the other with the
+Support tool (analysed on one support; "Fix the issues first" without any), undoes and redoes, pins both bases
+(Unstable; `.bridle/screenshots/smoke-unstable.png`), presses "Restrain out of plane" (analysed again), and
+loads the truss ("Not supported yet") and the beam. The ninth makes every `new Worker(...)` of the page throw,
+checks that the status says "Analysis failed", and that Retry analyses once workers can be made again. The
+locale is `NEXT_PUBLIC_LOCALE` of
+the shell that runs the smoke, `en` when unset, so against a running server of another locale the eight tests that
 open a page fail at `lang`: run it with the server's locale, or on another `PORT`.
 Failure output goes to `.bridle/playwright/`; both
 directories are gitignored. The sha the tests expect is `GIT_SHA` when the shell that runs the smoke has it, else
 `git rev-parse --short HEAD`, so a server started with another `GIT_SHA` fails the smoke: the sha is asserted, not
-echoed. With its seven tests it took 16 to 21 s here when Playwright started the server and about 14 s
-against a running one (card PX-02.5, 2026-11-18).
+echoed. With its nine tests it took 22 to 25 s here when Playwright started the server (card PX-02.8,
+2026-11-18). The smoke runs against `next dev`; to run it against the production build, build first
+(`pnpm --filter web build`), start it on a free port (`pnpm --filter web start --hostname 127.0.0.1 --port 3217`)
+and run `PORT=3217 pnpm e2e:smoke`, which then reuses that server.
 
 The browser: `@playwright/test` 1.64.1 (the pin of `tools/toolchain.json`, also typed in the root `package.json`)
 drives the Chromium build that `npx playwright@1.64.1 install chromium` puts in `~/Library/Caches/ms-playwright`

@@ -1,10 +1,12 @@
 // The smoke test of apps/web (card P0-02.5; the locale since card P0-02.6; the shell since card PX-02.1; the
 // 3D viewport since card PX-02.2; the model store since card PX-02.3; the tools since card PX-02.4; supports and
-// loads since card PX-02.5): the health route, then the home page and its screenshot, then the workspace route with the navigation, then the
+// loads since card PX-02.5; the live analysis since card PX-02.8): the health route, then the home page and its screenshot, then the workspace route with the navigation, then the
 // viewport with the side panel's counts, the Undo and Redo buttons, the issues and the fixture switch, then
 // hovering and selecting a member in the viewport, then a new model with two nodes and a member drawn with
 // the Node and the Member tool, then a nodal load placed with the Load tool and a uniform load added to the
-// beam of the portal frame from the side panel.
+// beam of the portal frame from the side panel, then the live analysis of the portal frame (its reactions, the
+// removal of its supports, the unstable frame on two pinned bases, the truss the solver does not take yet), then
+// a solver worker that cannot be made and the Retry button.
 // The health test is first: when a foreign process holds the port, its failure names the cause.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -503,4 +505,214 @@ test("/workspace adds a nodal load with the Load tool and a uniform load on the 
   await expect(row("ul1").getByTestId("load-value")).toHaveValue("-8");
   await expect(surface).toHaveAttribute("data-loads", "3");
   expect(problems).toEqual([]);
+});
+
+// The status of the live analysis, as the status area reports it (`data-status`). The first analysis of a
+// page waits for the worker's code, which the dev server compiles on demand: hence the longer timeout.
+async function expectStatus(page: Page, status: string) {
+  await expect(page.getByTestId("analysis-status")).toHaveAttribute("data-status", status, {
+    timeout: 30_000,
+  });
+}
+
+// The number in a printed value: the text without what the unit's message puts around `{value}`.
+function numberIn(text: string, unitMessage: string): number {
+  const [before = "", after = ""] = message(unitMessage).split("{value}");
+  expect(text.startsWith(before) && text.endsWith(after), `"${text}" as ${unitMessage}`).toBe(true);
+  return Number(text.slice(before.length, text.length - after.length));
+}
+
+// The horizontal reactions the Results section prints, one per support, in kN.
+async function horizontalReactions(page: Page): Promise<number[]> {
+  const cells = page
+    .getByTestId("results")
+    .locator('[data-testid="reaction"] [data-testid="result-value"][data-component="fx"]');
+  const values: number[] = [];
+  for (const text of await cells.allTextContents()) {
+    values.push(numberIn(text, "workspace.loads.valueKN"));
+  }
+  return values;
+}
+
+test("/workspace analyses the portal frame as it changes and says when it cannot", async ({
+  page,
+}, testInfo) => {
+  const problems: string[] = [];
+  page.on("pageerror", (error) => problems.push(`page error: ${error.message}`));
+  await openViewport(page);
+  const viewport = page.getByTestId("viewport");
+  const panel = page.getByTestId("side-panel");
+  const status = page.getByTestId("analysis-status");
+  const results = panel.getByTestId("results");
+  const reactions = results.getByTestId("reaction");
+  const sumFx = results
+    .getByTestId("reaction-sum")
+    .locator('[data-testid="result-value"][data-component="fx"]');
+  const kN = (text: string) => message("workspace.loads.valueKN").replace("{value}", text);
+  const history = (id: string) =>
+    viewport.getByRole("button", { name: message(`workspace.history.${id}`), exact: true });
+
+  // The portal frame is analysed on opening: 20 kN along +X at n2, so the two horizontal reactions sum to
+  // -20 kN. Each is printed with four significant digits, hence the tolerance of two last digits.
+  await expectStatus(page, "analysed");
+  await expect(status.getByTestId("analysis-title")).toHaveText(
+    message("workspace.analysis.analysed"),
+  );
+  await expect(status.getByTestId("analysis-time")).toBeVisible();
+  await expect(results).toHaveAttribute("data-stale", "false");
+  await expect(results).toHaveAttribute("data-load-case", "lc1");
+  await expect(reactions).toHaveCount(2);
+  await expect(reactions.nth(0)).toHaveAttribute("data-node", "n1");
+  await expect(reactions.nth(1)).toHaveAttribute("data-node", "n4");
+  await expect(reactions.nth(0).getByTestId("result-value")).toHaveCount(6);
+  const portal = await horizontalReactions(page);
+  expect(portal).toHaveLength(2);
+  expect(Math.abs((portal[0] ?? 0) + (portal[1] ?? 0) + 20)).toBeLessThan(0.02);
+  for (const value of portal) {
+    expect(value).toBeLessThan(0);
+  }
+  await expect(sumFx).toHaveText(kN("-20.00"));
+  await results.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: screenshotPath(testInfo, "smoke-analysis") });
+
+  // A support is deleted (the Support tool on a node that has the chosen support removes it): the frame
+  // stands on n1 alone, is analysed again, and n1 carries the whole 20 kN.
+  await viewport
+    .getByRole("button", { name: message("workspace.viewport.viewFront"), exact: true })
+    .click();
+  await viewport
+    .getByRole("button", { name: message("workspace.tools.support"), exact: true })
+    .click();
+  await expect(viewport.getByTestId("support-choice")).toHaveValue("fixed");
+  const n4 = await movePointerTo(page, 6, 0);
+  await page.mouse.click(n4.x, n4.y);
+  await expectCounts(page, 4, 3, 1);
+  await expectStatus(page, "analysed");
+  await expect(reactions).toHaveCount(1);
+  await expect(
+    reactions.nth(0).locator('[data-testid="result-value"][data-component="fx"]'),
+  ).toHaveText(kN("-20.00"));
+  // The node the tool acted on is selected: its displacement is in the Results section, in mm and rad.
+  const displacement = results.getByTestId("node-displacement");
+  await expect(displacement).toHaveAttribute("data-node", "n4");
+  await expect(displacement.getByTestId("result-value")).toHaveCount(6);
+  const ux =
+    (await displacement
+      .locator('[data-testid="result-value"][data-component="ux"]')
+      .textContent()) ?? "";
+  // The frame now stands on n1 alone, so the foot of the other column moves.
+  expect(Math.abs(numberIn(ux, "workspace.results.valueMm"))).toBeGreaterThan(0.01);
+
+  // The last support is deleted: the model has an issue, it is not analysed and no result is shown.
+  const n1 = await movePointerTo(page, 0, 0);
+  await page.mouse.click(n1.x, n1.y);
+  await expectCounts(page, 4, 3, 0);
+  await expectStatus(page, "issues");
+  await expect(status.getByTestId("analysis-title")).toHaveText(
+    message("workspace.analysis.issues"),
+  );
+  await expect(results).toHaveCount(0);
+
+  // Undo and redo are followed: one support, two supports, one support, two supports.
+  await history("undo").click();
+  await expectStatus(page, "analysed");
+  await expect(reactions).toHaveCount(1);
+  await history("undo").click();
+  await expectStatus(page, "analysed");
+  await expect(reactions).toHaveCount(2);
+  await expect(sumFx).toHaveText(kN("-20.00"));
+  await history("redo").click();
+  await expectStatus(page, "analysed");
+  await expect(reactions).toHaveCount(1);
+  await history("undo").click();
+  await expect(reactions).toHaveCount(2);
+
+  // Both bases pinned: the frame can turn about the line through its bases. The status says so, names a
+  // node and a direction, shows no result, and offers "Restrain out of plane".
+  await viewport.getByTestId("support-choice").selectOption("pinned");
+  await page.mouse.click(n1.x, n1.y);
+  await expectCounts(page, 4, 3, 2);
+  await expectStatus(page, "analysed");
+  await page.mouse.click(n4.x, n4.y);
+  await expectStatus(page, "unstable");
+  await expect(status.getByTestId("analysis-title")).toHaveText(
+    message("workspace.analysis.unstable"),
+  );
+  const sentences: string[] = [];
+  for (const dof of ["Ux", "Uy", "Uz", "Rx", "Ry", "Rz"]) {
+    for (const node of ["n1", "n2", "n3", "n4"]) {
+      sentences.push(message(`workspace.analysis.unstable${dof}`).replace("{node}", node));
+    }
+  }
+  expect(sentences).toContain(await status.getByTestId("analysis-where").textContent());
+  await expect(results).toHaveCount(0);
+  await page.screenshot({ path: screenshotPath(testInfo, "smoke-unstable") });
+  await status.getByTestId("analysis-restrain").click();
+  await expectStatus(page, "analysed");
+  await expectCounts(page, 4, 3, 4);
+  await expect(reactions).toHaveCount(4);
+  await expect(sumFx).toHaveText(kN("-20.00"));
+  const pinned = await horizontalReactions(page);
+  expect(Math.abs(pinned.reduce((sum, value) => sum + value, 0) + 20)).toBeLessThan(0.04);
+
+  // The truss example has truss members, which the solver does not take yet: the status names them.
+  const fixture = panel.getByLabel(message("workspace.fixture.label"), { exact: true });
+  await fixture.selectOption("truss");
+  await expectStatus(page, "unsupported");
+  await expect(status.getByTestId("analysis-title")).toHaveText(
+    message("workspace.analysis.unsupported"),
+  );
+  await expect(status).toContainText("t1, t2, t3, t4, t5, t6, t7");
+  await expect(results).toHaveCount(0);
+  // The other two examples are analysed on opening.
+  await fixture.selectOption("beam");
+  await expectStatus(page, "analysed");
+  await expect(reactions).toHaveCount(2);
+  await fixture.selectOption("portal");
+  await expectStatus(page, "analysed");
+  await expect(sumFx).toHaveText(kN("-20.00"));
+  expect(problems).toEqual([]);
+});
+
+test("/workspace says that the analysis failed when the solver worker cannot be made, and Retry analyses", async ({
+  page,
+}) => {
+  // Every `new Worker(...)` of the page throws while `__blockWorkers` is true.
+  await page.addInitScript(() => {
+    const scope = window as unknown as { __blockWorkers: boolean; Worker: typeof Worker };
+    scope.__blockWorkers = true;
+    scope.Worker = new Proxy(scope.Worker, {
+      construct(target, args: ConstructorParameters<typeof Worker>) {
+        if (scope.__blockWorkers) {
+          throw new Error("worker blocked by the test");
+        }
+        return new target(...args);
+      },
+    });
+  });
+  await openViewport(page);
+  const status = page.getByTestId("analysis-status");
+  const results = page.getByTestId("side-panel").getByTestId("results");
+  await expectStatus(page, "failed");
+  await expect(status.getByTestId("analysis-title")).toHaveText(
+    message("workspace.analysis.failed"),
+  );
+  await expect(status).toContainText(message("workspace.analysis.failedWorker"));
+  await expect(status).toContainText("worker blocked by the test");
+  await expect(results).toHaveCount(0);
+  const retry = status.getByRole("button", {
+    name: message("workspace.analysis.retry"),
+    exact: true,
+  });
+  // Retry while the worker still cannot be made: the failure is shown again.
+  await retry.click();
+  await expectStatus(page, "failed");
+  await expect(results).toHaveCount(0);
+  // The worker can be made again: Retry analyses the portal frame.
+  await page.evaluate(() => {
+    (window as unknown as { __blockWorkers: boolean }).__blockWorkers = false;
+  });
+  await retry.click();
+  await expectStatus(page, "analysed");
+  await expect(results.getByTestId("reaction")).toHaveCount(2);
 });

@@ -3,6 +3,8 @@
 import { distance, type Model, type ModelIssue, type Node as ModelNode } from "@bridle/model";
 import { type ReactNode, useId } from "react";
 import { t } from "../../i18n";
+import { AnalysisStatus } from "../analysis/AnalysisStatus";
+import { ResultsPanel } from "../analysis/ResultsPanel";
 import { ISSUE_MESSAGE } from "../model/issueMessages";
 import { NumberField } from "../tools/NumberField";
 import { deleteSelection, moveNodeAction } from "../tools/toolActions";
@@ -137,10 +139,15 @@ function Issues({ issues }: { issues: ModelIssue[] }) {
 }
 
 /**
- * The side panel of the workspace, in four sections:
+ * The side panel of the workspace: at its top the status of the live analysis (../analysis/AnalysisStatus.tsx,
+ * card PX-02.8), which stays there while the rest scrolls, then four sections, and a fifth while there are
+ * results:
  * - Model: the "New model" button and the example switch, the counts of the nodes, members and supports, and
  *   "Restrain out of plane";
  * - Loads: the load cases with the number of their loads, the choice of the active one, "Add load case";
+ * - Results, only while the analysis has results to show (../analysis/ResultsPanel.tsx, card PX-02.8): the
+ *   reactions of the active load case, the displacement of the selected node, the end forces of the selected
+ *   member;
  * - Issues: what `validateModel` reports;
  * - Properties: the item selected in the viewport. Its read-only rows; for a node the fields of its X, Y and
  *   Z, the six checkboxes of its support and its nodal loads; for a member its loads and the two buttons that
@@ -177,6 +184,7 @@ export function SidePanel({
       className={styles.panel}
       data-testid="side-panel"
     >
+      <AnalysisStatus />
       <section aria-labelledby="workspace-model-title" className={styles.block}>
         <h2 className={styles.blockTitle} id="workspace-model-title">
           {t("workspace.model.title")}
@@ -202,6 +210,7 @@ export function SidePanel({
         </h2>
         <LoadCases model={model} />
       </section>
+      <ResultsPanel model={model} />
       <section aria-labelledby="workspace-issues-title" className={styles.block}>
         <h2 className={styles.blockTitle} id="workspace-issues-title">
           {t("workspace.issues.title")}
