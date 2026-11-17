@@ -104,7 +104,7 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | PX-02.6 | PX | ship | done | orchestrator | 2026-11-17T19:32:37Z |
 | PX-02.7 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
 | PX-02.8 | PX | ship | done | orchestrator | 2026-11-17T18:59:58Z |
-| PX-02.9 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.9 | PX | ship | done | orchestrator | 2026-11-17T20:04:43Z |
 | PX-02.10 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
 | PX-02.11 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
 | PX-02.12 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
@@ -137,7 +137,7 @@ Next up: P0-07 External dependencies and legal register
 
 Resumed 2026-11-17 by the owner after the pause of 2026-11-04 (the `- Paused` entry of the Log below). Since 2026-11-18 the work
 follows the pitch plan (`docs/plan/pitch-plan.md`), with cards PX-01.1 to PX-04.8 running in the lanes core and web; `card.py list`
-and the board above say which are in flight, and the last shipped card is PX-03.6 (`3aae1d0`). The cards shipped on 2026-11-17,
+and the board above say which are in flight, and the last shipped card is PX-02.9 (`afe6d5a`). The cards shipped on 2026-11-17,
 before the pitch plan: P0-08.2 Lane tooling (`09c0851`), P0-08.1 Card tooling (`99168d5`), P0-02.6 Externalized UI strings
 (`c005a7c`, which closed the P0-02 Repository bootstrap row; the row's card, `## Ship`, lists the three deliverables that wait for
 later rows), P0-02.5 Next.js skeleton (`ee5d288`) and P0-11 Resume-ability (`6078dcd`); before those, P0-02.4 (`d8d8b7e`).
@@ -241,3 +241,4 @@ the sessions open on the checkout.
 - 2026-11-18 03:32, PX-02.6, commit 2e0ee3a: Property panel; the property panel: section, material and roll angle of the selected members, a Sections and materials dialog with the generic I-sections of `@bridle/tasks` and two steels in customary units, selection of several nodes and members with Shift-click and one Delete for all, read-only member type and end releases, and "Colour by section" with a legend; 57 new unit tests and a tenth browser test; built and tested by one agent under the pitch process.
 - 2026-11-18 03:39, PX-01.8, commit f4afdf6: Illustrative member checks; the illustrative member checks of `packages/solver`: `memberChecks`, `governingChecks`, `structureChecks` and `spanDeflection`: the largest elastic normal stress of each member against yield, its deflection from the chord against span/n, the drift of a vertical member against height/n, each marked illustrative with ten codes for what is not checked; 302 solver tests. An independent review confirmed about 65 hand values and passed it at the first review.
 - 2026-11-18 03:42, PX-03.6, commit 3aae1d0: Evidence against the reference; the package `packages/grader` (`@bridle/grader`): the `Submission` and `buildEvidence`, which computes without any AI the state of the learner model, changed fixed parts, the supports and loads against the reference by geometry, a verdict for each typed answer (correct, consistent with the own model, incorrect, missing, pending), the design requirements and the section choice, and `summarizeEvidence`; 168 tests. The first review held about 150 student-style submissions and found non-finite numbers reaching the evidence; one rework loop added a range guard, and the second review passed it.
+- 2026-11-18 04:04, PX-02.9, commit afe6d5a: Deflected shape and reactions; results in the viewport: the deflected shape from the solver own curves with an automatic tidy scale shown on screen, a typed scale and true scale, reaction arrows and moment arcs at the supports with their values, a label at the largest displacement, and a readout of a node displacement; 31 new unit tests and an eleventh browser test; built and tested by one agent under the pitch process.
