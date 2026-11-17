@@ -4,6 +4,7 @@ import {
   type ItemRef,
   isSelected,
   NO_SELECTION,
+  readoutNodeId,
   type Selection,
   selectedIds,
   selectedItems,
@@ -101,5 +102,17 @@ describe("selectedItems", () => {
     ]);
     expect(items.nodes).toEqual([]);
     expect(items.members.map((member) => member.id)).toEqual(["c1"]);
+  });
+});
+
+describe("readoutNodeId", () => {
+  it("is the node under the pointer, or else the one selected node", () => {
+    expect(readoutNodeId({ kind: "node", id: "n2" }, [n1])).toBe("n2");
+    expect(readoutNodeId(null, [n1])).toBe("n1");
+    expect(readoutNodeId({ kind: "member", id: "c1" }, [n1])).toBe("n1");
+    expect(readoutNodeId({ kind: "member", id: "c1" }, NO_SELECTION)).toBeNull();
+    expect(readoutNodeId(null, [c1])).toBeNull();
+    expect(readoutNodeId(null, [n1, c1])).toBeNull();
+    expect(readoutNodeId(null, NO_SELECTION)).toBeNull();
   });
 });

@@ -51,6 +51,10 @@ export interface CanvasColors {
   hover: string;
   /** The arrows of the loads (./LoadGlyphs.tsx). */
   load: string;
+  /** The deflected shape (./ResultGlyphs.tsx). */
+  deflection: string;
+  /** The arrows and arcs of the reactions (./ResultGlyphs.tsx). */
+  reaction: string;
   /** The colours of "Colour by section", in the order of `SECTION_COLOR_TOKENS` (./sectionColors.ts). */
   sections: string[];
 }
@@ -61,6 +65,9 @@ const MEMBER_PX = 2.5;
 // Members coloured by section are drawn a little wider, so that the colour of a thin line can be told.
 const MEMBER_COLORED_PX = 3.5;
 const MEMBER_HIGHLIGHT_PX = 5;
+// While the deflected shape is drawn (card PX-02.9) the members are thinner and in the node colour, so that
+// the deflected curve reads first; coloured by section they keep their colours at the plain width.
+const MEMBER_QUIET_PX = 1.5;
 const NODE_PX = 10;
 const NODE_HIGHLIGHT_PX = 15;
 const GLYPH_PX = 34;
@@ -214,16 +221,20 @@ function MemberHighlight({ member, color }: { member: DrawnMember; color: string
 /**
  * Every member in one set of line segments (one draw call); the hovered and the selected ones are drawn over
  * it. `memberColors`, when given, holds the colour of each member in the order of `members` ("Colour by
- * section"); without it every member has the colour `colors.member`.
+ * section"); without it every member has the colour `colors.member`. With `quiet` the lines are thinner and,
+ * without colours of their own, in the node colour (the undeformed structure under a deflected shape); they
+ * are picked by the pointer as before.
  */
 function Members({
   members,
   colors,
   memberColors,
+  quiet,
 }: {
   members: DrawnMember[];
   colors: CanvasColors;
   memberColors: string[] | null;
+  quiet: boolean;
 }) {
   const hover = useViewportStore((state) => state.hover);
   const selection = useViewportStore((state) => state.selection);
@@ -256,10 +267,18 @@ function Members({
   return (
     <>
       <Line
-        color={vertexColors ? "#ffffff" : colors.member}
+        color={vertexColors ? "#ffffff" : quiet ? colors.node : colors.member}
         // A line with a colour per vertex is another material program: the two are separate objects.
         key={vertexColors ? "by-section" : "plain"}
-        lineWidth={vertexColors ? MEMBER_COLORED_PX : MEMBER_PX}
+        lineWidth={
+          vertexColors
+            ? quiet
+              ? MEMBER_PX
+              : MEMBER_COLORED_PX
+            : quiet
+              ? MEMBER_QUIET_PX
+              : MEMBER_PX
+        }
         onClick={(event) => {
           const member = memberAt(event);
           if (member === undefined || event.delta > CLICK_SLOP_PX || !selecting()) {
@@ -555,25 +574,33 @@ function Supports({ supports, colors }: { supports: DrawnSupport[]; colors: Canv
 /**
  * The ground grid, the work plane, the members, the nodes and the supports of one scene description. Rendered
  * inside the canvas. `memberColors` is the colour of each member of `scene.members`, in that order, or `null`
- * for the plain member colour.
+ * for the plain member colour. `quietMembers` draws the members thinner and lighter (while a deflected shape
+ * is drawn over them, card PX-02.9).
  */
 export function ModelScene({
   scene,
   workPlane,
   colors,
   memberColors = null,
+  quietMembers = false,
 }: {
   scene: SceneDescription;
   workPlane: WorkPlaneGrid;
   colors: CanvasColors;
   memberColors?: string[] | null;
+  quietMembers?: boolean;
 }) {
   return (
     <>
       <Grid colors={colors} grid={scene.grid} />
       <WorkPlane color={colors.selection} grid={workPlane} />
       <Supports colors={colors} supports={scene.supports} />
-      <Members colors={colors} memberColors={memberColors} members={scene.members} />
+      <Members
+        colors={colors}
+        memberColors={memberColors}
+        members={scene.members}
+        quiet={quietMembers}
+      />
       <Nodes colors={colors} nodes={scene.nodes} />
     </>
   );

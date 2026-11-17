@@ -47,14 +47,14 @@ function mutable(point: Point3): [number, number, number] {
 }
 
 /** The rotation that turns the Z axis of a glyph onto a unit vector of the scene. */
-function towards(direction: Point3): Quaternion {
+export function towards(direction: Point3): Quaternion {
   return new Quaternion().setFromUnitVectors(
     UNIT_Z,
     new Vector3(direction[0], direction[1], direction[2]),
   );
 }
 
-interface ArrowGeometry {
+export interface ArrowGeometry {
   shaft: BufferGeometry;
   head: BufferGeometry;
 }
@@ -70,7 +70,7 @@ interface LoadGeometries {
  * A straight arrow one unit long: its head's tip at the origin, pointing along +Z, its tail at Z = -1. Drawn
  * with the head at the loaded point, the arrow stands on the side the force comes from.
  */
-function arrow(headLength: number, headRadius: number, shaftRadius: number): ArrowGeometry {
+export function arrow(headLength: number, headRadius: number, shaftRadius: number): ArrowGeometry {
   const shaft = new CylinderGeometry(shaftRadius, shaftRadius, 1 - headLength, 8);
   shaft.rotateX(Math.PI / 2);
   shaft.translate(0, 0, -headLength - (1 - headLength) / 2);
@@ -129,7 +129,7 @@ export function createLabelLinks(): LabelLinks {
   return { anchors: new Map(), elements: new Map(), places: new Map() };
 }
 
-function putLabel(element: HTMLElement, place: { x: number; y: number } | null | undefined) {
+export function putLabel(element: HTMLElement, place: { x: number; y: number } | null | undefined) {
   if (place) {
     element.style.visibility = "visible";
     element.style.transform = `translate(${place.x}px, ${place.y}px) translate(-50%, -50%)`;
@@ -177,13 +177,16 @@ export function LoadLabels({ loads, links }: { loads: DrawnLoad[]; links: LabelL
 
 const scratch = new Vector3();
 
-/** The place in the scene where the label of a load is centred: an empty object the frame loop reads. */
-function Anchor({
-  load,
+/**
+ * The place in the scene where a label is centred (the label of a load, or of a result, card PX-02.9): an
+ * empty object the frame loop reads. `anchorKey` is the key of the label in `links`.
+ */
+export function Anchor({
+  anchorKey,
   links,
   position,
 }: {
-  load: DrawnLoad;
+  anchorKey: string;
   links: LabelLinks;
   position: [number, number, number];
 }) {
@@ -192,14 +195,37 @@ function Anchor({
       position={position}
       ref={(group) => {
         if (group) {
-          links.anchors.set(load.key, group);
+          links.anchors.set(anchorKey, group);
         } else {
-          links.anchors.delete(load.key);
-          links.places.delete(load.key);
+          links.anchors.delete(anchorKey);
+          links.places.delete(anchorKey);
         }
       }}
     />
   );
+}
+
+/**
+ * Moves the labels of `links` to where their anchors are on screen, on every drawn frame, after the frame
+ * callbacks of priority -1 that size the glyphs: each label's `style` is set, and a label whose anchor is
+ * behind the camera is hidden.
+ */
+export function usePlacedLabels(links: LabelLinks) {
+  useFrame(({ camera, size }) => {
+    for (const [key, anchor] of links.anchors) {
+      anchor.updateWorldMatrix(true, false);
+      scratch.setFromMatrixPosition(anchor.matrixWorld).project(camera);
+      const place =
+        scratch.z > -1 && scratch.z < 1
+          ? { x: ((scratch.x + 1) / 2) * size.width, y: ((1 - scratch.y) / 2) * size.height }
+          : null;
+      links.places.set(key, place);
+      const element = links.elements.get(key);
+      if (element) {
+        putLabel(element, place);
+      }
+    }
+  });
 }
 
 function Arrow({ geometry, color }: { geometry: ArrowGeometry; color: string }) {
@@ -237,7 +263,7 @@ function Force({
   return (
     <group position={mutable(load.point)} quaternion={quaternion} ref={group}>
       <Arrow color={color} geometry={geometries.force} />
-      <Anchor links={links} load={load} position={[0, 0, -FORCE_LABEL_AT]} />
+      <Anchor anchorKey={load.key} links={links} position={[0, 0, -FORCE_LABEL_AT]} />
     </group>
   );
 }
@@ -272,7 +298,11 @@ function Moment({
         <meshBasicMaterial color={color} />
       </mesh>
       {/* Beyond the open quarter of the arc, past the arrow head. */}
-      <Anchor links={links} load={load} position={[MOMENT_LABEL_AT, -MOMENT_LABEL_AT, 0]} />
+      <Anchor
+        anchorKey={load.key}
+        links={links}
+        position={[MOMENT_LABEL_AT, -MOMENT_LABEL_AT, 0]}
+      />
     </group>
   );
 }
@@ -342,7 +372,7 @@ function Uniform({
         </group>
       )}
       <group ref={label}>
-        <Anchor links={links} load={load} position={[0, 0, 0]} />
+        <Anchor anchorKey={load.key} links={links} position={[0, 0, 0]} />
       </group>
     </>
   );
@@ -365,21 +395,7 @@ export function Loads({
 }) {
   const geometries = useMemo(makeGeometries, []);
   useEffect(() => () => disposeGeometries(geometries), [geometries]);
-  useFrame(({ camera, size }) => {
-    for (const [key, anchor] of links.anchors) {
-      anchor.updateWorldMatrix(true, false);
-      scratch.setFromMatrixPosition(anchor.matrixWorld).project(camera);
-      const place =
-        scratch.z > -1 && scratch.z < 1
-          ? { x: ((scratch.x + 1) / 2) * size.width, y: ((1 - scratch.y) / 2) * size.height }
-          : null;
-      links.places.set(key, place);
-      const element = links.elements.get(key);
-      if (element) {
-        putLabel(element, place);
-      }
-    }
-  });
+  usePlacedLabels(links);
   return (
     <>
       {loads.map((load) =>

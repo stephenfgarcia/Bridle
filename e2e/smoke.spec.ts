@@ -8,7 +8,9 @@
 // removal of its supports, the unstable frame on two pinned bases, the truss the solver does not take yet), then
 // a solver worker that cannot be made and the Retry button, then the property panel (card PX-02.6): a section
 // added in "Sections and materials", the two columns of the portal frame selected with Shift-click and given
-// that section, "Colour by section", and Delete on several items.
+// that section, "Colour by section", and Delete on several items, then the results in the viewport (card
+// PX-02.9): the deflected shape with its scale, the reactions, the largest displacement and how it follows the
+// load.
 // The health test is first: when a foreign process holds the port, its failure names the cause.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -922,5 +924,198 @@ test("/workspace gives the two columns selected with Shift-click another section
   await expect(selection).toHaveAttribute("data-members", "2");
   await page.mouse.click(inside.x, inside.y);
   await expect(panel.getByTestId("selection-empty")).toBeVisible();
+  expect(problems).toEqual([]);
+});
+
+test("/workspace draws the deflected shape and the reactions, and the largest displacement follows the load", async ({
+  page,
+}, testInfo) => {
+  const problems: string[] = [];
+  page.on("pageerror", (error) => problems.push(`page error: ${error.message}`));
+  await openViewport(page);
+  const viewport = page.getByTestId("viewport");
+  const surface = page.getByTestId("viewport-surface");
+  const panel = page.getByTestId("side-panel");
+  const display = viewport.getByTestId("results-display");
+  const scale = display.getByTestId("deflection-scale");
+  const largest = panel.getByTestId("largest-displacement");
+  const largestMm = async () =>
+    numberIn(
+      (await largest.getByTestId("largest-displacement-value").textContent()) ?? "",
+      "workspace.results.valueMm",
+    );
+  const shownScale = async () => Number(await scale.getAttribute("data-scale"));
+  const scaleText = (value: number) =>
+    message("workspace.display.scale").replace("{value}", String(value));
+
+  // The portal frame, analysed on opening: both switches are on, the three members are drawn deflected and
+  // the two fixed bases have three reaction components each that are not zero (Fx, Fz and My).
+  await expectStatus(page, "analysed");
+  await viewport
+    .getByRole("button", { name: message("workspace.viewport.viewFront"), exact: true })
+    .click();
+  await expect(display).toHaveAttribute("data-available", "true");
+  await expect(display.getByTestId("show-deflected")).toBeChecked();
+  await expect(display.getByTestId("show-reactions")).toBeChecked();
+  await expect(surface).toHaveAttribute("data-results", "fresh");
+  await expect(surface).toHaveAttribute("data-deflected", "3");
+  await expect(surface).toHaveAttribute("data-reactions", "6");
+  const reactionLabels = viewport.getByTestId("reaction-label");
+  await expect(reactionLabels).toHaveCount(6);
+  for (const key of ["n1:fx", "n1:fz", "n1:my", "n4:fx", "n4:fz", "n4:my"]) {
+    await expect(
+      viewport.locator(`[data-testid="reaction-label"][data-result="${key}"]`),
+    ).toBeVisible();
+  }
+  // The label of a reaction is the magnitude the Results section prints for it.
+  const printed =
+    (await panel
+      .locator('[data-testid="reaction"][data-node="n1"] [data-component="fx"]')
+      .textContent()) ?? "";
+  expect(numberIn(printed, "workspace.loads.valueKN")).toBeLessThan(0);
+  await expect(viewport.locator('[data-testid="reaction-label"][data-result="n1:fx"]')).toHaveText(
+    printed.replace("-", ""),
+  );
+
+  // The scale is the automatic one, a tidy number, and it is written on the page. It draws the largest
+  // displacement between a twentieth and a fifth of the frame's 6 m.
+  await expect(scale).toHaveAttribute("data-mode", "auto");
+  const firstScale = await shownScale();
+  await expect(scale).toHaveText(scaleText(firstScale));
+  expect([1, 2, 5]).toContain(
+    Number((firstScale / 10 ** Math.floor(Math.log10(firstScale))).toPrecision(6)),
+  );
+  await expect(largest).toHaveAttribute("data-kind", /^(node|member)$/);
+  const firstMm = await largestMm();
+  expect(firstMm).toBeGreaterThan(0);
+  expect((firstMm / 1000) * firstScale).toBeGreaterThanOrEqual(0.3);
+  expect((firstMm / 1000) * firstScale).toBeLessThanOrEqual(1.2);
+  // The same value is marked on the deflected curve.
+  const largestLabel = viewport.getByTestId("largest-label");
+  await expect(largestLabel).toBeVisible();
+  await expect(largestLabel).toHaveText(
+    message("workspace.display.largestLabel").replace(
+      "{value}",
+      (await largest.getByTestId("largest-displacement-value").textContent()) ?? "",
+    ),
+  );
+  await page.screenshot({ path: screenshotPath(testInfo, "smoke-results") });
+
+  // The loaded node n2 at (0, 0, 4): found with the Node tool's cursor, then hovered and clicked with Select.
+  await viewport
+    .getByRole("button", { name: message("workspace.tools.node"), exact: true })
+    .click();
+  const near = await movePointerTo(page, 0, 4);
+  await page.keyboard.press("Escape");
+  await expect(surface).toHaveAttribute("data-tool", "select");
+  // The cursor snaps to half a metre, so the pointer is near the node, not always on its marker: it goes
+  // round in growing squares until the viewport says it is over n2.
+  let n2 = near;
+  search: for (let ring = 0; ring <= 8; ring += 1) {
+    for (let dx = -ring; dx <= ring; dx += 1) {
+      for (let dy = -ring; dy <= ring; dy += 1) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) {
+          continue;
+        }
+        n2 = { x: near.x + 4 * dx, y: near.y + 4 * dy };
+        await page.mouse.move(n2.x, n2.y);
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+        if ((await surface.getAttribute("data-hover")) === "node:n2") {
+          break search;
+        }
+      }
+    }
+  }
+  await expect(surface).toHaveAttribute("data-hover", "node:n2");
+  // Hovering it shows its displacement in the status lines: it sways along +X.
+  const readout = viewport.getByTestId("node-readout");
+  await expect(readout).toHaveAttribute("data-node", "n2");
+  await expect(readout).toHaveAttribute("data-source", "hover");
+  await expect(readout.getByTestId("readout-value")).toHaveCount(6);
+  const sway = numberIn(
+    (await readout.locator('[data-component="ux"]').textContent()) ?? "",
+    "workspace.results.valueMm",
+  );
+  expect(sway).toBeGreaterThan(0);
+  expect(sway).toBeLessThanOrEqual(firstMm);
+  await page.mouse.click(n2.x, n2.y);
+  await expect(panel.getByTestId("selection")).toContainText("n2");
+
+  // The load of 20 kN becomes 30 kN in the side panel: the largest displacement becomes one and a half times
+  // what it was (four significant digits are printed), and the automatic scale stays.
+  const loadValue = panel
+    .locator('[data-testid="load-row"][data-load="nl1"]')
+    .getByTestId("load-value");
+  await expect(loadValue).toHaveValue("20");
+  await loadValue.fill("30");
+  await loadValue.press("Enter");
+  await expect
+    .poll(async () => (await largestMm()) / firstMm, { timeout: 15_000 })
+    .toBeCloseTo(1.5, 2);
+  await expect(surface).toHaveAttribute("data-results", "fresh");
+  expect(await shownScale()).toBe(firstScale);
+  // The pointer is off the node: the readout is that of the selected node.
+  await page.mouse.move(n2.x + 150, n2.y + 150);
+  await expect(readout).toHaveAttribute("data-source", "selection");
+  // Ten times that load: ten times the displacement, and a smaller automatic scale.
+  await loadValue.fill("300");
+  await loadValue.press("Enter");
+  await expect
+    .poll(async () => (await largestMm()) / firstMm, { timeout: 15_000 })
+    .toBeCloseTo(15, 1);
+  await expect.poll(shownScale).toBeLessThan(firstScale);
+  await expect(scale).toHaveAttribute("data-mode", "auto");
+
+  // The scale by hand: true scale, a typed scale, and back to the automatic one.
+  const heavyScale = await shownScale();
+  await display.getByTestId("scale-true").click();
+  await expect(scale).toHaveAttribute("data-mode", "manual");
+  await expect(scale).toHaveAttribute("data-scale", "1");
+  await expect(scale).toHaveText(scaleText(1));
+  await display.getByTestId("scale-field").fill("250");
+  await display.getByTestId("scale-field").press("Enter");
+  await expect(scale).toHaveAttribute("data-scale", "250");
+  await expect(scale).toHaveText(scaleText(250));
+  await display.getByTestId("scale-field").fill("-3");
+  await display.getByTestId("scale-field").press("Enter");
+  await expect(scale).toHaveAttribute("data-scale", "250");
+  await display.getByTestId("scale-auto").click();
+  await expect(scale).toHaveAttribute("data-mode", "auto");
+  await expect(scale).toHaveAttribute("data-scale", String(heavyScale));
+
+  // The two switches.
+  await display.getByTestId("show-reactions").uncheck();
+  await expect(surface).toHaveAttribute("data-reactions", "0");
+  await expect(reactionLabels).toHaveCount(0);
+  await expect(surface).toHaveAttribute("data-deflected", "3");
+  await display.getByTestId("show-deflected").uncheck();
+  await expect(surface).toHaveAttribute("data-deflected", "0");
+  await expect(largestLabel).toHaveCount(0);
+  await expect(scale).toHaveCount(0);
+  await expect(largest.getByTestId("largest-displacement-value")).toBeVisible();
+  await display.getByTestId("show-reactions").check();
+  await display.getByTestId("show-deflected").check();
+  await expect(surface).toHaveAttribute("data-reactions", "6");
+  await expect(surface).toHaveAttribute("data-deflected", "3");
+
+  // The truss is not analysed yet: nothing is drawn for it, and the group says so. The beam is: one member,
+  // two upward reactions, the largest displacement on the member.
+  await panel.getByTestId("fixture-switch").selectOption("truss");
+  await expectStatus(page, "unsupported");
+  await expect(surface).toHaveAttribute("data-results", "none");
+  await expect(surface).toHaveAttribute("data-deflected", "0");
+  await expect(surface).toHaveAttribute("data-reactions", "0");
+  await expect(display.getByTestId("results-display-none")).toHaveText(
+    message("workspace.display.none"),
+  );
+  await expect(viewport.getByTestId("result-labels")).toHaveCount(0);
+  await panel.getByTestId("fixture-switch").selectOption("beam");
+  await expectStatus(page, "analysed");
+  await expect(surface).toHaveAttribute("data-results", "fresh");
+  await expect(surface).toHaveAttribute("data-deflected", "1");
+  await expect(surface).toHaveAttribute("data-reactions", "2");
+  await expect(largest).toHaveAttribute("data-kind", "member");
+  await expect(largest).toHaveAttribute("data-id", "m1");
+  await expect(display.getByTestId("show-deflected")).toBeChecked();
   expect(problems).toEqual([]);
 });

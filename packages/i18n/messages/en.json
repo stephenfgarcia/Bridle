@@ -268,5 +268,19 @@
   "workspace.sectionColors.toggle": "Colour by section",
   "workspace.sectionColors.none": "No member to colour.",
   "workspace.sectionColors.members": "{count, plural, one {# member} other {# members}}",
-  "workspace.sectionColors.other": "Other sections"
+  "workspace.sectionColors.other": "Other sections",
+  "workspace.results.largest": "Largest displacement",
+  "workspace.results.largestAtNode": "At node {id}.",
+  "workspace.results.largestOnMember": "On member {id}, {distance} m from node {node}.",
+  "workspace.results.largestNone": "Nothing moves in this load case.",
+  "workspace.results.largestHelp": "The length of the displacement vector of the point that moves most, over the nodes and points along every member.",
+  "workspace.display.title": "Results display",
+  "workspace.display.deflected": "Deflected shape",
+  "workspace.display.reactions": "Reactions",
+  "workspace.display.scale": "Scale ×{value}",
+  "workspace.display.scaleField": "Scale of the displacements",
+  "workspace.display.scaleAuto": "Auto",
+  "workspace.display.scaleTrue": "True scale ×1",
+  "workspace.display.none": "No results to draw.",
+  "workspace.display.largestLabel": "Largest {value}"
 }

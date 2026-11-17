@@ -268,5 +268,19 @@
   "workspace.sectionColors.toggle": "[Çööļööûûŕ ƀý šééçţîîööñ]",
   "workspace.sectionColors.none": "[Ñöö ɱééɱƀééŕ ţöö çööļööûûŕ.]",
   "workspace.sectionColors.members": "[{count,plural,one{# ɱééɱƀééŕ} other{# ɱééɱƀééŕš}}]",
-  "workspace.sectionColors.other": "[ÖÖţĥééŕ šééçţîîööñš]"
+  "workspace.sectionColors.other": "[ÖÖţĥééŕ šééçţîîööñš]",
+  "workspace.results.largest": "[Ļååŕĝééšţ ðîîšþļååçééɱééñţ]",
+  "workspace.results.largestAtNode": "[ÅÅţ ñööðéé {id}.]",
+  "workspace.results.largestOnMember": "[ÖÖñ ɱééɱƀééŕ {id}, {distance} ɱ ƒŕööɱ ñööðéé {node}.]",
+  "workspace.results.largestNone": "[Ñööţĥîîñĝ ɱööṽééš îîñ ţĥîîš ļööååð çååšéé.]",
+  "workspace.results.largestHelp": "[Ţĥéé ļééñĝţĥ ööƒ ţĥéé ðîîšþļååçééɱééñţ ṽééçţööŕ ööƒ ţĥéé þööîîñţ ţĥååţ ɱööṽééš ɱööšţ, ööṽééŕ ţĥéé ñööðééš ååñð þööîîñţš ååļööñĝ ééṽééŕý ɱééɱƀééŕ.]",
+  "workspace.display.title": "[Ŕééšûûļţš ðîîšþļååý]",
+  "workspace.display.deflected": "[Ðééƒļééçţééð šĥååþéé]",
+  "workspace.display.reactions": "[Ŕééååçţîîööñš]",
+  "workspace.display.scale": "[Šçååļéé ×{value}]",
+  "workspace.display.scaleField": "[Šçååļéé ööƒ ţĥéé ðîîšþļååçééɱééñţš]",
+  "workspace.display.scaleAuto": "[ÅÅûûţöö]",
+  "workspace.display.scaleTrue": "[Ţŕûûéé šçååļéé ×1]",
+  "workspace.display.none": "[Ñöö ŕééšûûļţš ţöö ðŕååŵ.]",
+  "workspace.display.largestLabel": "[Ļååŕĝééšţ {value}]"
 }

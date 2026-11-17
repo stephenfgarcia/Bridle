@@ -216,3 +216,115 @@
   padding-bottom: var(--space-1);
   color: var(--fg-muted);
 }
+
+/* "Results display" (ResultsDisplay.tsx): one strip of the toolbar with the switches of the deflected shape
+   and the reactions and the scale of the deflected shape. Its parts stay on one line; the strip as a whole
+   goes to a row of its own when the toolbar has no room for it. */
+.display {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  height: var(--density-control-h);
+  padding: 0 var(--space-2);
+  border: var(--border-1) solid var(--canvas-hud-border);
+  border-radius: var(--radius-md);
+  background: var(--canvas-hud-bg);
+  color: var(--fg-primary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.displayToggle {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.displayToggle input {
+  margin: 0;
+  accent-color: var(--accent-bg);
+}
+
+.displayNone {
+  color: var(--fg-muted);
+}
+
+/* The deflected curve has no token of its own yet: a colour that the members, the loads, the selection, the
+   six section colours and the reactions do not use. */
+.swatchDeflection {
+  background: var(--plum-600);
+}
+
+.swatchReaction {
+  background: var(--canvas-reaction);
+}
+
+.scaleText {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  font-feature-settings: var(--numeric-features);
+}
+
+.scaleField {
+  width: var(--space-12);
+  height: calc(var(--density-control-h) - var(--space-2));
+  padding: 0 var(--space-1);
+  border: var(--border-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--fg-primary);
+  font: inherit;
+  font-feature-settings: var(--numeric-features);
+}
+
+.scaleButton {
+  height: calc(var(--density-control-h) - var(--space-2));
+  padding: 0 var(--space-2);
+  border: var(--border-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--fg-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.scaleButton:hover {
+  background: var(--bg-sunken);
+}
+
+.scaleButton[aria-pressed="true"] {
+  border-color: var(--accent-bg);
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+}
+
+/* The values of the results beside their symbols (ResultGlyphs.tsx): as the labels of the loads, with the
+   line under the value in the colour of the symbol. */
+.reactionLabelText,
+.deflectionLabelText {
+  display: block;
+  padding: 0 var(--space-1);
+  border-bottom: var(--border-2) solid var(--canvas-reaction);
+  border-radius: var(--radius-sm);
+  background: var(--canvas-label-bg);
+  color: var(--canvas-label-fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  font-feature-settings: var(--numeric-features);
+  line-height: var(--leading-body);
+  white-space: nowrap;
+}
+
+/* The largest displacement: above its dot on the deflected curve. */
+.deflectionLabelText {
+  border-bottom-color: var(--plum-600);
+  transform: translateY(calc(-1 * var(--space-4)));
+}
+
+/* Results of the model before the last change, while the new ones are awaited. */
+.resultLabelsStale {
+  opacity: 0.5;
+}

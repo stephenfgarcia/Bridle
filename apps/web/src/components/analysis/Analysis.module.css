@@ -207,3 +207,91 @@
   font-size: var(--text-xs);
   font-feature-settings: var(--numeric-features);
 }
+
+/* The largest displacement of the structure (card PX-02.9): the value, then where it is. */
+.largestValue {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-feature-settings: var(--numeric-features);
+}
+
+.largestPlace {
+  margin: 0;
+  color: var(--fg-secondary);
+  font-size: var(--text-xs);
+}
+
+/* The displacement of the node under the pointer, in a card beside the node (NodeReadout.tsx). The element
+   `.readoutAt` is put on the node by the frame loop and has no size; the card hangs from it on the side its
+   `data-h` and `data-v` attributes name, a little away from the node. */
+.readoutAt {
+  width: 0;
+  height: 0;
+}
+
+.readout {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-1) solid var(--canvas-hud-border);
+  border-radius: var(--radius-md);
+  background: var(--canvas-hud-bg);
+  box-shadow: var(--shadow-1);
+  color: var(--canvas-label-fg);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.readoutAt[data-h="right"] .readout {
+  left: var(--space-4);
+}
+
+.readoutAt[data-h="left"] .readout {
+  right: var(--space-4);
+}
+
+.readoutAt[data-v="below"] .readout {
+  top: var(--space-4);
+}
+
+.readoutAt[data-v="above"] .readout {
+  bottom: var(--space-4);
+}
+
+.readoutStale {
+  opacity: 0.5;
+}
+
+.readoutTitle {
+  margin: 0;
+  font-weight: var(--weight-semibold);
+}
+
+/* Two columns: the three translations, then the three rotations. */
+.readoutCells {
+  display: grid;
+  grid-template-rows: repeat(3, auto);
+  grid-auto-flow: column;
+  gap: 0 var(--space-4);
+  margin: 0;
+}
+
+.readoutCell {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.readoutCell dt {
+  color: var(--fg-secondary);
+}
+
+.readoutCell dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-feature-settings: var(--numeric-features);
+}

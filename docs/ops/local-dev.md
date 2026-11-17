@@ -155,7 +155,14 @@ three pages and one route handler:
   in a Web Worker (`apps/web/src/components/analysis/solverWorker.ts`). The top of the side panel shows the
   status (Analysing, Analysed with the time in ms, "Fix the issues first", Unstable, "Not supported yet",
   "Analysis failed" with a Retry button), and a Results section shows, for the active load case, the
-  reactions, the displacement of the selected node and the end forces of the selected member. Sections and
+  reactions, the displacement of the selected node and the end forces of the selected member. Results in the
+  viewport (card PX-02.9): while the analysis has results for the model, the viewport draws the deflected shape
+  of the active load case over the members, which are then drawn thinner, with the displacements multiplied by
+  a scale ("Scale ×N" in the toolbar: automatic, typed, or "True scale ×1"), marks the largest displacement in
+  mm on the curve, and draws the reactions at the supports as arrows and arcs with their values; two switches
+  of the toolbar, "Deflected shape" and "Reactions", turn the two off. The Results section names the largest
+  displacement and where it is, and the node under the pointer shows its displacement in the status lines at
+  the bottom of the viewport. Sections and
   materials (card PX-02.6): a button of the Model section opens a dialog that lists the model's sections (cm²,
   cm⁴, mm) and materials (GPa, MPa, kg/m³), adds a generic I-section of `packages/tasks` or one of two built-in
   steels, and removes an entry no member uses; "Colour by section" in the viewport draws the members in the
@@ -186,7 +193,7 @@ Where the sha comes from (`apps/web/src/sha.ts`, read at every request and never
 HEAD): `GIT_SHA` when it is set and not empty (the application image sets it), else `git rev-parse --short HEAD`
 (where git and the repository exist: development and the smoke test), else `unknown`.
 
-`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the ten
+`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the eleven
 tests of `e2e/smoke.spec.ts`. It starts `pnpm --filter web dev --hostname 127.0.0.1 --port $PORT` (`PORT`, default
 3000) and stops it when the tests end, or reuses the server that already answers
 `http://127.0.0.1:$PORT/api/v1/health`. The first test asserts the health route: 200, `application/json`, a body
@@ -220,14 +227,20 @@ the generic section I 400x180 (`.bridle/screenshots/smoke-sections.png`), select
 frame with a click and a Shift-click, gives them that section and checks that the frame is analysed again with
 another moment at the foot of the first column, switches "Colour by section" on
 (`.bridle/screenshots/smoke-multi-select.png`), checks "mixed" with the beam added to the selection, that one
-undo takes the section back from both columns, and that Delete removes both as one undo step. The
+undo takes the section back from both columns, and that Delete removes both as one undo step. The eleventh
+checks, for the portal frame in the front view, that the two switches of the results are on, that three
+members are drawn deflected and six reaction components with their values, reads the scale and the largest
+displacement from the page (`.bridle/screenshots/smoke-results.png`), hovers the loaded node for its
+displacement, changes the load from 20 to 30 kN in the side panel and checks that the largest displacement
+becomes one and a half times what it was while the scale stays, sets the scale by hand and back to automatic,
+switches the two drawings off and on, and checks that nothing is drawn for the truss. The
 locale is `NEXT_PUBLIC_LOCALE` of
-the shell that runs the smoke, `en` when unset, so against a running server of another locale the nine tests that
+the shell that runs the smoke, `en` when unset, so against a running server of another locale the ten tests that
 open a page fail at `lang`: run it with the server's locale, or on another `PORT`.
 Failure output goes to `.bridle/playwright/`; both
 directories are gitignored. The sha the tests expect is `GIT_SHA` when the shell that runs the smoke has it, else
 `git rev-parse --short HEAD`, so a server started with another `GIT_SHA` fails the smoke: the sha is asserted, not
-echoed. With its ten tests it took 23 to 30 s here (card PX-02.6, 2026-11-18). The smoke runs against `next dev`; to run it against the production build, build first
+echoed. With its eleven tests it took 28 to 36 s here (card PX-02.9, 2026-11-18). The smoke runs against `next dev`; to run it against the production build, build first
 (`pnpm --filter web build`), start it on a free port (`pnpm --filter web start --hostname 127.0.0.1 --port 3217`)
 and run `PORT=3217 pnpm e2e:smoke`, which then reuses that server.
 

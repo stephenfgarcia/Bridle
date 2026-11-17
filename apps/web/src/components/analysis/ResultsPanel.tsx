@@ -5,13 +5,16 @@ import type { Model } from "@bridle/model";
 import { t } from "../../i18n";
 import { useToolStore } from "../tools/toolStore";
 import { activeLoadCaseId } from "../viewport/loads";
+import { formatMm } from "../viewport/resultDrawing";
 import { singleItem } from "../viewport/selection";
+import { largestDisplacementOf } from "../viewport/useResultDrawing";
 import { useViewportStore } from "../viewport/viewportStore";
 import panelStyles from "../workspace/Panels.module.css";
 import workspaceStyles from "../workspace/WorkspaceView.module.css";
 import styles from "./Analysis.module.css";
 import { shownResults } from "./analysisState";
 import { useAnalysisStore } from "./analysisStore";
+import { formatNumber } from "./format";
 import {
   type DisplacementComponent,
   displacementCells,
@@ -64,7 +67,9 @@ function Cells({ cells }: { cells: ResultCell<Component>[] }) {
 }
 
 /**
- * The Results section of the side panel (card PX-02.8), for the active load case: the reactions at every
+ * The Results section of the side panel (card PX-02.8), for the active load case: the largest displacement of
+ * the structure in mm and where it is (card PX-02.9; `largestDisplacement` of ../viewport/resultDrawing.ts
+ * says what is looked at), the reactions at every
  * support with the sums of their forces, the displacement of the selected node, and the end forces of the
  * selected member (when exactly one item is selected; else a line that says what to select). It renders nothing while there is no result to show beside `model` (`shownResults`:
  * results of an earlier model are shown only while the answer for `model` is awaited, and then marked as
@@ -94,6 +99,8 @@ export function ResultsPanel({ model }: { model: Model }) {
     memberId === null ? undefined : shown.model.members.find((entry) => entry.id === memberId);
   const displacement = loadCase && nodeId !== null ? displacementCells(loadCase, nodeId) : null;
   const endForces = loadCase && member ? memberEndCells(loadCase, member.id) : null;
+  const largest =
+    loadCase && loadCaseId !== null ? largestDisplacementOf(shown.model, result, loadCaseId) : null;
   return (
     <section
       aria-labelledby="workspace-results-title"
@@ -121,6 +128,39 @@ export function ResultsPanel({ model }: { model: Model }) {
           <p className={styles.caseName}>
             {t("workspace.results.loadCase", { name: loadCaseName ?? loadCaseId })}
           </p>
+          <div
+            className={styles.part}
+            data-id={
+              largest === null
+                ? ""
+                : largest.place.kind === "node"
+                  ? largest.place.nodeId
+                  : largest.place.memberId
+            }
+            data-kind={largest === null ? "none" : largest.place.kind}
+            data-testid="largest-displacement"
+          >
+            <h3 className={panelStyles.legend}>{t("workspace.results.largest")}</h3>
+            {largest === null ? (
+              <p className={panelStyles.help}>{t("workspace.results.largestNone")}</p>
+            ) : (
+              <div className={styles.card}>
+                <p className={styles.largestValue} data-testid="largest-displacement-value">
+                  {t("workspace.results.valueMm", { value: formatMm(largest.value) })}
+                </p>
+                <p className={styles.largestPlace} data-testid="largest-displacement-place">
+                  {largest.place.kind === "node"
+                    ? t("workspace.results.largestAtNode", { id: largest.place.nodeId })
+                    : t("workspace.results.largestOnMember", {
+                        id: largest.place.memberId,
+                        distance: formatNumber(largest.place.distance),
+                        node: largest.place.startNodeId,
+                      })}
+                </p>
+              </div>
+            )}
+            <p className={panelStyles.help}>{t("workspace.results.largestHelp")}</p>
+          </div>
           <div className={styles.part} data-testid="reactions">
             <h3 className={panelStyles.legend}>{t("workspace.results.reactions")}</h3>
             <p className={panelStyles.help}>{t("workspace.results.reactionsHelp")}</p>

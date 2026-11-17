@@ -88,3 +88,15 @@ export function selectedItems(model: Model, selection: Selection): SelectedItems
   }
   return { nodes, members };
 }
+
+/**
+ * The node whose displacement the viewport's readout shows (card PX-02.9): the node under the pointer, or
+ * else the node that is selected when exactly one item is; `null` otherwise.
+ */
+export function readoutNodeId(hover: ItemRef | null, selection: Selection): string | null {
+  if (hover?.kind === "node") {
+    return hover.id;
+  }
+  const selected = singleItem(selection);
+  return selected?.kind === "node" ? selected.id : null;
+}
