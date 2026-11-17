@@ -14,7 +14,7 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 |---|---|---|---|---|---|
 | P0-01 | P0 | ship | done | orchestrator | 2026-11-02T20:28:58Z |
 | P0-06 | P0 | ship | done | orchestrator | 2026-11-03T10:43:19Z |
-| P0-02 | P0 | spec | running | orchestrator | 2026-11-03T10:44:55Z |
+| P0-02 | P0 | ship | done | orchestrator | 2026-11-17T09:57:34Z |
 | P0-03 | P0 | ship | done | orchestrator | 2026-11-02T20:31:15Z |
 | P0-08 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P0-04 | P0 | ship | done | orchestrator | 2026-11-02T21:14:07Z |
@@ -31,7 +31,7 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | P0-02.3 | P0 | ship | done | orchestrator | 2026-11-03T14:00:22Z |
 | P0-02.4 | P0 | ship | done | orchestrator | 2026-11-03T14:31:10Z |
 | P0-02.5 | P0 | ship | done | orchestrator | 2026-11-17T08:33:00Z |
-| P0-02.6 | P0 | backlog | planned | - | 2026-11-03T10:44:54Z |
+| P0-02.6 | P0 | ship | done | orchestrator | 2026-11-17T09:57:34Z |
 | P0-12 | P0 | backlog | planned | - | 2026-11-03T17:07:59Z |
 | P1-01 | P1 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P1-02 | P1 | backlog | planned | - | 2026-11-03T08:29:21Z |
@@ -84,25 +84,26 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | PLAN-04 | PLAN | ship | done | orchestrator | 2026-11-02T23:23:05Z |
 | PLAN-05 | PLAN | ship | done | orchestrator | 2026-11-03T08:28:25Z |
 
-Next up: P0-02.6 Externalized UI strings: catalog, lint, pseudo-locale
+Next up: P0-08 Factory lanes (parallel mode)
 <!-- board:end -->
 
 ## In flight / next / only the owner can do
 
 Resumed 2026-11-17 by the owner after the pause of 2026-11-04 (the `- Paused` entry of the Log below). No card is in flight:
-P0-02.5 Next.js skeleton and pnpm e2e:smoke shipped that day, so the last shipped card is P0-02.5 (`ee5d288`; it was blocked once at
-its third test pass over the pin list of `docs/ops/toolchain.md`, and the owner allowed one more build loop). The cards shipped
-before it are P0-11 Resume-ability (`6078dcd`, also 2026-11-17) and P0-02.4 (`d8d8b7e`). P0-02 Repository bootstrap stands at spec
-with status running: it is the work-package row whose sub-cards run, not a card to resume.
+P0-02.6 Externalized UI strings shipped that day, so the last shipped card is P0-02.6 (`c005a7c`), and the P0-02 Repository
+bootstrap row was closed with it in the same step (the row's card, `## Ship`, lists which sub-card delivers what, and the three
+deliverables of the row's text that wait for later rows: the wasm32 build of both facades, schema drift and the quanta walk). The cards shipped before it on
+2026-11-17 are P0-02.5 Next.js skeleton (`ee5d288`) and P0-11 Resume-ability (`6078dcd`); before those, P0-02.4 (`d8d8b7e`).
 
-Next: P0-02.6 Externalized UI strings (`/factory next`), the last P0-02 sub-card, then P0-08 Factory lanes (parallel mode): the
-owner's decision 3 at approval, lanes right after P0-02 (`docs/plan/roadmap.md`, the approval section and E3; the orders P0-08 3,
-P0-07 4, P0-05 5 set in `0ef5e8c`). P0-08 becomes next up only when the P0-02 row itself is closed at P0-02.6's ship (as P0-06 was
-in `dfd0b72`); while P0-02 stands at spec, `card.py list` names P0-12 Local ports after P0-02.6. P0-07 External dependencies and
-legal register and the plan-only sub-cards of P0-05 OpenTofu run whenever the line is idle; P0-05's apply sub-card waits for the AWS
-items below. Card P0-02.5's `## Ship` lists what that card leaves for later cards and three questions for the owner (which card puts
-Next.js behind the `web` entrypoint, needed before P0-05's ECS service; Next.js 15 with a TypeScript 6 pin against Next.js 16;
-whether Actions runs the smoke); card P0-11's `## Ship` lists what that card leaves.
+Next: P0-08 Factory lanes (parallel mode) (`/factory next`): the owner's decision 3 at approval, lanes right after P0-02
+(`docs/plan/roadmap.md`, the approval section and E3; the orders P0-08 3, P0-07 4, P0-05 5 set in `0ef5e8c`), and the owner's
+decision of 2026-11-17 on faster production (`docs/decisions/log.md`; the note in card P0-08's Spec). P0-08 is a work-package row:
+its spec station is the owner approving its acceptance criteria and split. After it ships the owner approves the acceptance criteria
+and splits of P1-01, P2-01 and P4-06 in one sitting. P0-07 External dependencies and legal register and the plan-only sub-cards of
+P0-05 OpenTofu run whenever the line is idle; P0-05's apply sub-card waits for the AWS items below. P0-12 Local ports is in the
+backlog for the session that owns the tool. The `## Ship` sections of cards P0-02.6, P0-02.5 and P0-11 list what each leaves for
+later cards and the open questions for the owner (which card puts Next.js behind the `web` entrypoint, needed before P0-05's ECS
+service; Next.js 15 with a TypeScript 6 pin against Next.js 16; whether Actions runs the smoke; whether "Bridle" stays untranslated).
 
 Only the owner can do (the nine E4 rows of `docs/plan/roadmap.md` and the six M0 items of `docs/architecture/architecture.md`
 section 17). Status: "done" names the card that proves it; "open" means the repository records it as not done yet; "unknown"
@@ -167,3 +168,5 @@ the sessions open on the checkout.
   at the pause (owner, 2026-11-04).
 - 2026-11-17 12:48, P0-11, commit 6078dcd: Resume-ability: the plan, a root README, progress and decisions logs in the repository; the canonical `docs/plan/roadmap.md`, the root `README.md`, this file, `docs/decisions/log.md`, the resume and several-sessions rules of the factory documents, `tools/test/docs.test.sh` as step 7 of `pnpm check`. First on `main` unreviewed in 8e1f6dd at the owner's pause; reworked, tested and reviewed on 2026-11-17 (second review PASS); run https://github.com/stephenfgarcia/Bridle/actions/runs/44019661238; card marked done in the `Cards: P0-11 shipped` commit that follows it.
 - 2026-11-17 16:31, P0-02.5, commit ee5d288: Next.js skeleton and pnpm e2e:smoke; `apps/web` (Next.js 15, React 19) with a home page and `/api/v1/health`, the Chromium-only Playwright smoke `pnpm e2e:smoke` with its screenshot, `tools/test/web.test.sh`, the image pruned of the web app, and the full list of pin mirrors in `docs/ops/toolchain.md`; Actions run https://github.com/stephenfgarcia/Bridle/actions/runs/44047464566 green.
+- 2026-11-17 17:55, P0-02.6, commit c005a7c: Externalized UI strings: catalog, lint, pseudo-locale; `packages/i18n` (ICU catalog `en.json`, typed `t()`, the pseudo-locale `en-XA.json` and `pnpm i18n:pseudo`, the string lint in `pnpm lint` with its allowlist), `apps/web` on the catalog by `NEXT_PUBLIC_LOCALE`, `tools/test/i18n.test.sh` and `docs/ops/i18n.md`; the P0-02 row closed with it; Actions run https://github.com/stephenfgarcia/Bridle/actions/runs/44060053116 green.
+- 2026-11-17 17:55, P0-02, commit c005a7c: Repository bootstrap; the work package closed with its last sub-card, its deliverables being the six sub-cards' commits (bd758ed, 1890d99, 0e2e2cf, d8d8b7e, ee5d288, c005a7c); the hash and time are those of P0-02.6's commit, as the card's `## Ship` and its history line say ("Work package complete").
