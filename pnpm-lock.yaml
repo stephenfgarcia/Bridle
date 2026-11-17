@@ -231,6 +231,25 @@ importers:
         specifier: 5.0.5
         version: 5.0.5(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5))
 
+  packages/grader:
+    dependencies:
+      '@bridle/model':
+        specifier: workspace:*
+        version: link:../model
+      '@bridle/solver':
+        specifier: workspace:*
+        version: link:../solver
+      '@bridle/tasks':
+        specifier: workspace:*
+        version: link:../tasks
+    devDependencies:
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5))
+
   packages/i18n:
     dependencies:
       intl-messageformat:
