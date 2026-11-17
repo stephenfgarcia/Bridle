@@ -130,9 +130,11 @@ linguistic ordering matching between local and staging; where order matters, sor
 three pages and one route handler:
 
 - `/` says Bridle with the git sha and the educational-use notice, and links to the workspace.
-- `/workspace` is the 3D viewport of a structural model beside a side panel (cards PX-02.1 and PX-02.2). Until the
-  model store exists, the model is one of the three fixtures of `packages/model`, the portal frame first; a select
-  in the side panel changes it. The viewport draws the nodes, the members and the supports with Z up, on a ground
+- `/workspace` is the 3D viewport of a structural model beside a side panel (cards PX-02.1 and PX-02.2). The
+  model is in a store with undo and redo (card PX-02.3; the Undo and Redo buttons of the viewport area, and Ctrl
+  or Cmd with Z, with Shift and Z, or Ctrl with Y). It starts as the portal frame, one of the three fixtures of
+  `packages/model`; a select in the side panel loads another, and the side panel lists the issues
+  `validateModel` finds in the model. The viewport draws the nodes, the members and the supports with Z up, on a ground
   grid, with orbit, pan and zoom, a Fit button and three views (3D, Front, Top). A click selects a node or a
   member and the side panel shows its data, read-only. The canvas (three.js through `@react-three/fiber`) is
   loaded in the browser only.
@@ -171,7 +173,8 @@ equal to `{ok: true, sha}`. The second opens `/`: 200, `<html lang>` equal to th
 screenshot to `.bridle/screenshots/smoke-home.png` (1280 x 720; `smoke-home-<locale>.png` for another locale than
 `en`). The third opens `/workspace` and checks the navigation, the viewport area and the side panel area. The
 fourth waits for the viewport's canvas, checks the side panel's counts for the portal frame (4 nodes, 3 members, 2
-supports) and the four buttons of the viewport, takes `.bridle/screenshots/smoke-workspace.png`, changes the
+supports) and the four buttons of the viewport, checks that Undo and Redo are there and disabled and that the
+side panel says "No issues", takes `.bridle/screenshots/smoke-workspace.png`, changes the
 fixture and checks the counts again (5, 7 and 5 for the truss; 2, 1 and 2 for the beam), and fails when the page
 threw an error or the console holds a hydration error. The fifth takes the front view, moves the pointer down the
 middle of the viewport until the viewport reports the beam `b1` under it, clicks, checks that the side panel shows

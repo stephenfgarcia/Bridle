@@ -1,8 +1,9 @@
 "use client";
 
-import type { Model } from "@bridle/model";
+import type { Model, ModelIssue } from "@bridle/model";
 import type { ReactNode } from "react";
 import { t } from "../../i18n";
+import { ISSUE_MESSAGE } from "../model/issueMessages";
 import { type ItemRef, useViewportStore } from "../viewport/viewportStore";
 import styles from "./WorkspaceView.module.css";
 
@@ -47,10 +48,55 @@ function selectionRows(model: Model, selection: ItemRef | null): [string, string
 }
 
 /**
- * The side panel of the workspace: the model on screen (the fixture switch and the counts of its nodes, members
- * and supports) and, read-only, the item selected in the viewport.
+ * The issues of the model, under the counts: "No issues", or their number and one entry per issue with its
+ * message from the catalog, the ids it concerns and, where the issue has one, its place in the model.
  */
-export function SidePanel({ model, fixtureSwitch }: { model: Model; fixtureSwitch: ReactNode }) {
+function Issues({ issues }: { issues: ModelIssue[] }) {
+  return (
+    <div className={styles.issues}>
+      <h3 className={styles.blockTitle}>{t("workspace.issues.title")}</h3>
+      <p
+        className={issues.length === 0 ? styles.issuesNone : styles.issuesSome}
+        data-testid="issues-status"
+      >
+        {issues.length === 0
+          ? t("workspace.issues.none")
+          : t("workspace.issues.count", { count: issues.length })}
+      </p>
+      {issues.length > 0 ? (
+        <ul className={styles.issueList} data-testid="issues">
+          {issues.map((issue) => (
+            <li
+              className={styles.issue}
+              data-code={issue.code}
+              key={`${issue.code} ${issue.path ?? ""} ${issue.ids.join(" ")}`}
+            >
+              <span>{t(ISSUE_MESSAGE[issue.code])}</span>
+              {issue.ids.length > 0 ? (
+                <span className={styles.issueIds}>{issue.ids.join(", ")}</span>
+              ) : null}
+              {issue.path ? <span className={styles.issuePath}>{issue.path}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The side panel of the workspace: the model on screen (the example switch, the counts of its nodes, members
+ * and supports, and its issues) and, read-only, the item selected in the viewport.
+ */
+export function SidePanel({
+  model,
+  issues,
+  fixtureSwitch,
+}: {
+  model: Model;
+  issues: ModelIssue[];
+  fixtureSwitch: ReactNode;
+}) {
   const selection = useViewportStore((state) => state.selection);
   const rows = selectionRows(model, selection);
   const counts: [string, string, number][] = [
@@ -77,6 +123,7 @@ export function SidePanel({ model, fixtureSwitch }: { model: Model; fixtureSwitc
             </div>
           ))}
         </dl>
+        <Issues issues={issues} />
       </section>
       <section aria-labelledby="workspace-panel-title" aria-live="polite" className={styles.block}>
         <h2 className={styles.blockTitle} id="workspace-panel-title">

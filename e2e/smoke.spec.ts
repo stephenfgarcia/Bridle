@@ -1,7 +1,8 @@
 // The smoke test of apps/web (card P0-02.5; the locale since card P0-02.6; the shell since card PX-02.1; the
-// 3D viewport since card PX-02.2): the health route, then the home page and its screenshot, then the workspace
-// route with the navigation, then the viewport with the side panel's counts and the fixture switch, then
-// hovering and selecting a member in the viewport.
+// 3D viewport since card PX-02.2; the model store since card PX-02.3): the health route, then the home page and
+// its screenshot, then the workspace route with the navigation, then the viewport with the side panel's counts,
+// the Undo and Redo buttons, the issues and the fixture switch, then hovering and selecting a member in the
+// viewport.
 // The health test is first: when a foreign process holds the port, its failure names the cause.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -103,6 +104,22 @@ async function expectCounts(page: Page, nodes: number, members: number, supports
   await expect(page.getByTestId("count-supports")).toHaveText(String(supports));
 }
 
+async function expectFreshHistory(page: Page) {
+  for (const id of ["undo", "redo"]) {
+    const button = page
+      .getByTestId("viewport")
+      .getByRole("button", { name: message(`workspace.history.${id}`), exact: true });
+    await expect(button).toBeVisible();
+    await expect(button).toBeDisabled();
+  }
+}
+
+async function expectNoIssues(page: Page) {
+  const panel = page.getByTestId("side-panel");
+  await expect(panel.getByTestId("issues-status")).toHaveText(message("workspace.issues.none"));
+  await expect(panel.getByTestId("issues")).toHaveCount(0);
+}
+
 test("/workspace draws the portal frame and the fixture switch changes the counts", async ({
   page,
 }, testInfo) => {
@@ -127,14 +144,22 @@ test("/workspace draws the portal frame and the fixture switch changes the count
         .getByRole("button", { name: message(`workspace.viewport.${id}`), exact: true }),
     ).toBeVisible();
   }
+  // A fresh workspace has nothing to undo or redo, and the portal frame has no issue.
+  await expectFreshHistory(page);
+  await expectNoIssues(page);
   // The viewport of the Desktop Chrome device is 1280 by 720: the laptop screen the shell is laid out for.
   await page.screenshot({ path: screenshotPath(testInfo, "smoke-workspace") });
   await fixture.selectOption("truss");
   await expectCounts(page, 5, 7, 5);
+  await expectNoIssues(page);
   await fixture.selectOption("beam");
   await expectCounts(page, 2, 1, 2);
+  await expectNoIssues(page);
   await fixture.selectOption("portal");
   await expectCounts(page, 4, 3, 2);
+  // Loading a model is not an undo step, and the three example models have no issue.
+  await expectFreshHistory(page);
+  await expectNoIssues(page);
   await expect(page.getByTestId("viewport").locator("canvas")).toBeVisible();
   // No error was thrown in the page, and the console holds no hydration error.
   expect(problems).toEqual([]);

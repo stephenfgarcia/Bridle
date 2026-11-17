@@ -45,6 +45,13 @@
   color: var(--accent-soft-fg);
 }
 
+.button:disabled,
+.button:disabled:hover {
+  background: var(--canvas-hud-bg);
+  color: var(--fg-disabled);
+  cursor: default;
+}
+
 .button:focus-visible {
   position: relative;
   border-radius: var(--radius-md);

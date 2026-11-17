@@ -4,6 +4,7 @@
 # with the case `shell`, and moved fixture F, the count of smoke tests and the case list with it. Card PX-02.2 (the
 # 3D viewport) moved fixture F and the count of smoke tests (5) again, added the dependency on @bridle/model to the
 # case `shell`, and made the file lists leave out a file that is deleted in the tree but still in git's index.
+# Card PX-02.3 (the model store) moved fixture F again; the count of smoke tests stayed 5.
 #   app    AC1  the files of apps/web a clone holds are exactly fixture F; next is 15.x and react, react-dom 19.x in
 #               apps/web/package.json and as installed (`pnpm ls --filter web --depth 0 --json`); src/app exists and
 #               there is no `pages` directory (the App Router); tsconfig.json extends the base, the base is strict
@@ -92,6 +93,15 @@ apps/web/src/app/tasks/page.module.css
 apps/web/src/app/tasks/page.tsx
 apps/web/src/app/workspace/page.module.css
 apps/web/src/app/workspace/page.tsx
+apps/web/src/components/model/commands.test.ts
+apps/web/src/components/model/commands.ts
+apps/web/src/components/model/history.test.ts
+apps/web/src/components/model/history.ts
+apps/web/src/components/model/issueMessages.ts
+apps/web/src/components/model/modelStore.test.ts
+apps/web/src/components/model/modelStore.ts
+apps/web/src/components/model/shortcuts.test.ts
+apps/web/src/components/model/shortcuts.ts
 apps/web/src/components/shell/NavLinks.tsx
 apps/web/src/components/shell/TopBar.module.css
 apps/web/src/components/shell/TopBar.tsx
@@ -103,6 +113,7 @@ apps/web/src/components/viewport/camera.ts
 apps/web/src/components/viewport/scene.test.ts
 apps/web/src/components/viewport/scene.ts
 apps/web/src/components/viewport/viewportStore.ts
+apps/web/src/components/workspace/HistoryControls.tsx
 apps/web/src/components/workspace/SidePanel.tsx
 apps/web/src/components/workspace/WorkspaceView.module.css
 apps/web/src/components/workspace/WorkspaceView.tsx
