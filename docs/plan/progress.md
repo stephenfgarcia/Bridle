@@ -109,7 +109,7 @@ The P0-08 row card stays at spec with status running until the owner closes or r
 
 Next: the January pitch plan. The owner presents the project on 2027-01-01 to a university and a competition panel and wants a
 working showcase by mid-December 2026, so `docs/plan/roadmap.md` becomes the plan for after the pitch and the foreman drafts a
-short plan for the owner's approval: first a frame solver with a 3D workspace and live results, then tasks, submission, AI
+short plan for the owner's approval (the draft is `docs/plan/pitch-plan.md`): first a frame solver with a 3D workspace and live results, then tasks, submission, AI
 feedback against a rubric and a simple instructor view, built in that order so that the first part stands alone if the second
 slips. Nothing of it is built until the owner approves the plan. Until then the roadmap order no longer applies: P0-07, P0-05
 OpenTofu (its apply sub-card waits for the AWS items below), P0-12 and the drafts of P1-01, P2-01 and P4-06 (answered by the
