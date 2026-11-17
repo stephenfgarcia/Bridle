@@ -21,7 +21,7 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | P0-07 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P0-05 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P0-09 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
-| P0-11 | P0 | build | blocked | orchestrator | 2026-11-03T17:07:59Z |
+| P0-11 | P0 | ship | done | orchestrator | 2026-11-17T04:50:34Z |
 | P0-10 | P0 | ship | done | orchestrator | 2026-11-03T09:15:35Z |
 | P0-06.1 | P0 | ship | done | orchestrator | 2026-11-03T09:35:04Z |
 | P0-06.2 | P0 | ship | done | orchestrator | 2026-11-03T10:05:21Z |
@@ -89,19 +89,22 @@ Next up: P0-02.5 Next.js skeleton and pnpm e2e:smoke
 
 ## In flight / next / only the owner can do
 
-Paused 2026-11-04 by the owner. P0-11 Resume-ability is parked at build after review loop 1 (status blocked): its files are on
-`main` in `8e1f6dd`, pushed before the second test and review stations by the owner's instruction; resume with `/factory run P0-11`
-at the test station. No other card is running; the last shipped card is P0-02.4 (`d8d8b7e`).
+Resumed 2026-11-17 by the owner after the pause of 2026-11-04 (the `- Paused` entry of the Log below). No card is in flight:
+P0-11 Resume-ability shipped that day, so the last shipped card is P0-11 (`6078dcd`; its files had been on `main` unreviewed
+since `8e1f6dd`, and its second and third test passes and its second review ran on 2026-11-17). The card shipped before it is
+P0-02.4 (`d8d8b7e`). P0-02 Repository bootstrap stands at spec with status running: it is the work-package row whose sub-cards
+run, not a card to resume.
 
-Next, after P0-11 ships: P0-02.5 Next.js skeleton and pnpm e2e:smoke, then P0-02.6 Externalized UI strings (the last P0-02 sub-card), then P0-08
+Next: P0-02.5 Next.js skeleton and pnpm e2e:smoke (`/factory next`), then P0-02.6 Externalized UI strings (the last P0-02 sub-card), then P0-08
 Factory lanes (parallel mode): the owner's decision 3 at approval, lanes right after P0-02 (`docs/plan/roadmap.md`, the
-approval section and E3; the orders P0-08 3, P0-07 4, P0-05 5 set in `0ef5e8c`). P0-07 External dependencies and legal
+approval section and E3; the orders P0-08 3, P0-07 4, P0-05 5 set in `0ef5e8c`). P0-08 becomes next up only when the P0-02 row itself is closed at P0-02.6's ship (as P0-06 was in `dfd0b72`); while P0-02 stands at spec, `card.py list` names P0-12 Local ports after P0-02.6. P0-07 External dependencies and legal
 register and the plan-only sub-cards of P0-05 OpenTofu run whenever the line is idle; P0-05's apply sub-card waits for the AWS
-items below.
+items below. Card P0-11's `## Ship` lists what that card leaves for later cards, for the monitor's owner and for the owner.
 
 Only the owner can do (the nine E4 rows of `docs/plan/roadmap.md` and the six M0 items of `docs/architecture/architecture.md`
 section 17). Status: "done" names the card that proves it; "open" means the repository records it as not done yet; "unknown"
-means no card or document says either way.
+means no card or document says either way. The six M0 items were due 2026-11-16; on 2026-11-17 their rows still carry the
+owner's word of 2026-11-04, and nothing later is recorded.
 
 | Item | Needed before | Due | Status |
 |---|---|---|---|
@@ -159,3 +162,4 @@ the sessions open on the checkout.
   sessions open on this checkout at the pause: the foreman (bridle-1-3f), the monitor owner (bridle-1-64), Agent HQ
   (bridle-1-fb), two idle sessions that did nothing here (bridle-1-d3, bridle-1-aa) and a Remote Control bridge, all closed
   at the pause (owner, 2026-11-04).
+- 2026-11-17 12:48, P0-11, commit 6078dcd: Resume-ability: the plan, a root README, progress and decisions logs in the repository; the canonical `docs/plan/roadmap.md`, the root `README.md`, this file, `docs/decisions/log.md`, the resume and several-sessions rules of the factory documents, `tools/test/docs.test.sh` as step 7 of `pnpm check`. First on `main` unreviewed in 8e1f6dd at the owner's pause; reworked, tested and reviewed on 2026-11-17 (second review PASS); run https://github.com/stephenfgarcia/Bridle/actions/runs/44019661238; card marked done in the `Cards: P0-11 shipped` commit that follows it.

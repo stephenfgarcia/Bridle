@@ -5,10 +5,10 @@ phase: P0
 order: 7
 dependsOn: [P0-03]
 estimate: 0.5
-station: review
-status: running
-owner: factory-reviewer
-updated: 2026-11-17T03:52:10Z
+station: ship
+status: done
+owner: orchestrator
+updated: 2026-11-17T04:50:34Z
 history:
   - 2026-11-03T14:17:53Z spec running orchestrator "Spec ready (6 acceptance criteria; owner prioritized: runs alongside P0-02.4 at test, no shared files)"
   - 2026-11-03T14:17:53Z plan running factory-planner "Planning: factory-planner spawned"
@@ -21,6 +21,7 @@ history:
   - 2026-11-17T01:47:14Z build running factory-builder "Test FAIL (loop 1 of 1 for the test station; second pass 2026-11-17): suites green as committed, but delivered statements are contradicted by the repository: README.md:43 and factory/README.md:47 resume with /factory next, which skips a parked card; decisions-log intro vs its six chat-only rows; two board-regeneration rules; E4.7 status unsourced; README.md:27 label; SKILL.md one-watch rule, trace wording and db_write tool name; roadmap Origin header; no ship step rewrites the in-flight block. 11 fact-check findings all confirmed by the tester, plus T1 and T2; factory-builder spawned"
   - 2026-11-17T03:09:41Z test running factory-tester "Loop 2 built: the ten rulings and second rulings 11 to 14 applied, ratifications (a) to (d) in the Spec; three rounds of independent checks (claims; scope and suites) and the foreman's corrections to the card record; docs.test.sh ten ok, card.test.py 11 OK, pnpm check 7/7, workspace.test.sh four ok; third test pass (the re-test after the test station's one loop); factory-tester spawned"
   - 2026-11-17T03:52:10Z review running factory-reviewer "Tests pass (third pass, RESULT: PASS): docs.test.sh ten ok (1239 lines, every ruling held by an assertion), card.test.py 11 OK, pnpm check 7/7, workspace.test.sh four ok, 78 negative proofs; the tester's six card-record observations applied by the foreman, pnpm check 7/7 again; second review (review used its one loop on 2026-11-04); factory-reviewer spawned"
+  - 2026-11-17T04:50:34Z ship done orchestrator "Shipped in 6078dcd"
 ---
 
 # P0-11 Resume-ability: the plan, a root README, progress and decisions logs in the repository
@@ -1108,3 +1109,31 @@ For the loop: findings 1 to 4 are text edits in `docs/ops/secrets.md`, `docs/pla
 
 ## Ship
 
+Shipped 2026-11-17 by the foreman (orchestrator). Re-ran on the final tree before the commit: `bash tools/test/docs.test.sh` (ten ok
+lines, stderr empty), `python3 tools/monitor/test/card.test.py` (11 tests, OK), `python3 tools/monitor/card.py status --check
+docs/plan/progress.md` (exit 0) and `pnpm check` (7/7 ok). `## Test` is `RESULT: PASS` and `## Review` is `VERDICT: PASS` (the second
+review and its delta check); the card has no manual gates. Commit **`6078dcd` "P0-11: Resume-ability: the plan, a root README,
+progress and decisions logs in the repository"** (2026-11-17 12:48 +0800; `README.md`, `docs/plan/roadmap.md`, `docs/plan/progress.md`,
+`docs/decisions/log.md`, `factory/README.md`, `factory/line.md`, `.claude/skills/factory/SKILL.md`, `tools/test/docs.test.sh`, this card
+through `## Review`), pushed to `main` as `8cdcf34..6078dcd`. Actions run on `main`:
+https://github.com/stephenfgarcia/Bridle/actions/runs/44019661238 (changes success, code success, docs skipped, check success;
+runner image ubuntu-26.04). In its `code` job, step 7 (`docs`) of `pnpm check` printed the ten ok lines, git-facts with "commit checks skipped (shallow clone)",
+and `pnpm check` ended with `check: 7/7 ok`: the first run on the Actions runner of the test as changed on 2026-11-17, except the
+commit checks of git-facts, which a shallow clone skips. The card's shipped state (this section,
+the done state, the regenerated board, the log entry and the rewritten in-flight paragraphs of `docs/plan/progress.md`) is committed
+as `Cards: P0-11 shipped`.
+
+Left for later, none of it blocking, each with its source in this card:
+- `tools/test/docs.test.sh`, case `decisions`, the pipe on the Spec's Why paragraph: the second review's finding 2 (it cannot give
+  a 141 as written; the shape goes at the next change of the file).
+- `.claude/skills/factory/SKILL.md`, `run <id>`: one sentence saying that a card found at a station from plan to review resumes at
+  that station (the second review's finding 6, the third test pass's observation 8).
+- The test files of P0-02.5 and P0-02.6 against the README's `tools/test` label (the third test pass's observation 7): carried into
+  those two cards' Specs in the `Cards: P0-11 shipped` commit.
+- For the monitor's owner: the files under `tools/monitor`, and the `protocol` value of `.bridle/monitor.json`, that name only
+  `db_write` as the mirror tool or list four of the seven kinds of traced target (the Spec's paragraph "For the monitor's owner").
+- For the owner: the six M0 rows of the owner table in `docs/plan/progress.md` were due 2026-11-16 and say "not started (owner,
+  2026-11-04)" (the third test pass's observation 9).
+
+At the ship the list of local sessions showed only sessions of other projects and none on this checkout, so the two commits were
+announced to no other session.
