@@ -99,7 +99,7 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | PX-02.1 | PX | ship | done | orchestrator | 2026-11-17T16:41:27Z |
 | PX-02.2 | PX | ship | done | orchestrator | 2026-11-17T17:14:47Z |
 | PX-02.3 | PX | ship | done | orchestrator | 2026-11-17T17:29:59Z |
-| PX-02.4 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.4 | PX | ship | done | orchestrator | 2026-11-17T18:01:39Z |
 | PX-02.5 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
 | PX-02.6 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
 | PX-02.7 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
@@ -137,7 +137,7 @@ Next up: P0-07 External dependencies and legal register
 
 Resumed 2026-11-17 by the owner after the pause of 2026-11-04 (the `- Paused` entry of the Log below). Since 2026-11-18 the work
 follows the pitch plan (`docs/plan/pitch-plan.md`), with cards PX-01.1 to PX-04.8 running in the lanes core and web; `card.py list`
-and the board above say which are in flight, and the last shipped card is PX-01.3 (`8de87e8`). The cards shipped on 2026-11-17,
+and the board above say which are in flight, and the last shipped card is PX-02.4 (`93471e8`). The cards shipped on 2026-11-17,
 before the pitch plan: P0-08.2 Lane tooling (`09c0851`), P0-08.1 Card tooling (`99168d5`), P0-02.6 Externalized UI strings
 (`c005a7c`, which closed the P0-02 Repository bootstrap row; the row's card, `## Ship`, lists the three deliverables that wait for
 later rows), P0-02.5 Next.js skeleton (`ee5d288`) and P0-11 Resume-ability (`6078dcd`); before those, P0-02.4 (`d8d8b7e`).
@@ -231,3 +231,4 @@ the sessions open on the checkout.
 - 2026-11-18 01:14, PX-02.2, commit f09c66d: 3D viewport; the 3D viewport of `/workspace`: a model drawn with Z up (nodes, members, fixed, pinned and roller glyphs), orbit, pan, zoom, Fit and the views 3D, Front and Top, an axis indicator, hover and select with the properties in the side panel, a switch between the three example models, 32 unit tests of the scene description and five smoke tests; `tools/test/i18n.test.sh` and two documents of `docs/ops` brought up to date; built and tested by one agent under the pitch process.
 - 2026-11-18 01:29, PX-02.3, commit 1fb07cc: Model store with undo and redo; the model store of the workspace: pure commands for nodes, members, supports, loads, sections, materials and load cases with their refusals, new ids, undo and redo with a history of 200 steps, the Undo and Redo buttons and shortcuts, the issues of `validateModel` in the side panel with catalog messages, 72 new unit tests; built and tested by one agent under the pitch process.
 - 2026-11-18 01:48, PX-01.3, commit 8de87e8: Supports, nodal loads and the solve; `solve(model)` in `packages/solver`: supports, nodal loads, an L D Lᵀ factorization with symmetric pivoting, displacements and reactions per load case, and an `unstable` result that names a node and a degree of freedom; `validateModel` refuses non-finite numbers; 108 solver tests and 170 model tests. The first review found a beam free to spin reported as solved; one rework loop replaced the stability rule, and the second review passed it after 1950 new mechanisms were all refused.
+- 2026-11-18 02:01, PX-02.4, commit 93471e8: Node and member tools; the drawing tools of the workspace: a palette with Select, Node and Member, a work plane (X-Z or X-Y) with a snap step and a cursor readout, nodes placed by a click, members drawn from click to click with a preview line, a selected node dragged or typed to a new place, Delete, and "New model"; 72 new unit tests and a sixth browser test that draws two nodes and a member; built and tested by one agent under the pitch process.
