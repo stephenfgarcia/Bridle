@@ -16,7 +16,7 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | P0-06 | P0 | ship | done | orchestrator | 2026-11-03T10:43:19Z |
 | P0-02 | P0 | ship | done | orchestrator | 2026-11-17T09:57:34Z |
 | P0-03 | P0 | ship | done | orchestrator | 2026-11-02T20:31:15Z |
-| P0-08 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
+| P0-08 | P0 | spec | running | orchestrator | 2026-11-17T10:02:03Z |
 | P0-04 | P0 | ship | done | orchestrator | 2026-11-02T21:14:07Z |
 | P0-07 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P0-05 | P0 | backlog | planned | - | 2026-11-03T08:29:21Z |
@@ -33,6 +33,10 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | P0-02.5 | P0 | ship | done | orchestrator | 2026-11-17T08:33:00Z |
 | P0-02.6 | P0 | ship | done | orchestrator | 2026-11-17T09:57:34Z |
 | P0-12 | P0 | backlog | planned | - | 2026-11-03T17:07:59Z |
+| P0-08.1 | P0 | backlog | planned | - | 2026-11-17T10:01:07Z |
+| P0-08.2 | P0 | backlog | planned | - | 2026-11-17T10:01:07Z |
+| P0-08.3 | P0 | backlog | planned | - | 2026-11-17T10:01:07Z |
+| P0-08.4 | P0 | backlog | planned | - | 2026-11-17T10:01:07Z |
 | P1-01 | P1 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P1-02 | P1 | backlog | planned | - | 2026-11-03T08:29:21Z |
 | P1-03 | P1 | backlog | planned | - | 2026-11-03T08:29:21Z |
@@ -84,21 +88,25 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | PLAN-04 | PLAN | ship | done | orchestrator | 2026-11-02T23:23:05Z |
 | PLAN-05 | PLAN | ship | done | orchestrator | 2026-11-03T08:28:25Z |
 
-Next up: P0-08 Factory lanes (parallel mode)
+Next up: P0-07 External dependencies and legal register
 <!-- board:end -->
 
 ## In flight / next / only the owner can do
 
-Resumed 2026-11-17 by the owner after the pause of 2026-11-04 (the `- Paused` entry of the Log below). No card is in flight:
+Resumed 2026-11-17 by the owner after the pause of 2026-11-04 (the `- Paused` entry of the Log below). No sub-card is in flight:
 P0-02.6 Externalized UI strings shipped that day, so the last shipped card is P0-02.6 (`c005a7c`), and the P0-02 Repository
 bootstrap row was closed with it in the same step (the row's card, `## Ship`, lists which sub-card delivers what, and the three
 deliverables of the row's text that wait for later rows: the wasm32 build of both facades, schema drift and the quanta walk). The cards shipped before it on
 2026-11-17 are P0-02.5 Next.js skeleton (`ee5d288`) and P0-11 Resume-ability (`6078dcd`); before those, P0-02.4 (`d8d8b7e`).
 
-Next: P0-08 Factory lanes (parallel mode) (`/factory next`): the owner's decision 3 at approval, lanes right after P0-02
-(`docs/plan/roadmap.md`, the approval section and E3; the orders P0-08 3, P0-07 4, P0-05 5 set in `0ef5e8c`), and the owner's
-decision of 2026-11-17 on faster production (`docs/decisions/log.md`; the note in card P0-08's Spec). P0-08 is a work-package row:
-its spec station is the owner approving its acceptance criteria and split. After it ships the owner approves the acceptance criteria
+In flight as a row: P0-08 Factory lanes (parallel mode) stands at spec with status running since 2026-11-17: it is the
+work-package row whose sub-cards run, not a card to resume. Its split into P0-08.1 to P0-08.4 and the row's acceptance criteria are
+in its card's Spec and in `docs/decisions/log.md` (the owner's decision 3 at approval, lanes right after P0-02, `docs/plan/roadmap.md`
+E1 and E2; the owner's decision of 2026-11-17 on faster production).
+
+Next: P0-08.1 Card tooling (`/factory run P0-08.1`), then P0-08.2 Lane tooling, P0-08.3 PR-based ship and P0-08.4 Factory rules,
+which closes the row. `card.py list` names P0-07 as next up meanwhile, because its order (4) is lower than the sub-cards' (31 to
+34): the owner's order of 2026-11-17 puts the P0-08 sub-cards first. After P0-08.4 ships the owner approves the acceptance criteria
 and splits of P1-01, P2-01 and P4-06 in one sitting. P0-07 External dependencies and legal register and the plan-only sub-cards of
 P0-05 OpenTofu run whenever the line is idle; P0-05's apply sub-card waits for the AWS items below. P0-12 Local ports is in the
 backlog for the session that owns the tool. The `## Ship` sections of cards P0-02.6, P0-02.5 and P0-11 list what each leaves for
