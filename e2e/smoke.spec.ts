@@ -1,8 +1,9 @@
 // The smoke test of apps/web (card P0-02.5; the locale since card P0-02.6; the shell since card PX-02.1; the
-// 3D viewport since card PX-02.2; the model store since card PX-02.3): the health route, then the home page and
-// its screenshot, then the workspace route with the navigation, then the viewport with the side panel's counts,
-// the Undo and Redo buttons, the issues and the fixture switch, then hovering and selecting a member in the
-// viewport.
+// 3D viewport since card PX-02.2; the model store since card PX-02.3; the tools since card PX-02.4): the health
+// route, then the home page and its screenshot, then the workspace route with the navigation, then the
+// viewport with the side panel's counts, the Undo and Redo buttons, the issues and the fixture switch, then
+// hovering and selecting a member in the viewport, then a new model with two nodes and a member drawn with
+// the Node and the Member tool.
 // The health test is first: when a foreign process holds the port, its failure names the cause.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -210,4 +211,156 @@ test("/workspace highlights the member under the pointer and a click selects it"
   // The middle of the viewport is inside the frame, on no member: a click there clears the selection.
   await page.mouse.click(x, middle);
   await expect(panel.getByTestId("selection-empty")).toHaveText(message("workspace.panel.empty"));
+});
+
+// The point the Node or the Member tool would act at, as the viewport reports it (`data-cursor`, "x,y,z" in
+// metres), once the page has drawn a frame after the last pointer move; `null` when there is none.
+async function cursorPoint(page: Page): Promise<[number, number, number] | null> {
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  const text = await page.getByTestId("viewport-surface").getAttribute("data-cursor");
+  if (!text) {
+    return null;
+  }
+  const [x = Number.NaN, y = Number.NaN, z = Number.NaN] = text.split(",").map(Number);
+  return [x, y, z];
+}
+
+// Moves the pointer, in the Front view with a drawing tool active, until the viewport reports the point
+// (x, 0, z) under it, and returns where the pointer then is. No pixel is assumed: two probes give the scale
+// of the picture, and the pointer is corrected by what the viewport reports until it reads the target.
+async function movePointerTo(page: Page, x: number, z: number): Promise<{ x: number; y: number }> {
+  const box = await page.getByTestId("viewport").boundingBox();
+  if (box === null) {
+    throw new Error("the viewport area has no box");
+  }
+  // Inside the canvas, clear of the toolbar at the top and of the status lines at the bottom.
+  const clampX = (value: number) => Math.min(box.x + box.width - 40, Math.max(box.x + 40, value));
+  const clampY = (value: number) => Math.min(box.y + box.height - 90, Math.max(box.y + 70, value));
+  const first = { x: box.x + 200, y: box.y + box.height - 200 };
+  const second = { x: box.x + box.width - 200, y: box.y + 200 };
+  await page.mouse.move(first.x, first.y);
+  const a = await cursorPoint(page);
+  await page.mouse.move(second.x, second.y);
+  const b = await cursorPoint(page);
+  if (a === null || b === null || a[0] === b[0] || a[2] === b[2]) {
+    throw new Error(`the probes read ${a} and ${b}`);
+  }
+  const perMetreX = (second.x - first.x) / (b[0] - a[0]);
+  const perMetreY = (second.y - first.y) / (b[2] - a[2]);
+  let px = clampX(second.x + (x - b[0]) * perMetreX);
+  let py = clampY(second.y + (z - b[2]) * perMetreY);
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await page.mouse.move(px, py);
+    const at = await cursorPoint(page);
+    if (at === null) {
+      throw new Error(`no cursor at ${px}, ${py}`);
+    }
+    if (at[0] === x && at[1] === 0 && at[2] === z) {
+      return { x: px, y: py };
+    }
+    px = clampX(px + (x - at[0]) * perMetreX);
+    py = clampY(py + (z - at[2]) * perMetreY);
+  }
+  throw new Error(`the pointer did not reach ${x}, 0, ${z}`);
+}
+
+test("/workspace draws two nodes and a member in a new model, and undoes the member", async ({
+  page,
+}, testInfo) => {
+  const problems: string[] = [];
+  page.on("pageerror", (error) => problems.push(`page error: ${error.message}`));
+  await openViewport(page);
+  const viewport = page.getByTestId("viewport");
+  const surface = page.getByTestId("viewport-surface");
+  const panel = page.getByTestId("side-panel");
+  const tool = (id: string) =>
+    viewport.getByRole("button", { name: message(`workspace.tools.${id}`), exact: true });
+  // The palette: Select is the active tool, and each tool's tooltip names its key.
+  await expect(
+    viewport.getByRole("toolbar", { name: message("workspace.tools.label") }),
+  ).toBeVisible();
+  await expect(tool("select")).toHaveAttribute("aria-pressed", "true");
+  await expect(tool("node")).toHaveAttribute("aria-pressed", "false");
+  await expect(tool("member")).toHaveAttribute("title", /\(M\)/);
+  await expect(surface).toHaveAttribute("data-tool", "select");
+  // The defaults of the work plane and the snap.
+  await expect(viewport.getByTestId("work-plane")).toHaveValue("xz");
+  await expect(viewport.getByTestId("work-plane-offset")).toHaveValue("0");
+  await expect(viewport.getByTestId("snap-step")).toHaveValue("0.5");
+
+  // A new model: the portal frame has no change, so nothing is asked.
+  await panel.getByRole("button", { name: message("workspace.model.new"), exact: true }).click();
+  await expectCounts(page, 0, 0, 0);
+  await expectFreshHistory(page);
+  await viewport
+    .getByRole("button", { name: message("workspace.viewport.viewFront"), exact: true })
+    .click();
+
+  // Two nodes with the Node tool.
+  await tool("node").click();
+  await expect(tool("node")).toHaveAttribute("aria-pressed", "true");
+  await expect(surface).toHaveAttribute("data-tool", "node");
+  const first = await movePointerTo(page, 1, 1);
+  await expect(viewport.getByTestId("cursor-readout")).toHaveText(
+    message("workspace.cursor.readout").replace("{x}", "1").replace("{y}", "0").replace("{z}", "1"),
+  );
+  await page.mouse.click(first.x, first.y);
+  await expectCounts(page, 1, 0, 0);
+  // The placed node is selected: its coordinates are fields of the side panel.
+  await expect(panel.getByTestId("node-x")).toHaveValue("1");
+  await expect(panel.getByTestId("node-z")).toHaveValue("1");
+  const second = await movePointerTo(page, 5, 3.5);
+  await page.mouse.click(second.x, second.y);
+  await expectCounts(page, 2, 0, 0);
+  // A click on a point that has a node places no second one.
+  await page.mouse.click(second.x, second.y);
+  await expectCounts(page, 2, 0, 0);
+
+  // A press and release far apart is a drag of the camera: it places nothing.
+  await page.mouse.move(first.x + 150, first.y);
+  await page.mouse.down();
+  await page.mouse.move(first.x + 190, first.y - 20, { steps: 4 });
+  await page.mouse.up();
+  await expectCounts(page, 2, 0, 0);
+  await viewport
+    .getByRole("button", { name: message("workspace.viewport.viewFront"), exact: true })
+    .click();
+
+  // The member, with the Member tool chosen by its key: from the first node to the second.
+  await page.keyboard.press("m");
+  await expect(tool("member")).toHaveAttribute("aria-pressed", "true");
+  const start = await movePointerTo(page, 1, 1);
+  await page.mouse.click(start.x, start.y);
+  await expect(surface).toHaveAttribute("data-member-start", "n1");
+  await expectCounts(page, 2, 0, 0);
+  const end = await movePointerTo(page, 5, 3.5);
+  await page.mouse.click(end.x, end.y);
+  await expectCounts(page, 2, 1, 0);
+  await expect(surface).toHaveAttribute("data-member-start", "n2");
+  // The same two nodes again: refused, with a message, and the model is as it was.
+  await page.mouse.click(start.x, start.y);
+  await expect(viewport.getByTestId("tool-notice")).toHaveText(
+    message("workspace.notice.duplicateMember"),
+  );
+  await expectCounts(page, 2, 1, 0);
+  await page.screenshot({ path: screenshotPath(testInfo, "smoke-tools") });
+  // Escape ends the member in progress and returns to Select.
+  await page.keyboard.press("Escape");
+  await expect(surface).toHaveAttribute("data-tool", "select");
+  await expect(surface).toHaveAttribute("data-member-start", "");
+  await expect(tool("select")).toHaveAttribute("aria-pressed", "true");
+  await expect(viewport.getByTestId("tool-notice")).toHaveCount(0);
+
+  // Undo takes the member and leaves its two nodes; redo brings it back.
+  const history = (id: string) =>
+    viewport.getByRole("button", { name: message(`workspace.history.${id}`), exact: true });
+  await history("undo").click();
+  await expectCounts(page, 2, 0, 0);
+  await history("redo").click();
+  await expectCounts(page, 2, 1, 0);
+  await history("undo").click();
+  await expectCounts(page, 2, 0, 0);
+  expect(problems).toEqual([]);
 });

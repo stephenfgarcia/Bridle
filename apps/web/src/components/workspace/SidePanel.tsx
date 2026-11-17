@@ -1,18 +1,18 @@
 "use client";
 
-import type { Model, ModelIssue } from "@bridle/model";
-import type { ReactNode } from "react";
+import type { Model, ModelIssue, Node as ModelNode } from "@bridle/model";
+import { type ReactNode, useId } from "react";
 import { t } from "../../i18n";
 import { ISSUE_MESSAGE } from "../model/issueMessages";
+import { NumberField } from "../tools/NumberField";
+import { deleteSelection, moveNodeAction } from "../tools/toolActions";
 import { type ItemRef, useViewportStore } from "../viewport/viewportStore";
 import styles from "./WorkspaceView.module.css";
 
-/** A coordinate as text: at most four decimals, no trailing zeros. */
-function formatNumber(value: number): string {
-  return String(Number(value.toFixed(4)));
-}
-
-/** The rows of the selected item, as label and value; `undefined` when the model does not hold it. */
+/**
+ * The read-only rows of the selected item, as label and value; `undefined` when the model does not hold it.
+ * A node's coordinates are not among them: they are the fields of `NodeCoordinates`.
+ */
 function selectionRows(model: Model, selection: ItemRef | null): [string, string][] | undefined {
   if (selection?.kind === "node") {
     const node = model.nodes.find((candidate) => candidate.id === selection.id);
@@ -20,9 +20,6 @@ function selectionRows(model: Model, selection: ItemRef | null): [string, string
       node && [
         [t("workspace.selection.kind"), t("workspace.selection.kindNode")],
         [t("workspace.selection.id"), node.id],
-        [t("workspace.selection.x"), formatNumber(node.x)],
-        [t("workspace.selection.y"), formatNumber(node.y)],
-        [t("workspace.selection.z"), formatNumber(node.z)],
       ]
     );
   }
@@ -45,6 +42,45 @@ function selectionRows(model: Model, selection: ItemRef | null): [string, string
     ];
   }
   return undefined;
+}
+
+const AXES = [
+  ["x", "workspace.selection.x"],
+  ["y", "workspace.selection.y"],
+  ["z", "workspace.selection.z"],
+] as const;
+
+/**
+ * The X, Y and Z of the selected node as fields. A value typed in one is applied on Enter or on leaving the
+ * field, as one undo step (`moveNodeAction`: the place of another node is refused with a notice in the
+ * viewport); a text that is not a number is dropped.
+ */
+function NodeCoordinates({ node }: { node: ModelNode }) {
+  const baseId = useId();
+  return (
+    <div className={styles.coordinates} data-testid="node-coordinates">
+      {AXES.map(([axis, label]) => (
+        <div className={styles.coordinate} key={axis}>
+          <label className={styles.fieldLabel} htmlFor={`${baseId}-${axis}`}>
+            {t(label)}
+          </label>
+          <NumberField
+            className={styles.input}
+            id={`${baseId}-${axis}`}
+            onCommit={(value) =>
+              moveNodeAction(node.id, [
+                axis === "x" ? value : node.x,
+                axis === "y" ? value : node.y,
+                axis === "z" ? value : node.z,
+              ])
+            }
+            testId={`node-${axis}`}
+            value={node[axis]}
+          />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -85,8 +121,10 @@ function Issues({ issues }: { issues: ModelIssue[] }) {
 }
 
 /**
- * The side panel of the workspace: the model on screen (the example switch, the counts of its nodes, members
- * and supports, and its issues) and, read-only, the item selected in the viewport.
+ * The side panel of the workspace: the model on screen (the "New model" button and the example switch, the
+ * counts of its nodes, members and supports, and its issues) and the item selected in the viewport: its
+ * read-only rows, for a node the fields of its X, Y and Z, and a Delete button that removes the node or the
+ * member with what depends on it as one undo step.
  */
 export function SidePanel({
   model,
@@ -99,6 +137,10 @@ export function SidePanel({
 }) {
   const selection = useViewportStore((state) => state.selection);
   const rows = selectionRows(model, selection);
+  const selectedNode =
+    selection?.kind === "node"
+      ? model.nodes.find((candidate) => candidate.id === selection.id)
+      : undefined;
   const counts: [string, string, number][] = [
     ["count-nodes", t("workspace.counts.nodes"), model.nodes.length],
     ["count-members", t("workspace.counts.members"), model.members.length],
@@ -130,14 +172,25 @@ export function SidePanel({
           {t("workspace.panel.title")}
         </h2>
         {rows ? (
-          <dl className={styles.rows} data-testid="selection">
-            {rows.map(([label, value]) => (
-              <div className={styles.row} key={label}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
+          <>
+            <dl className={styles.rows} data-testid="selection">
+              {rows.map(([label, value]) => (
+                <div className={styles.row} key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {selectedNode ? <NodeCoordinates node={selectedNode} /> : null}
+            <button
+              className={styles.danger}
+              data-testid="delete-selection"
+              onClick={() => deleteSelection()}
+              type="button"
+            >
+              {t("workspace.selection.delete")}
+            </button>
+          </>
         ) : (
           <p className={styles.empty} data-testid="selection-empty">
             {t("workspace.panel.empty")}

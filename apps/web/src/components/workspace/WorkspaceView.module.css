@@ -175,3 +175,64 @@
 .issuePath {
   color: var(--fg-secondary);
 }
+
+/* "New model", above the example switch. */
+.action,
+.danger {
+  height: var(--density-control-h);
+  padding: 0 var(--space-3);
+  border: var(--border-1) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.action {
+  margin-bottom: var(--space-2);
+}
+
+.action:hover,
+.danger:hover {
+  background: var(--bg-sunken);
+}
+
+/* The Delete button of the selected item. */
+.danger {
+  align-self: flex-start;
+  border-color: var(--status-fail-fill);
+  color: var(--status-fail-fg);
+}
+
+.danger:hover {
+  background: var(--status-fail-bg);
+}
+
+/* The X, Y and Z fields of the selected node. */
+.coordinates {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.coordinate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.input {
+  width: 100%;
+  height: var(--density-control-h);
+  padding: 0 var(--space-2);
+  border: var(--border-1) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-feature-settings: var(--numeric-features);
+}

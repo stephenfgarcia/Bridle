@@ -6,8 +6,10 @@ import { useEffect, useId } from "react";
 import { t } from "../../i18n";
 import { selectFrameKey, selectIssues, selectModel, useModelStore } from "../model/modelStore";
 import { handleHistoryKey } from "../model/shortcuts";
+import { NEW_MODEL_SOURCE } from "../tools/newModel";
+import { loadModel, runToolKey, startNewModel } from "../tools/toolActions";
+import { toolKeyAction } from "../tools/toolKeys";
 import { Viewport } from "../viewport/Viewport";
-import { useViewportStore } from "../viewport/viewportStore";
 import { HistoryControls } from "./HistoryControls";
 import { SidePanel } from "./SidePanel";
 import styles from "./WorkspaceView.module.css";
@@ -31,7 +33,8 @@ function isFixtureId(value: string): value is FixtureId {
 /**
  * The two areas of the workspace: the viewport of the model in the model store, with the Undo and Redo buttons,
  * and the side panel about it. While it is mounted, the undo and redo shortcuts act on the store (Ctrl or Cmd
- * with Z; Ctrl or Cmd with Shift and Z, or Ctrl with Y), except when the key is pressed in a text field.
+ * with Z; Ctrl or Cmd with Shift and Z, or Ctrl with Y), except when the key is pressed in a text field, and so
+ * do the keys of the tools (../tools/toolKeys.ts: V, N, M, Escape, Delete and Backspace).
  */
 export function WorkspaceView() {
   const model = useModelStore(selectModel);
@@ -40,7 +43,16 @@ export function WorkspaceView() {
   const source = useModelStore((state) => state.source);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      handleHistoryKey(event, useModelStore.getState());
+      if (handleHistoryKey(event, useModelStore.getState())) {
+        return;
+      }
+      const action = toolKeyAction(event);
+      if (action !== null) {
+        if (action.type !== "escape") {
+          event.preventDefault();
+        }
+        runToolKey(action);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -59,6 +71,14 @@ export function WorkspaceView() {
       <SidePanel
         fixtureSwitch={
           <div className={styles.field}>
+            <button
+              className={styles.action}
+              data-testid="new-model"
+              onClick={() => startNewModel(() => window.confirm(t("workspace.model.newConfirm")))}
+              type="button"
+            >
+              {t("workspace.model.new")}
+            </button>
             <label className={styles.fieldLabel} htmlFor={switchId}>
               {t("workspace.fixture.label")}
             </label>
@@ -68,17 +88,18 @@ export function WorkspaceView() {
               id={switchId}
               onChange={(event) => {
                 if (isFixtureId(event.target.value)) {
-                  // The ids of one fixture mean nothing in another.
-                  useViewportStore.getState().select(null);
-                  useViewportStore.getState().setHover(null);
-                  // Loading a model drops the undo steps and frames the new model.
-                  useModelStore
-                    .getState()
-                    .replaceModel(FIXTURES[event.target.value].build(), event.target.value);
+                  // Loading a model drops the selection (the ids of one model mean nothing in another)
+                  // and the undo steps, and frames the new model.
+                  loadModel(FIXTURES[event.target.value].build(), event.target.value);
                 }
               }}
               value={source}
             >
+              {source === NEW_MODEL_SOURCE ? (
+                <option disabled value={NEW_MODEL_SOURCE}>
+                  {t("workspace.fixture.none")}
+                </option>
+              ) : null}
               {FIXTURE_IDS.map((id) => (
                 <option key={id} value={id}>
                   {t(FIXTURES[id].name)}

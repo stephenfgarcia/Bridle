@@ -136,8 +136,13 @@ three pages and one route handler:
   `packages/model`; a select in the side panel loads another, and the side panel lists the issues
   `validateModel` finds in the model. The viewport draws the nodes, the members and the supports with Z up, on a ground
   grid, with orbit, pan and zoom, a Fit button and three views (3D, Front, Top). A click selects a node or a
-  member and the side panel shows its data, read-only. The canvas (three.js through `@react-three/fiber`) is
-  loaded in the browser only.
+  member and the side panel shows its data: read-only, but for the X, Y and Z of a node, which are fields, and
+  with a Delete button. The viewport has a tool palette (card PX-02.4): Select, Node and Member (keys V, N
+  and M; Escape returns to Select), a work plane (X-Z at a chosen Y, or X-Y at a chosen Z) and a snap step
+  (0.1, 0.25, 0.5 or 1 m). The Node tool places a node at the snapped point of the work plane under the
+  pointer, the Member tool draws members from click to click, and the Select tool drags the selected node;
+  "New model" in the side panel starts an empty model with the fixtures' section and material. The canvas
+  (three.js through `@react-three/fiber`) is loaded in the browser only.
 - `/tasks` is a "Coming soon" state.
 - `GET /api/v1/health` answers 200 `application/json` `{"ok":true,"sha":"<sha>"}`.
 
@@ -164,7 +169,7 @@ Where the sha comes from (`apps/web/src/sha.ts`, read at every request and never
 HEAD): `GIT_SHA` when it is set and not empty (the application image sets it), else `git rev-parse --short HEAD`
 (where git and the repository exist: development and the smoke test), else `unknown`.
 
-`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the five
+`pnpm e2e:smoke` reads the root `playwright.config.ts`: the Chromium project only, one worker, no retries, the six
 tests of `e2e/smoke.spec.ts`. It starts `pnpm --filter web dev --hostname 127.0.0.1 --port $PORT` (`PORT`, default
 3000) and stops it when the tests end, or reuses the server that already answers
 `http://127.0.0.1:$PORT/api/v1/health`. The first test asserts the health route: 200, `application/json`, a body
@@ -178,14 +183,18 @@ side panel says "No issues", takes `.bridle/screenshots/smoke-workspace.png`, ch
 fixture and checks the counts again (5, 7 and 5 for the truss; 2, 1 and 2 for the beam), and fails when the page
 threw an error or the console holds a hydration error. The fifth takes the front view, moves the pointer down the
 middle of the viewport until the viewport reports the beam `b1` under it, clicks, checks that the side panel shows
-that member, then clicks on nothing and checks that the selection is gone. The locale is `NEXT_PUBLIC_LOCALE` of
-the shell that runs the smoke, `en` when unset, so against a running server of another locale the four tests that
+that member, then clicks on nothing and checks that the selection is gone. The sixth starts a new model, takes
+the front view, places two nodes with the Node tool and a member between them with the Member tool (it moves the
+pointer until the viewport's `data-cursor` attribute reads the wanted point, then clicks), reads the counts 2
+and 1 from the side panel, checks that a second member between the two nodes is refused with a message, takes
+`.bridle/screenshots/smoke-tools.png`, and undoes the member. The locale is `NEXT_PUBLIC_LOCALE` of
+the shell that runs the smoke, `en` when unset, so against a running server of another locale the five tests that
 open a page fail at `lang`: run it with the server's locale, or on another `PORT`.
 Failure output goes to `.bridle/playwright/`; both
 directories are gitignored. The sha the tests expect is `GIT_SHA` when the shell that runs the smoke has it, else
 `git rev-parse --short HEAD`, so a server started with another `GIT_SHA` fails the smoke: the sha is asserted, not
-echoed. With its five tests it took 8 to 11 s here when Playwright started the server and about 6 s against a
-running one (card PX-02.2, 2026-11-18).
+echoed. With its six tests it took 12 to 15 s here when Playwright started the server and 7 to 13 s against a
+running one (card PX-02.4, 2026-11-18).
 
 The browser: `@playwright/test` 1.64.1 (the pin of `tools/toolchain.json`, also typed in the root `package.json`)
 drives the Chromium build that `npx playwright@1.64.1 install chromium` puts in `~/Library/Caches/ms-playwright`
@@ -212,7 +221,7 @@ packages/i18n/lint/lint-strings.mjs`, which fails on a hard-coded user-facing st
 no ESLint), typecheck (`turbo run typecheck` runs `web#typecheck`, `tsc --noEmit`, where a `t("id")` whose id is
 not in the catalog is a type error) and test (`turbo run test` runs `web#test`: the token copy test on node's own
 test runner, then `vitest run` for the `*.test.ts` files under `apps/web/src`, which test without a browser what
-the viewport draws for a model and where its camera stands). `pnpm --filter web build` and `pnpm e2e:smoke` are separate
+the viewport draws for a model, where its camera stands, the model store and the tools' geometry and rules). `pnpm --filter web build` and `pnpm e2e:smoke` are separate
 commands, not steps of `pnpm check`; the test, review and ship stations run the smoke for cards that touch
 `apps/web` (factory/line.md). Actions runs neither: Playwright's browsers reach the runners with P0-09.
 

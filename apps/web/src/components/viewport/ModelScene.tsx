@@ -9,6 +9,7 @@ import {
   type Camera,
   ConeGeometry,
   CylinderGeometry,
+  DoubleSide,
   EdgesGeometry,
   Float32BufferAttribute,
   type Group,
@@ -20,6 +21,8 @@ import {
   type PerspectiveCamera,
   Vector3,
 } from "three";
+import { useToolStore } from "../tools/toolStore";
+import type { WorkPlaneGrid } from "../tools/workPlane";
 import {
   type DrawnMember,
   type DrawnNode,
@@ -54,12 +57,15 @@ const NODE_PX = 10;
 const NODE_HIGHLIGHT_PX = 15;
 const GLYPH_PX = 34;
 // A click is a press and a release at most this many pixels apart; a longer one was a drag of the camera.
-const CLICK_SLOP_PX = 2;
+export const CLICK_SLOP_PX = 2;
+
+// The opacity of the tint over the work plane (the alpha of the token `--canvas-plane-tint`).
+const PLANE_TINT_OPACITY = 0.06;
 
 const scratchPoint = new Vector3();
 const scratchMatrix = new Matrix4();
 
-function noRaycast(): null {
+export function noRaycast(): null {
   return null;
 }
 
@@ -68,7 +74,7 @@ function mutable(point: Point3): [number, number, number] {
 }
 
 /** The length in the scene, in m, that one CSS pixel covers at `point` (the camera's matrices must be current). */
-function metresPerPixel(camera: Camera, viewportHeight: number, point: Point3): number {
+export function metresPerPixel(camera: Camera, viewportHeight: number, point: Point3): number {
   const perspective = camera as PerspectiveCamera;
   if (perspective.isPerspectiveCamera) {
     scratchPoint.set(point[0], point[1], point[2]).applyMatrix4(camera.matrixWorldInverse);
@@ -82,9 +88,14 @@ function metresPerPixel(camera: Camera, viewportHeight: number, point: Point3): 
   return (orthographic.top - orthographic.bottom) / (viewportHeight * orthographic.zoom);
 }
 
+/** The pointer handlers of the nodes and the members select and highlight with the Select tool only. */
+function selecting(): boolean {
+  return useToolStore.getState().tool === "select";
+}
+
 function clearHover(kind: "node" | "member") {
   const { hover, setHover } = useViewportStore.getState();
-  if (hover?.kind === kind) {
+  if (hover?.kind === kind && selecting()) {
     setHover(null);
   }
 }
@@ -114,6 +125,53 @@ function Grid({ grid, colors }: { grid: GridSpec; colors: CanvasColors }) {
       </lineSegments>
       <lineSegments geometry={geometries.major} raycast={noRaycast} renderOrder={-1}>
         <lineBasicMaterial color={colors.gridMajor} depthWrite={false} />
+      </lineSegments>
+    </>
+  );
+}
+
+/**
+ * The work plane of the tools: a faint tint over its area and a grid in the selection colour, so it is seen
+ * where a point will land. It writes no depth and is not picked.
+ */
+function WorkPlane({ grid, color }: { grid: WorkPlaneGrid; color: string }) {
+  const geometries = useMemo(() => {
+    const make = (positions: number[]) => {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+      return geometry;
+    };
+    const [a, b, c, d] = grid.corners;
+    return {
+      minor: make(grid.minor),
+      major: make(grid.major),
+      area: make([...a, ...b, ...c, ...a, ...c, ...d]),
+    };
+  }, [grid]);
+  useEffect(
+    () => () => {
+      geometries.minor.dispose();
+      geometries.major.dispose();
+      geometries.area.dispose();
+    },
+    [geometries],
+  );
+  return (
+    <>
+      <mesh geometry={geometries.area} raycast={noRaycast} renderOrder={-5}>
+        <meshBasicMaterial
+          color={color}
+          depthWrite={false}
+          opacity={PLANE_TINT_OPACITY}
+          side={DoubleSide}
+          transparent
+        />
+      </mesh>
+      <lineSegments geometry={geometries.minor} raycast={noRaycast} renderOrder={-4}>
+        <lineBasicMaterial color={color} depthWrite={false} opacity={0.16} transparent />
+      </lineSegments>
+      <lineSegments geometry={geometries.major} raycast={noRaycast} renderOrder={-3}>
+        <lineBasicMaterial color={color} depthWrite={false} opacity={0.4} transparent />
       </lineSegments>
     </>
   );
@@ -157,7 +215,7 @@ function Members({ members, colors }: { members: DrawnMember[]; colors: CanvasCo
         lineWidth={MEMBER_PX}
         onClick={(event) => {
           const member = memberAt(event);
-          if (member === undefined || event.delta > CLICK_SLOP_PX) {
+          if (member === undefined || event.delta > CLICK_SLOP_PX || !selecting()) {
             return;
           }
           event.stopPropagation();
@@ -165,7 +223,7 @@ function Members({ members, colors }: { members: DrawnMember[]; colors: CanvasCo
         }}
         onPointerMove={(event) => {
           const member = memberAt(event);
-          if (member === undefined) {
+          if (member === undefined || !selecting()) {
             return;
           }
           event.stopPropagation();
@@ -235,7 +293,7 @@ function Nodes({ nodes, colors }: { nodes: DrawnNode[]; colors: CanvasColors }) 
         frustumCulled={false}
         onClick={(event) => {
           const node = nodeAt(event);
-          if (node === undefined || event.delta > CLICK_SLOP_PX) {
+          if (node === undefined || event.delta > CLICK_SLOP_PX || !selecting()) {
             return;
           }
           event.stopPropagation();
@@ -243,7 +301,7 @@ function Nodes({ nodes, colors }: { nodes: DrawnNode[]; colors: CanvasColors }) 
         }}
         onPointerMove={(event) => {
           const node = nodeAt(event);
-          if (node === undefined) {
+          if (node === undefined || !selecting()) {
             return;
           }
           event.stopPropagation();
@@ -426,11 +484,23 @@ function Supports({ supports, colors }: { supports: DrawnSupport[]; colors: Canv
   );
 }
 
-/** The grid, the members, the nodes and the supports of one scene description. Rendered inside the canvas. */
-export function ModelScene({ scene, colors }: { scene: SceneDescription; colors: CanvasColors }) {
+/**
+ * The ground grid, the work plane, the members, the nodes and the supports of one scene description. Rendered
+ * inside the canvas.
+ */
+export function ModelScene({
+  scene,
+  workPlane,
+  colors,
+}: {
+  scene: SceneDescription;
+  workPlane: WorkPlaneGrid;
+  colors: CanvasColors;
+}) {
   return (
     <>
       <Grid colors={colors} grid={scene.grid} />
+      <WorkPlane color={colors.selection} grid={workPlane} />
       <Supports colors={colors} supports={scene.supports} />
       <Members colors={colors} members={scene.members} />
       <Nodes colors={colors} nodes={scene.nodes} />

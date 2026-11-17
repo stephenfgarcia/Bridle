@@ -15,9 +15,14 @@ import {
 } from "react";
 import type { PerspectiveCamera } from "three";
 import { t } from "../../i18n";
+import { ToolPalette } from "../tools/ToolPalette";
+import { ToolStatus } from "../tools/ToolStatus";
+import { useToolStore } from "../tools/toolStore";
+import { drawingBounds, emptyModelBounds, pointText, workPlaneGrid } from "../tools/workPlane";
 import { placeCamera, SCENE_UP, VIEW_DIRECTIONS, VIEW_FOV_DEG, type ViewPreset } from "./camera";
 import { type CanvasColors, ModelScene } from "./ModelScene";
-import { buildScene, type Point3, type SceneBounds } from "./scene";
+import { buildScene, gridFor, type Point3, type SceneBounds } from "./scene";
+import { ToolLayer } from "./ToolLayer";
 import styles from "./Viewport.module.css";
 import { useViewportStore } from "./viewportStore";
 
@@ -149,14 +154,33 @@ function CameraRig({
   return <OrbitControls enableDamping={false} makeDefault ref={controls as Ref<never>} />;
 }
 
-/** The element around the canvas: it says what the pointer is over (`data-hover`) and shows a pointer cursor. */
+/**
+ * The element around the canvas. It shows a pointing hand over a node or a member and a crosshair with the Node
+ * and the Member tool, and it says, for a test or a script, what the pointer and the tools are at:
+ * - `data-hover`: the item under the pointer, as `member:b1` or `node:n2`, or empty;
+ * - `data-tool`: the active tool, `select`, `node` or `member`;
+ * - `data-cursor`: where the Node or Member tool would act, or where a dragged node would land, as `x,y,z` in
+ *   metres (`pointText`), or empty;
+ * - `data-member-start`: the id of the node the Member tool's next member starts at, or empty;
+ * - `data-dragging`: the id of the node being dragged, or empty.
+ */
 function HoverSurface({ children }: { children: ReactNode }) {
   const hover = useViewportStore((state) => state.hover);
+  const tool = useToolStore((state) => state.tool);
+  const cursor = useToolStore((state) => state.cursor);
+  const drag = useToolStore((state) => state.drag);
+  const memberStart = useToolStore((state) => state.memberStart);
+  const point = drag?.point ?? cursor?.point ?? null;
+  const look = tool !== "select" ? styles.surfaceDraw : hover ? styles.surfaceHover : "";
   return (
     <div
-      className={hover ? `${styles.surface} ${styles.surfaceHover}` : styles.surface}
+      className={`${styles.surface} ${look}`}
+      data-cursor={point ? pointText(point) : ""}
+      data-dragging={drag ? drag.nodeId : ""}
       data-hover={hover ? `${hover.kind}:${hover.id}` : ""}
+      data-member-start={memberStart ?? ""}
       data-testid="viewport-surface"
+      data-tool={tool}
     >
       {children}
     </div>
@@ -170,12 +194,25 @@ const PRESETS: { preset: ViewPreset; label: string }[] = [
 ];
 
 /**
- * The 3D canvas of the viewport and its toolbar (Fit and the three view presets). Only ever rendered in the
+ * The 3D canvas of the viewport and its toolbar (the tool palette with the work plane and the snap step, Fit
+ * and the three view presets), with the tools' status lines in the bottom left corner. Only ever rendered in the
  * browser (Viewport.tsx). The canvas draws a frame when something changed (`frameloop="demand"`): the camera
  * moved, or React committed a change to the scene.
  */
 export default function ViewportCanvas({ model, frameKey }: { model: Model; frameKey: string }) {
-  const scene = useMemo(() => buildScene(model), [model]);
+  const built = useMemo(() => buildScene(model), [model]);
+  const plane = useToolStore((state) => state.plane);
+  // The grids cover the model and the drawing area of an empty model; the camera frames the model, or that
+  // drawing area while the model has no node.
+  const { scene, planeGrid, frameBounds } = useMemo(() => {
+    const hasNodes = built.nodes.length > 0;
+    const covered = drawingBounds(built.bounds, hasNodes, plane);
+    return {
+      scene: { ...built, grid: gridFor(covered) },
+      planeGrid: workPlaneGrid(plane, covered),
+      frameBounds: hasNodes ? built.bounds : emptyModelBounds(plane),
+    };
+  }, [built, plane]);
   const [palette] = useState(readPalette);
   const rig = useRef<CameraRigHandle>(null);
   return (
@@ -189,13 +226,19 @@ export default function ViewportCanvas({ model, frameKey }: { model: Model; fram
           onCreated={({ raycaster }) => {
             raycaster.params.Line2 = { threshold: MEMBER_PICK_PX };
           }}
-          onPointerMissed={() => useViewportStore.getState().select(null)}
+          // A click on nothing clears the selection with the Select tool; the other tools act on it (ToolLayer).
+          onPointerMissed={() => {
+            if (useToolStore.getState().tool === "select") {
+              useViewportStore.getState().select(null);
+            }
+          }}
           style={{ position: "absolute", inset: 0 }}
         >
           <ambientLight intensity={1.4} />
           <directionalLight intensity={2.2} position={[6, -10, 14]} />
-          <CameraRig bounds={scene.bounds} frameKey={frameKey} ref={rig} />
-          <ModelScene colors={palette} scene={scene} />
+          <CameraRig bounds={frameBounds} frameKey={frameKey} ref={rig} />
+          <ModelScene colors={palette} scene={scene} workPlane={planeGrid} />
+          <ToolLayer colors={palette} />
           <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
             <GizmoViewport
               axisColors={palette.axes}
@@ -207,24 +250,27 @@ export default function ViewportCanvas({ model, frameKey }: { model: Model; fram
         </Canvas>
       </HoverSurface>
       <div className={styles.toolbar}>
-        <button className={styles.button} onClick={() => rig.current?.fit()} type="button">
-          {t("workspace.viewport.fit")}
-        </button>
-        {/* biome-ignore lint/a11y/useSemanticElements: a group of buttons, not a form's fieldset */}
-        <div aria-label={t("workspace.viewport.views")} className={styles.group} role="group">
-          {PRESETS.map(({ preset, label }) => (
-            <button
-              className={styles.button}
-              key={preset}
-              onClick={() => rig.current?.view(preset)}
-              type="button"
-            >
-              {label}
-            </button>
-          ))}
+        <ToolPalette />
+        <div className={styles.camera}>
+          <button className={styles.button} onClick={() => rig.current?.fit()} type="button">
+            {t("workspace.viewport.fit")}
+          </button>
+          {/* biome-ignore lint/a11y/useSemanticElements: a group of buttons, not a form's fieldset */}
+          <div aria-label={t("workspace.viewport.views")} className={styles.group} role="group">
+            {PRESETS.map(({ preset, label }) => (
+              <button
+                className={styles.button}
+                key={preset}
+                onClick={() => rig.current?.view(preset)}
+                type="button"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      <p className={styles.help}>{t("workspace.viewport.help")}</p>
+      <ToolStatus />
     </>
   );
 }
