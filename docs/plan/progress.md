@@ -98,7 +98,7 @@ row); a phase exit (`docs/plan/roadmap.md` Part F) is a dated entry here too. Th
 | PX-01.9 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
 | PX-02.1 | PX | ship | done | orchestrator | 2026-11-17T16:41:27Z |
 | PX-02.2 | PX | ship | done | orchestrator | 2026-11-17T17:14:47Z |
-| PX-02.3 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
+| PX-02.3 | PX | ship | done | orchestrator | 2026-11-17T17:29:59Z |
 | PX-02.4 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
 | PX-02.5 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
 | PX-02.6 | PX | backlog | planned | - | 2026-11-17T16:26:45Z |
@@ -137,7 +137,7 @@ Next up: P0-07 External dependencies and legal register
 
 Resumed 2026-11-17 by the owner after the pause of 2026-11-04 (the `- Paused` entry of the Log below). Since 2026-11-18 the work
 follows the pitch plan (`docs/plan/pitch-plan.md`), with cards PX-01.1 to PX-04.8 running in the lanes core and web; `card.py list`
-and the board above say which are in flight, and the last shipped card is PX-02.2 (`f09c66d`). The cards shipped on 2026-11-17,
+and the board above say which are in flight, and the last shipped card is PX-02.3 (`1fb07cc`). The cards shipped on 2026-11-17,
 before the pitch plan: P0-08.2 Lane tooling (`09c0851`), P0-08.1 Card tooling (`99168d5`), P0-02.6 Externalized UI strings
 (`c005a7c`, which closed the P0-02 Repository bootstrap row; the row's card, `## Ship`, lists the three deliverables that wait for
 later rows), P0-02.5 Next.js skeleton (`ee5d288`) and P0-11 Resume-ability (`6078dcd`); before those, P0-02.4 (`d8d8b7e`).
@@ -229,3 +229,4 @@ the sessions open on the checkout.
 - 2026-11-18 00:41, PX-02.1, commit e9ee25e: App shell, design tokens and 3D dependencies; the app shell of `apps/web` (top bar, navigation, `/workspace` with a viewport area and a side panel, `/tasks`), the design tokens as a tested copy of `docs/ux/tokens.css`, `three` 0.187.0, `@react-three/fiber` 9.8.2, `@react-three/drei` 10.7.9 and `zustand` 5.1.0, a third smoke test, the `plain` case of `tools/test/web.test.sh` replaced by `shell`; built and tested by one agent under the pitch process.
 - 2026-11-18 00:57, PX-01.2, commit a649c06: 3D frame element stiffness and assembly; the package `packages/solver` (`@bridle/solver`): the 12 by 12 Euler-Bernoulli 3D frame element in local axes, its transformation from `memberLocalAxes`, and `assemble` for the dense global stiffness matrix with the degree-of-freedom map, 49 tests; an independent review compared all 144 entries with the textbook matrix and closed-form cases and failed one README sentence, fixed by the foreman.
 - 2026-11-18 01:14, PX-02.2, commit f09c66d: 3D viewport; the 3D viewport of `/workspace`: a model drawn with Z up (nodes, members, fixed, pinned and roller glyphs), orbit, pan, zoom, Fit and the views 3D, Front and Top, an axis indicator, hover and select with the properties in the side panel, a switch between the three example models, 32 unit tests of the scene description and five smoke tests; `tools/test/i18n.test.sh` and two documents of `docs/ops` brought up to date; built and tested by one agent under the pitch process.
+- 2026-11-18 01:29, PX-02.3, commit 1fb07cc: Model store with undo and redo; the model store of the workspace: pure commands for nodes, members, supports, loads, sections, materials and load cases with their refusals, new ids, undo and redo with a history of 200 steps, the Undo and Redo buttons and shortcuts, the issues of `validateModel` in the side panel with catalog messages, 72 new unit tests; built and tested by one agent under the pitch process.
