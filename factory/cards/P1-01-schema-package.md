@@ -221,6 +221,9 @@ illustrative and carry no reference values that are graded.
 - `canon:1` hashes depend on field names and semantic flags set here. Guard: P1-02 may still change them before any hash is stored;
   after M-A (RM:349) a change bumps canon (AR:195).
 
+### Owner's decisions on the draft (2026-11-17)
+
+The owner took the foreman's recommendation on each of these: what "schema 1.0 frozen" covers (question 7: a hard lock on task, rubric, deliverables and scenario, a version-bump lock on the rest); sixteen sub-cards instead of E1's four (question 10); the proposed manual gate on P1-01.16 (the owner confirms the 1.0 freeze) is accepted. Recorded in `docs/decisions/log.md` (2026-11-17). The owner answered the foreman's six questions in chat and added: "If ever you have anything specific to ask, just give me the questions". The foreman takes this as the approval of this draft's acceptance criteria and split with the draft's recommendation on each open question; a recommendation that would change `docs/architecture/architecture.md` or an ADR is not applied by this approval and goes back to the owner as a question with a decision record. The sub-cards are created after P0-08.4 ships, once the foreman has checked the draft against `docs/plan/roadmap.md`; the owner may change the split before a sub-card starts.
 
 ## Plan
 

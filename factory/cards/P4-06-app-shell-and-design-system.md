@@ -168,6 +168,9 @@ Q18. EvidenceRow and EvidenceTable show GradeEvidence records (UX:10), a schema 
 7. `routes.ts` freezes every MVP path before the screens exist; a later rename touches breadcrumbs, palette and links. Guard: hrefs are built only through the table (a test greps `apps/web/src` for string paths beginning `/o/`), so a rename is one line.
 8. A third TypeScript 6.0.3 pin (Q6) and new pins typed in new places (the lesson of P0-02.5's four test passes over `docs/ops/toolchain.md`). Guard: .1 and .23 sweep for typed pins.
 
+### Owner's decisions on the draft (2026-11-17)
+
+The owner took the foreman's recommendation on each of these: stay on Next.js 15 with the TypeScript 6.0.3 pin (question 6; this also answers the open question 2 of P0-02.5's `## Ship`); organisation routes are `/o/:org` paths, not per-institution subdomains (question 15); the proposed manual gate on P4-06.24 (the owner looks at the shell screenshots and the gallery) is accepted. Recorded in `docs/decisions/log.md` (2026-11-17). The owner answered the foreman's six questions in chat and added: "If ever you have anything specific to ask, just give me the questions". The foreman takes this as the approval of this draft's acceptance criteria and split with the draft's recommendation on each open question; a recommendation that would change `docs/architecture/architecture.md` or an ADR is not applied by this approval and goes back to the owner as a question with a decision record. The sub-cards are created after P0-08.4 ships, once the foreman has checked the draft against `docs/plan/roadmap.md`; the owner may change the split before a sub-card starts.
 
 ## Plan
 

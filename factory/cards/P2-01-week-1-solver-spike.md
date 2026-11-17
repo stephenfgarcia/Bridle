@@ -207,6 +207,9 @@ and headless Chromium, and time all three on this M4 Pro. These numbers are fast
   animated null-space mode); the memo says whether it applies.
 - `tools/perf-runners/` (arch line 355) has no owner in `factory/lanes.json`. This row does not create it; P2-04 must assign it.
 
+### Owner's decisions on the draft (2026-11-17)
+
+Hardware (question 1): the owner has an M4 Pro MacBook ("64 gigabytes of RAM" in the owner's words; this development machine reports `Mac16,7`, Apple M4 Pro, 51539607552 bytes, which is 48 GiB), so neither reference machine (an M1 Mac with 8 GB, a Tiger Lake laptop) is at hand. The draft's option (c) therefore applies: the row closes on proxy numbers with a decision marked provisional, and the two real-hardware gates move to P2-04. Five sub-cards instead of E1's two (the owner took the recommendation). Recorded in `docs/decisions/log.md` (2026-11-17). The owner answered the foreman's six questions in chat and added: "If ever you have anything specific to ask, just give me the questions". The foreman takes this as the approval of this draft's acceptance criteria and split with the draft's recommendation on each open question; a recommendation that would change `docs/architecture/architecture.md` or an ADR is not applied by this approval and goes back to the owner as a question with a decision record. The sub-cards are created after P0-08.4 ships, once the foreman has checked the draft against `docs/plan/roadmap.md`; the owner may change the split before a sub-card starts.
 
 ## Plan
 
